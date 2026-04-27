@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import * as LucideIcons from "lucide-react";
-import { 
-  Search, Settings, Edit2, Lock, Trash2, ExternalLink, Moon, Sun, LayoutGrid, ChevronDown, ChevronRight, MoreVertical, GripVertical, LogOut, Maximize2, Plus, Move, X, Upload, Palette, LayoutTemplate, Copy, ChevronLeft, Grid, ArrowRight, PlusCircle, Layout, Download, Library, Check, Menu, Star
+import {
+  Search, Settings, Edit2, Trash2, Moon, Sun, ChevronDown, ChevronRight, LogOut, Plus, Palette, Star
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as actions from "@/app/admin/actions";
@@ -113,6 +113,7 @@ export function Dashboard({
   // States
   const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0].id : "");
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showEditControls, setShowEditControls] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -197,8 +198,6 @@ export function Dashboard({
      });
 
      await actions.moveSection(srcId, currentTabId, colIdx, targetId);
-     // refresh in background without tearing UI
-     router.refresh();
   };
 
   const handleBookmarkDrop = async (e: React.DragEvent, targetId: string, currentSectionId: string) => {
@@ -243,7 +242,6 @@ export function Dashboard({
      });
      
      await actions.moveBookmark(bId, currentSectionId, targetId);
-     router.refresh();
   };
 
   const mounted = useMounted();
@@ -261,8 +259,8 @@ export function Dashboard({
   
   // Filter logic
   const filteredTabs = useMemo(() => {
-    if (!searchQuery.trim()) return [activeTab].filter(Boolean) as Tab[];
-    const sq = searchQuery.toLowerCase();
+    if (!deferredSearchQuery.trim()) return [activeTab].filter(Boolean) as Tab[];
+    const sq = deferredSearchQuery.toLowerCase();
     return tabs.map(tab => {
        const matchedSections = tab.sections.map(section => {
           const matchedBookmarks = section.bookmarks.filter(b => b.title.toLowerCase().includes(sq) || (b.description || "").toLowerCase().includes(sq));
@@ -274,51 +272,48 @@ export function Dashboard({
        if (matchedSections.length > 0) return { ...tab, sections: matchedSections };
        return null;
     }).filter(Boolean) as Tab[];
-  }, [tabs, activeTab, searchQuery]);
+  }, [tabs, activeTab, deferredSearchQuery]);
 
-  const displayedTabs = searchQuery.trim() ? filteredTabs : ([activeTab].filter(Boolean) as Tab[]);
+  const displayedTabs = deferredSearchQuery.trim() ? filteredTabs : ([activeTab].filter(Boolean) as Tab[]);
 
   const toggleSection = (tabId: string, sectionId: string, defaultCollapsed: boolean = false) => {
     const key = `${tabId}_${sectionId}`;
     setCollapsedSections(prev => ({ ...prev, [key]: prev[key] === undefined ? !defaultCollapsed : !prev[key] }));
   };
 
-  if (!mounted) return null;
-
-  const hexToRgb = (hex: string) => {
-    if (!hex) return "99, 102, 241";
-    if (hex.startsWith('rgb')) return hex;
-    const cleanHex = hex.replace('#', '');
-    if (cleanHex.length !== 6) return "99, 102, 241";
-    const r = parseInt(cleanHex.slice(0, 2), 16);
-    const g = parseInt(cleanHex.slice(2, 4), 16);
-    const b = parseInt(cleanHex.slice(4, 6), 16);
-    return `${r}, ${g}, ${b}`;
-  };
-
   const isLight = theme === 'light';
-  const secOpac = activeTheme.sectionOpacity ?? 0.7;
-  const glsOpac = activeTheme.glassOpacity ?? 0.12;
 
-  // PROPERLY tie glass wash to glassOpacity!
-  // Dark mode requires lower raw alpha than light mode for the same visual effect
-  const glassOverlayAlpha = isLight ? (glsOpac * 0.9) : (glsOpac * 0.4); 
-  
-  // Tie background density to sectionOpacity
-  // Let the user push the tint up to 60-80% if they want solid opaque cards
-  const colorTintAlpha = isLight ? (secOpac * 0.8) : (secOpac * 0.45);
+  const { dynamicCSS } = useMemo(() => {
+    const hexToRgb = (hex: string) => {
+      if (!hex) return "99, 102, 241";
+      if (hex.startsWith('rgb')) return hex;
+      const cleanHex = hex.replace('#', '');
+      if (cleanHex.length !== 6) return "99, 102, 241";
+      const r = parseInt(cleanHex.slice(0, 2), 16);
+      const g = parseInt(cleanHex.slice(2, 4), 16);
+      const b = parseInt(cleanHex.slice(4, 6), 16);
+      return `${r}, ${g}, ${b}`;
+    };
 
-  const glassBg = activeTheme.glassEffect === false ? `rgba(${hexToRgb(activeTheme.primaryColor)}, ${colorTintAlpha})` : 
-      `linear-gradient(rgba(255, 255, 255, ${glassOverlayAlpha}), rgba(255, 255, 255, ${glassOverlayAlpha})), rgba(${hexToRgb(activeTheme.primaryColor)}, ${colorTintAlpha})`;
-  
-  const glassBorder = activeTheme.glassEffect === false ? `rgba(${hexToRgb(activeTheme.primaryColor)}, 0.2)` : 
-      `rgba(${hexToRgb(activeTheme.primaryColor)}, ${isLight ? 0.2 : 0.25})`;
+    const secOpac = activeTheme.sectionOpacity ?? 0.7;
+    const glsOpac = activeTheme.glassOpacity ?? 0.12;
+    const glassOverlayAlpha = isLight ? (glsOpac * 0.9) : (glsOpac * 0.4);
+    const colorTintAlpha = isLight ? (secOpac * 0.8) : (secOpac * 0.45);
+    const primaryRgb = hexToRgb(activeTheme.primaryColor);
 
-  const dynamicCSS = `
+    const glassBg = activeTheme.glassEffect === false
+      ? `rgba(${primaryRgb}, ${colorTintAlpha})`
+      : `linear-gradient(rgba(255, 255, 255, ${glassOverlayAlpha}), rgba(255, 255, 255, ${glassOverlayAlpha})), rgba(${primaryRgb}, ${colorTintAlpha})`;
+
+    const glassBorder = activeTheme.glassEffect === false
+      ? `rgba(${primaryRgb}, 0.2)`
+      : `rgba(${primaryRgb}, ${isLight ? 0.2 : 0.25})`;
+
+    const dynamicCSS = `
     :root, [data-theme='dark'], [data-theme='light'] {
       --primary: ${activeTheme.primaryColor};
-      --primary-rgb: ${hexToRgb(activeTheme.primaryColor)};
-      --primary-glow: rgba(${hexToRgb(activeTheme.primaryColor)}, 0.5);
+      --primary-rgb: ${primaryRgb};
+      --primary-glow: rgba(${primaryRgb}, 0.5);
       --glass-bg: ${glassBg};
       --glass-border: ${glassBorder};
     }
@@ -365,6 +360,10 @@ export function Dashboard({
       }
     }
   `;
+    return { dynamicCSS };
+  }, [activeTheme.primaryColor, activeTheme.glassEffect, activeTheme.sectionOpacity, activeTheme.glassOpacity, isLight]);
+
+  if (!mounted) return null;
 
   return (
      <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', maxWidth: '100vw' }}>
@@ -569,7 +568,7 @@ export function Dashboard({
                              handleSectionDrop(e, undefined, tab.id, colIdx); 
                           }}
                        >
-                          {tab.sections
+                          {[...tab.sections]
                              .filter(s => (s.column ?? 0) === colIdx)
                              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                              .map(section => (
@@ -614,7 +613,7 @@ export function Dashboard({
                                 {/* Bookmarks */}
                                 {!(collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) && (
                                    <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
-                                      {section.bookmarks.sort((a,b) => a.order - b.order).map(bookmark => (
+                                      {[...section.bookmarks].sort((a,b) => a.order - b.order).map(bookmark => (
                                          <div
                                             key={bookmark.id}
                                             draggable={showEditControls}
