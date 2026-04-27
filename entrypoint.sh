@@ -7,7 +7,7 @@ set -e
 if [ -d "./prisma/migrations" ] && [ -n "$(ls -A ./prisma/migrations 2>/dev/null)" ]; then
   npx prisma migrate deploy
 else
-  npx prisma db push --accept-data-loss --skip-generate
+  npx prisma db push --accept-data-loss
 fi
 
 # If extra args were passed (e.g. `npm run dev` from docker-compose), run them.
