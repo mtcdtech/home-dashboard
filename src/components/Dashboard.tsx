@@ -1,4 +1,14 @@
-"use client";
+"use c
+   // Lock body scroll when catalog is open
+   useEffect(() => {
+      if (isCatalogOpen) {
+         document.body.style.overflow = 'hidden';
+      } else {
+         document.body.style.overflow = 'auto';
+      }
+      return () => { document.body.style.overflow = 'auto'; };
+   }, [isCatalogOpen]);
+lient";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import * as LucideIcons from "lucide-react";
@@ -840,7 +850,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                      {catalogTab === "workspaces" && (
                         libraryTabs.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared workspaces available.</div> :
                            libraryTabs.map(libTab => {
-                              const isAdded = displayedTabs.some(t => t.id === libTab.id);
+                              const isAdded = tabs.some(t => t.id === libTab.id);
                               return (
                               <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', opacity: isAdded ? 0.5 : 1 }}>
                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>

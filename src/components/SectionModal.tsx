@@ -50,13 +50,13 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
   return (
     <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
        <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '700px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', borderRadius: '32px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
-          <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
              <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{section ? `Configure ${section.title}` : "New Section"}</h2>
              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
           </div>
 
-          <div style={{ padding: '2rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+             <div className="glass-card" style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Section Name</label>
                 <input 
                    autoFocus
@@ -64,7 +64,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                    onChange={(e) => setTitle(e.target.value)}
                    placeholder="e.g. Finance Dashboard" 
                    className="glass" 
-                   style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '1rem', boxSizing: 'border-box' }} 
+                   style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '1rem', boxSizing: 'border-box' }} 
                 />
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer', marginTop: '0.5rem' }}>
@@ -98,13 +98,13 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                          placeholder="Briefly describe what this section contains..." 
                          className="glass" 
                          rows={2}
-                         style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '0.95rem', boxSizing: 'border-box', resize: 'vertical' }} 
+                         style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.95rem', boxSizing: 'border-box', resize: 'vertical' }} 
                       />
                    </div>
                 )}
              </div>
 
-             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)' }}>
+             <div className="glass-card" style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(var(--primary-rgb), 0.05)' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '1rem' }}>Section Icon</label>
                 <div style={{ /* expanded dynamically */ }}>
                   <IconPicker currentIcon={icon} setIcon={setIcon} query={query} setQuery={setQuery} iconRegistry={iconRegistry} onUpload={onUploadIcon} />
@@ -112,7 +112,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
              </div>
           </div>
 
-          <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>
+          <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>
              <div>
                 {section && targetTabId && (
                    <button 
@@ -150,7 +150,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                    </button>
                 )}
              </div>
-             <div style={{ display: 'flex', gap: '1rem' }}>
+             <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={onClose} className="btn" style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600 }}>Cancel</button>
                 <button onClick={handleSave} disabled={saving || !title.trim()} className="btn btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '12px', fontWeight: 600, opacity: (saving || !title.trim()) ? 0.5 : 1 }}>
                    {saving ? "Saving..." : "Save Config"}

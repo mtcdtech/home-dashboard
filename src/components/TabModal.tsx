@@ -48,14 +48,14 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
   return (
     <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
        <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '800px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', borderRadius: '32px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
-          <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
              <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{tab ? `Configure ${tab.title}` : "Create New Workspace"}</h2>
              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
           </div>
 
-          <div style={{ padding: '2rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="glass-card" style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Workspace Settings</label>
                    <input 
                       autoFocus
@@ -63,10 +63,10 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Workspace Name (e.g. Finance)" 
                       className="glass" 
-                      style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '1rem', boxSizing: 'border-box' }} 
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '1rem', boxSizing: 'border-box' }} 
                    />
 
-                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                       <div style={{ flex: 1, minWidth: '150px' }}>
                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Column Layout</label>
                          <select 
@@ -100,7 +100,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                    </div>
 
                    {/* Add to Catalog toggle */}
-                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: '12px', border: `1px solid ${isLibraryItem ? 'var(--primary)' : 'var(--glass-border)'}`, background: isLibraryItem ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent', transition: 'all 0.2s ease' }}>
+                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.6rem 0.8rem', borderRadius: '12px', border: `1px solid ${isLibraryItem ? 'var(--primary)' : 'var(--glass-border)'}`, background: isLibraryItem ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent', transition: 'all 0.2s ease' }}>
                       <input
                          type="checkbox"
                          checked={isLibraryItem}
@@ -116,7 +116,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                 </div>
              </div>
 
-             <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column' }}>
+             <div className="glass-card" style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '1rem' }}>Workspace UI Icon</label>
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                   <IconPicker currentIcon={icon} setIcon={setIcon} query={query} setQuery={setQuery} iconRegistry={iconRegistry} onUpload={onUploadIcon} />
@@ -124,7 +124,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
              </div>
           </div>
 
-          <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>
+          <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>
              <div>
                 {tab && (
                    <button 
@@ -162,7 +162,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                    </button>
                 )}
              </div>
-             <div style={{ display: 'flex', gap: '1rem' }}>
+             <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button onClick={onClose} className="btn" style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600 }}>Cancel</button>
                 <button onClick={handleSave} disabled={saving || !title.trim()} className="btn btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '12px', fontWeight: 600, opacity: (saving || !title.trim()) ? 0.5 : 1 }}>
                    {saving ? "Saving..." : "Save Workspace"}
