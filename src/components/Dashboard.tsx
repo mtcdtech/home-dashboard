@@ -362,7 +362,10 @@ export function Dashboard({
 
    // Use the active TAB's primary color if it has its own theme, else fall back to global theme
    const activeTabObj = tabs.find((t: any) => t.id === activeTabId);
-   const effectivePrimaryColor = activeTabObj?.theme?.primaryColor || activeTheme.primaryColor;
+   const effectivePrimaryColor = (activeTabObj?.theme?.primaryColor && activeTabObj.theme.primaryColor !== '') 
+      ? activeTabObj.theme.primaryColor 
+      : activeTheme.primaryColor;
+   // Debug: console.log('Active tab:', activeTabObj?.title, 'theme:', activeTabObj?.theme?.primaryColor, 'effective:', effectivePrimaryColor);
 
    // PROPERLY tie glass wash to glassOpacity!
    const glassOverlayAlpha = isLight ? (glsOpac * 0.9) : (glsOpac * 0.4);
@@ -833,7 +836,7 @@ export function Dashboard({
                                  className="glass-card"
                                  draggable={true}
                                  onDragStart={(e) => {
-                                    e.dataTransfer.effectAllowed = "copy";
+                                    e.dataTransfer.effectAllowed = "all";
                                     e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
                                     setDraggedSectionId(`catalogSection:${libSec.id}`);
                                  }}

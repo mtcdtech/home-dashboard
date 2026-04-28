@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Building2, LayoutGrid } from "lucide-react";
+import { X, LayoutGrid, BookMarked } from "lucide-react";
 import { IconPicker } from "./IconPicker";
 import * as actions from "@/app/admin/actions";
 
@@ -18,7 +18,7 @@ export interface TabModalProps {
 export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [] }: TabModalProps) {
   const [title, setTitle] = useState(tab?.title || "");
   const [icon, setIcon] = useState(tab?.icon || "");
-  const [organization, setOrganization] = useState(tab?.organization || "");
+  const [isLibraryItem, setIsLibraryItem] = useState(tab?.isLibraryItem ?? false);
   const [themeId, setThemeId] = useState(tab?.themeId || tab?.theme?.id || "");
   const [columns, setColumns] = useState(tab?.columns || 3);
   const [query, setQuery] = useState("");
@@ -30,9 +30,9 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
     setSaving(true);
     try {
       if (tab) {
-        await actions.updateTab(tab.id, { title, icon, organization: organization || null, columns, themeId: themeId || null } as any);
+        await actions.updateTab(tab.id, { title, icon, columns, themeId: themeId || null, isLibraryItem } as any);
       } else {
-        await actions.createTab({ title, icon, organization: organization || null, columns, themeId: themeId || null } as any);
+        await actions.createTab({ title, icon, columns, themeId: themeId || null, isLibraryItem } as any);
       }
       onSaved();
     } catch (err) {
@@ -53,7 +53,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
           <div style={{ padding: '2rem', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '2rem' }}>
              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Workspace Root Settings</label>
+                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Workspace Settings</label>
                    <input 
                       autoFocus
                       value={title}
@@ -63,62 +63,53 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                       style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '1rem', boxSizing: 'border-box' }} 
                    />
 
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Organizational Access</label>
-                      <div style={{ position: 'relative' }}>
-                         <Building2 size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                         <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Column Layout</label>
                          <select 
-                            value={organization} 
-                            onChange={(e) => setOrganization(e.target.value)}
-                            style={{ width: '100%', padding: '1rem 1rem 1rem 2.8rem', borderRadius: '12px', background: 'var(--glass-bg)', color: 'var(--text)', border: '1px solid var(--glass-border)', appearance: 'none', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
+                            value={columns} 
+                            onChange={(e) => setColumns(Number(e.target.value))}
+                            className="glass"
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', outline: 'none' }}
                          >
-                            <option value="">Public (All Users)</option>
-                            <option value="Entire Organization">Verified Users Only</option>
-                            {allDepartments?.map(d => (
-                               <option key={d} value={d}>Department: {d}</option>
+                            <option value={2}>2 Columns</option>
+                            <option value={3}>3 Columns</option>
+                            <option value={4}>4 Columns</option>
+                            <option value={5}>5 Columns (Wide)</option>
+                            <option value={6}>6 Columns (Ultra Wide)</option>
+                         </select>
+                      </div>
+                   
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                         <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Workspace Theme</label>
+                         <select 
+                            value={themeId} 
+                            onChange={(e) => setThemeId(e.target.value)}
+                            className="glass"
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', outline: 'none' }}
+                         >
+                            <option value="">-- Inherit System Theme --</option>
+                            {allThemes.map(t => (
+                               <option key={t.id} value={t.id}>{t.name}</option>
                             ))}
                          </select>
                       </div>
-                      <p style={{ fontSize: '0.75rem', opacity: 0.5, margin: 0, marginTop: '4px' }}>Only users matching this organization label can view this workspace.</p>
                    </div>
-                   
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Column Layout Mapping</label>
-                       <div style={{ position: 'relative' }}>
-                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                   <div style={{ flex: 1, minWidth: '150px' }}>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Column Layout</label>
-                      <select 
-                         value={columns} 
-                         onChange={(e) => setColumns(Number(e.target.value))}
-                         className="glass"
-                         style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', outline: 'none' }}
-                      >
-                         <option value={2}>2 Columns</option>
-                         <option value={3}>3 Columns</option>
-                         <option value={4}>4 Columns</option>
-                         <option value={5}>5 Columns (Wide)</option>
-                         <option value={6}>6 Columns (Ultra Wide)</option>
-                      </select>
-                   </div>
-                   
-                   <div style={{ flex: 1, minWidth: '150px' }}>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Workspace Theme</label>
-                      <select 
-                         value={themeId} 
-                         onChange={(e) => setThemeId(e.target.value)}
-                         className="glass"
-                         style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', outline: 'none' }}
-                      >
-                         <option value="">-- Inherit System Theme --</option>
-                         {allThemes.map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                         ))}
-                      </select>
-                   </div>
-                </div>
-                       </div>
-                   </div>
+
+                   {/* Add to Catalog toggle */}
+                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: '12px', border: `1px solid ${isLibraryItem ? 'var(--primary)' : 'var(--glass-border)'}`, background: isLibraryItem ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent', transition: 'all 0.2s ease' }}>
+                      <input
+                         type="checkbox"
+                         checked={isLibraryItem}
+                         onChange={(e) => setIsLibraryItem(e.target.checked)}
+                         style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
+                      />
+                      <BookMarked size={16} style={{ opacity: 0.6, flexShrink: 0 }} />
+                      <div>
+                         <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Add to Workspace Catalog</div>
+                         <div style={{ fontSize: '0.75rem', opacity: 0.55, marginTop: '2px' }}>Other users can discover and add this workspace to their dashboard</div>
+                      </div>
+                   </label>
                 </div>
              </div>
 
