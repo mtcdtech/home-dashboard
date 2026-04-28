@@ -539,6 +539,9 @@ export function Dashboard({
                      const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor;
                      const isActiveTab = activeTabId === tab.id;
                      const isDragOver = dragOverTabId === tab.id;
+                     const tabBgInactive = tabPrimary + '99';
+                     const tabBgDragOver = tabPrimary + '80';
+                     const tabBorderInactive = tabPrimary + 'B3';
                      return (
                         <button
                            key={tab.id}
@@ -551,15 +554,9 @@ export function Dashboard({
                            onDrop={(e) => { handleTabDrop(e, tab.id); setDragOverTabId(null); }}
                            style={{
                               padding: '0.75rem 1.25rem',
-                              background: isDragOver
-                                 ? `${tabPrimary}80`
-                                 : isActiveTab
-                                 ? tabPrimary
-                                 : `${tabPrimary}99`,
-                              border: `1px solid ${isActiveTab || isDragOver ? tabPrimary : `${tabPrimary}B3`}`,
-                              borderTop: isDragOver
-                                 ? `3px solid ${tabPrimary}`
-                                 : `1px solid ${isActiveTab ? tabPrimary : `${tabPrimary}B3`}`,
+                              background: isDragOver ? tabBgDragOver : isActiveTab ? tabPrimary : tabBgInactive,
+                              border: '1px solid ' + (isActiveTab || isDragOver ? tabPrimary : tabBorderInactive),
+                              borderTop: isDragOver ? ('3px solid ' + tabPrimary) : ('1px solid ' + (isActiveTab ? tabPrimary : tabBorderInactive)),
                               borderBottom: 'none',
                               cursor: showEditControls ? 'grab' : 'pointer', borderRadius: '12px 12px 0 0',
                               color: isActiveTab ? 'var(--nav-text)' : 'var(--text)',
