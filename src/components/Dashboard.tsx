@@ -534,8 +534,8 @@ export function Dashboard({
 
          {/* Tab Selection */}
          {(tabs.length > 1 || showEditControls) && !searchQuery.trim() && (
-            <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent' }}>
-               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+            <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent', position: 'relative' }}>
+               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start', position: 'relative' }}>
                   {tabs.map(tab => {
                      const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor;
                      const isActiveTab = activeTabId === tab.id;
@@ -553,14 +553,14 @@ export function Dashboard({
                            style={{
                               padding: '0.75rem 1.25rem',
                               background: isDragOver
-                                 ? `${tabPrimary}59`
+                                 ? `${tabPrimary}80`
                                  : isActiveTab
                                  ? tabPrimary
-                                 : `${tabPrimary}33`,
-                              border: `1px solid ${isActiveTab || isDragOver ? tabPrimary : `${tabPrimary}80`}`,
+                                 : `${tabPrimary}99`,
+                              border: `1px solid ${isActiveTab || isDragOver ? tabPrimary : `${tabPrimary}B3`}`,
                               borderTop: isDragOver
                                  ? `3px solid ${tabPrimary}`
-                                 : `1px solid ${isActiveTab ? tabPrimary : `${tabPrimary}80`}`,
+                                 : `1px solid ${isActiveTab ? tabPrimary : `${tabPrimary}B3`}`,
                               borderBottom: 'none',
                               cursor: showEditControls ? 'grab' : 'pointer', borderRadius: '12px 12px 0 0',
                               color: isActiveTab ? 'var(--nav-text)' : 'var(--text)',
@@ -609,17 +609,32 @@ export function Dashboard({
                         >
                            <Plus size={18} /> New Workspace
                         </button>
-                        <button
-                           onClick={() => setIsCatalogOpen(true)}
-                           style={{
-                              padding: '0.75rem 1.25rem', background: 'rgba(var(--primary-rgb), 0.1)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderBottom: 'none',
-                              cursor: 'pointer', borderRadius: '12px 12px 0 0', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem'
-                           }}
-                        >
-                           <Library size={18} /> Catalog
-                        </button>
                      </div>
                   )}
+               </div>
+               {/* Catalog button — always pinned to the far right */}
+               <button
+                  onClick={() => setIsCatalogOpen(v => !v)}
+                  style={{
+                     position: 'absolute', right: '1.5rem', bottom: '0.6rem',
+                     padding: '0.55rem 1rem',
+                     background: isCatalogOpen ? effectivePrimaryColor : `${effectivePrimaryColor}CC`,
+                     border: `1px solid ${effectivePrimaryColor}`,
+                     borderRadius: '10px',
+                     cursor: 'pointer',
+                     color: '#fff',
+                     fontWeight: 700,
+                     fontSize: '0.85rem',
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: '0.4rem',
+                     boxShadow: `0 2px 12px ${effectivePrimaryColor}55`,
+                     transition: 'all 0.2s ease',
+                     zIndex: 3,
+                  }}
+               >
+                  <Library size={15} /> Catalog
+               </button>
                </div>
             </div>
          )}
@@ -795,8 +810,8 @@ export function Dashboard({
 
          {/* --- Modals --- */}
          {isCatalogOpen && (
-            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end', pointerEvents: draggedSectionId?.startsWith("catalogSection:") ? 'none' : 'auto' }}>
-               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: theme === 'dark' ? 'rgba(18,18,18,0.85)' : 'rgba(255,255,255,0.85)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: '1px solid var(--glass-border)', pointerEvents: 'auto' }}>
+            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: draggedSectionId?.startsWith('catalogSection:') ? 'transparent' : 'rgba(0,0,0,0.35)', backdropFilter: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end', pointerEvents: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
+               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: `${effectivePrimaryColor}CC`, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: `1px solid ${effectivePrimaryColor}`, pointerEvents: 'auto' }}>
                   <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(var(--primary-rgb), 0.05)' }}>
                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Library size={20} /> Public Catalog</h2>
                      <button onClick={() => setIsCatalogOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
@@ -848,6 +863,7 @@ export function Dashboard({
                                     e.dataTransfer.effectAllowed = "all";
                                     e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
                                     setDraggedSectionId(`catalogSection:${libSec.id}`);
+                                    setIsCatalogOpen(false);
                                  }}
                                   onDragEnd={() => setDraggedSectionId(null)}
                                  style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'grab' }}
