@@ -1,14 +1,4 @@
-"use c
-   // Lock body scroll when catalog is open
-   useEffect(() => {
-      if (isCatalogOpen) {
-         document.body.style.overflow = 'hidden';
-      } else {
-         document.body.style.overflow = 'auto';
-      }
-      return () => { document.body.style.overflow = 'auto'; };
-   }, [isCatalogOpen]);
-lient";
+"use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import * as LucideIcons from "lucide-react";
@@ -174,6 +164,16 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
    const [dragOverColIdx, setDragOverColIdx] = useState<number | null>(null);
 
    const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+   // Lock body scroll when catalog is open
+   useEffect(() => {
+      if (isCatalogOpen) {
+         document.body.style.overflow = 'hidden';
+      } else {
+         document.body.style.overflow = 'auto';
+      }
+      return () => { document.body.style.overflow = 'auto'; };
+   }, [isCatalogOpen]);
+
    const [catalogTab, setCatalogTab] = useState<"workspaces" | "sections">("workspaces");
 
    const hasTabEditAccess = (tab: Tab) => {
