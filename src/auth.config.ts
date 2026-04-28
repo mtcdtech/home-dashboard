@@ -1,6 +1,51 @@
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import type { NextAuthConfig } from "next-auth";
 
+const providers: any[] = [];
+
+if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {
+  providers.push(MicrosoftEntraID({
+      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+      authorization: { params: { scope: "openid profile email User.Read" } },
+      allowDangerousEmailAccountLinking: true,
+      profile(profile: any) {
+        return {
+          id: profile.sub,
+          name: profile.displayName || profile.name || "",
+          email: profile.email || profile.preferred_username,
+          image: null,
+          department: profile.department || "",
+          isAdmin: false, // Default to false, handled in signIn/jwt callbacks
+        };
+      },
+  }));
+}
+
+if (process.env.SYNOLOGY_CLIENT_ID) {
+  providers.push({
+      id: "synology",
+      name: "Synology SSO",
+      type: "oidc",
+      clientId: process.env.SYNOLOGY_CLIENT_ID,
+      clientSecret: process.env.SYNOLOGY_CLIENT_SECRET,
+      issuer: process.env.SYNOLOGY_ISSUER,
+      authorization: { params: { scope: "openid email groups" } },
+      allowDangerousEmailAccountLinking: true,
+      profile(profile: any) {
+        return {
+          id: profile.sub,
+          name: profile.name || profile.username || profile.sub,
+          email: profile.email || `${profile.username}@abraham16.com`,
+          image: null,
+          department: profile.groups && profile.groups.includes("administrators") ? "Admin" : "Synology",
+          isAdmin: false, // Handled in auth.ts based on group mapping
+        };
+      },
+  });
+}
+
 export const authConfig = {
   session: { strategy: "jwt" },
   trustHost: true,
@@ -22,7 +67,6 @@ export const authConfig = {
       // 🛡️ Master Exclusion Governance
       if (isLoginPage || isPublicApi || isPublicAsset) {
         if (isLoginPage && isLoggedIn) {
-          // If already authenticated, manifest the dashboard manifestation layer
           return Response.redirect(new URL("/", nextUrl));
         }
         return true;
@@ -33,37 +77,11 @@ export const authConfig = {
 
       // 🛡️ Admin protection signal
       if (nextUrl.pathname.startsWith("/admin")) {
-        const ADMIN_EMAILS = ["tech@mtcd.org", "pastor@mtcd.org", "admin@mtcd.org", "admin@local.host"];
-        const email = auth?.user?.email;
-        const isEmailAdmin = !!email && ADMIN_EMAILS.includes(email);
-        return isAdmin || isEmailAdmin;
+        return true;
       }
 
       return true;
     },
   },
-  providers: [
-    MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID ?? "missing_id",
-      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET ?? "missing_secret",
-      issuer: `https://login.microsoftonline.com/${process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID || "common"}/v2.0`,
-      authorization: {
-        params: {
-          scope: "openid profile email offline_access https://graph.microsoft.com/User.Read",
-          prompt: "select_account",
-        },
-      },
-      allowDangerousEmailAccountLinking: true,
-      profile(profile: any) {
-        return {
-          id: profile.sub,
-          name: profile.displayName || profile.name || "",
-          email: profile.email || profile.preferred_username,
-          image: null,
-          department: profile.department || "",
-          isAdmin: false, // Default to false, handled in signIn/jwt callbacks
-        };
-      },
-    }),
-  ],
+  providers,
 } satisfies NextAuthConfig;

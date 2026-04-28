@@ -11,7 +11,7 @@ const IconComponent = ({ name, size = 24, color = "currentColor" }: { name: stri
   return <Icon size={size} color={color} />;
 };
 
-export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any }) {
+export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicrosoft, hasSynology }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any, hasMicrosoft?: boolean, hasSynology?: boolean }) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
@@ -218,13 +218,95 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme }: { logoU
               marginTop: '0.5rem'
             }}
           >
-            Sign In
+            Sign In Locally
           </button>
         </form>
 
+        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
+          <span style={{ margin: '0 1rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>OR</span>
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
+        </div>
+
+        {hasMicrosoft && (
+          <button 
+            onClick={() => signIn("microsoft-entra-id", { callbackUrl: "/" })}
+            style={{ 
+              width: '100%',
+              padding: '1.1rem', 
+              borderRadius: '16px', 
+              background: 'rgba(255,255,255,0.05)', 
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '1rem',
+              border: '1px solid rgba(255,255,255,0.1)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              marginBottom: '1rem'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11.5 11.5H3V3H11.5V11.5Z" fill="#F25022"/>
+              <path d="M21 11.5H12.5V3H21V11.5Z" fill="#7FBA00"/>
+              <path d="M11.5 21H3V12.5H11.5V21Z" fill="#00A4EF"/>
+              <path d="M21 21H12.5V12.5H21V21Z" fill="#FFB900"/>
+            </svg>
+            Sign In with Corporate SSO
+          </button>
+        )}
+
+        {hasSynology && (
+          <button 
+            onClick={() => signIn("synology", { callbackUrl: "/" })}
+            style={{ 
+              width: '100%',
+              padding: '1.1rem', 
+              borderRadius: '16px', 
+              background: 'rgba(255,255,255,0.05)', 
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '1rem',
+              border: '1px solid rgba(255,255,255,0.1)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 8V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Sign In with Synology SSO
+          </button>
+        )}
+
         <div style={{ marginTop: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', opacity: 0.2 }}>
            <ShieldCheck size={14} />
-           <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Secure Local Authentication</span>
+           <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Secure Authentication</span>
         </div>
       </div>
 

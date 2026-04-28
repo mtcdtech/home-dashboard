@@ -270,6 +270,46 @@ export async function moveSection(sectionId: string, tabId: string, targetColumn
   revalidatePath("/");
 }
 
+export async function updatePersonalLayout(data: {
+  tabOrder?: string[];
+  tabId?: string;
+  sectionId?: string;
+  column?: number;
+  order?: number;
+  collapsed?: boolean;
+}) {
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.email) throw new Error("Unauthorized");
+
+  const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true, layout: true } });
+  if (!dbUser) throw new Error("User not found");
+
+  let layout: any = dbUser.layout || {};
+
+  if (data.tabOrder) {
+    layout.tabOrder = data.tabOrder;
+  }
+
+  if (data.tabId && data.sectionId) {
+    if (!layout.tabSections) layout.tabSections = {};
+    if (!layout.tabSections[data.tabId]) layout.tabSections[data.tabId] = {};
+    if (!layout.tabSections[data.tabId][data.sectionId]) layout.tabSections[data.tabId][data.sectionId] = {};
+
+    const secLayout = layout.tabSections[data.tabId][data.sectionId];
+    if (data.column !== undefined) secLayout.column = data.column;
+    if (data.order !== undefined) secLayout.order = data.order;
+    if (data.collapsed !== undefined) secLayout.collapsed = data.collapsed;
+  }
+
+  await prisma.user.update({
+    where: { id: dbUser.id },
+    data: { layout }
+  });
+
+  revalidatePath("/");
+}
+
 export async function activateTheme(id: string) {
   await prisma.theme.updateMany({ data: { isActive: false } });
   await prisma.theme.update({ where: { id }, data: { isActive: true } });

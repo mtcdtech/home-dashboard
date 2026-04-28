@@ -154,7 +154,12 @@ export function Dashboard({
      const [moved] = newTabs.splice(src, 1);
      newTabs.splice(dst, 0, moved);
      setTabs(newTabs);
-     await actions.reorderTabs(newTabs.map(t => t.id));
+     
+     if (isAdmin) {
+         await actions.reorderTabs(newTabs.map(t => t.id));
+     } else {
+         await actions.updatePersonalLayout({ tabOrder: newTabs.map(t => t.id) });
+     }
      setDraggedTabId(null);
   };
 
@@ -190,13 +195,26 @@ export function Dashboard({
         } else {
             targetTab.sections.push(movedSection);
         }
-        
         targetTab.sections.filter(s => s.column === colIdx).forEach((s, idx) => { s.order = idx; });
         newTabs[tabIndex] = targetTab;
         return newTabs;
      });
 
-     await actions.moveSection(srcId, currentTabId, colIdx, targetId);
+     if (isAdmin) {
+         await actions.moveSection(srcId, currentTabId, colIdx, targetId);
+     } else {
+         // Determine new order value
+         const newTabs = [...tabs];
+         const tabIndex = newTabs.findIndex(t => t.id === currentTabId);
+         if (tabIndex !== -1) {
+            const targetTab = newTabs[tabIndex];
+            const sortedInCol = targetTab.sections.filter(s => s.column === colIdx).sort((a,b) => (a.order??0)-(b.order??0));
+            // Send the update for all items in the column so order is preserved
+            for (let i = 0; i < sortedInCol.length; i++) {
+                await actions.updatePersonalLayout({ tabId: currentTabId, sectionId: sortedInCol[i].id, column: colIdx, order: i });
+            }
+         }
+     }
      // refresh in background without tearing UI
      router.refresh();
   };
@@ -278,9 +296,15 @@ export function Dashboard({
 
   const displayedTabs = searchQuery.trim() ? filteredTabs : ([activeTab].filter(Boolean) as Tab[]);
 
-  const toggleSection = (tabId: string, sectionId: string, defaultCollapsed: boolean = false) => {
+  const toggleSection = async (tabId: string, sectionId: string, defaultCollapsed: boolean = false) => {
     const key = `${tabId}_${sectionId}`;
-    setCollapsedSections(prev => ({ ...prev, [key]: prev[key] === undefined ? !defaultCollapsed : !prev[key] }));
+    const newState = collapsedSections[key] === undefined ? !defaultCollapsed : !collapsedSections[key];
+    setCollapsedSections(prev => ({ ...prev, [key]: newState }));
+    
+    // Optimistically save personal preference if logged in
+    if (currentUserId) {
+        await actions.updatePersonalLayout({ tabId, sectionId, collapsed: newState });
+    }
   };
 
   if (!mounted) return null;
@@ -367,7 +391,7 @@ export function Dashboard({
   `;
 
   return (
-     <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', maxWidth: '100vw' }}>
+     <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', maxWidth: '100vw', paddingTop: '0.5rem' }}>
         <style dangerouslySetInnerHTML={{ __html: dynamicCSS }} />
         <AmbientBackground theme={activeTheme} />
 
@@ -425,8 +449,8 @@ export function Dashboard({
                  </button>
               )}
 
-              {/* Edit Toggle */}
-              {canEditContent && (
+              {/* Edit Toggle (Available to all logged-in users) */}
+              {currentUserId && (
                  <button className="nav-menu-btn" title="Toggle Edit Mode" onClick={() => setShowEditControls(!showEditControls)} style={{ background: showEditControls ? 'var(--primary)' : 'transparent', color: showEditControls ? 'white' : 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', marginLeft: '0.25rem' }}>
                     <Edit2 size={18} /> <span className="mobile-menu-text">Edit Dashboard</span>
                  </button>
@@ -686,13 +710,14 @@ export function Dashboard({
             isOpen={isThemeModalOpen} 
             onClose={() => setIsThemeModalOpen(false)} 
             onSave={async (data) => {
-               if (activeTheme?.id) {
+               if (activeTheme?.id && activeTheme.id !== "default") {
                   await actions.updateTheme(activeTheme.id, data);
                } else {
                   const newTheme = await actions.createTheme(data);
                   await actions.updateTab(activeTab.id, { themeId: newTheme.id });
                }
                setIsThemeModalOpen(false);
+               router.refresh(); // Force a hard refresh to get the new theme JSON
             }} 
          />}
         

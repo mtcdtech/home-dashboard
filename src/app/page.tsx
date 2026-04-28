@@ -16,7 +16,7 @@ export default async function Home() {
 
   let dbUser = await prisma.user.findUnique({
     where: { email: userEmail },
-    select: { id: true, avatarColor: true, isAdmin: true, defaultTabId: true }
+    select: { id: true, avatarColor: true, isAdmin: true, defaultTabId: true, layout: true }
   });
 
   const userId = dbUser?.id || (session.user as any)?.id;
@@ -130,6 +130,36 @@ export default async function Home() {
     if (tab.owners?.some((u: any) => u.id === userId)) return true;
     return false;
   });
+
+  const userLayout = (dbUser as any)?.layout || {};
+  
+  // Apply personal overrides
+  shapedTabs.forEach((tab: any) => {
+    const tabOverrides = userLayout.tabSections?.[tab.id];
+    if (tabOverrides) {
+       tab.sections.forEach((section: any) => {
+          const override = tabOverrides[section.id];
+          if (override) {
+             if (override.column !== undefined) section.column = override.column;
+             if (override.order !== undefined) section.order = override.order;
+             if (override.collapsed !== undefined) section.defaultCollapsed = override.collapsed;
+          }
+       });
+    }
+    // Re-sort sections within columns since we might have changed them
+    tab.sections.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+  });
+
+  if (Array.isArray(userLayout.tabOrder)) {
+     shapedTabs.sort((a: any, b: any) => {
+         const idxA = userLayout.tabOrder.indexOf(a.id);
+         const idxB = userLayout.tabOrder.indexOf(b.id);
+         if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+         if (idxA !== -1) return -1;
+         if (idxB !== -1) return 1;
+         return a.order - b.order;
+     });
+  }
 
   return (
     <Dashboard 

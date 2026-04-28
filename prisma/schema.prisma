@@ -23,6 +23,7 @@ model User {
   iconSize      Int       @default(48) // Custom icon size for the user
   avatarColor   String?   // Persistent random color for avatar
   defaultTabId  String?   // Per-user default workspace tab
+  layout        Json?     // Personalized layout configuration override
   allowedSections Section[] @relation("UserAllowedSections")
   allowedTabs     Tab[]     @relation("UserAllowedTabs")
   managedSections Section[] @relation("SectionEditors")
