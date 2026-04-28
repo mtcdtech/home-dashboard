@@ -609,9 +609,10 @@ export function Dashboard({
                      </div>
                   )}
                </div>
-               {/* Catalog button — pinned to far right of tab bar */}
-               <button
-                  onClick={() => setIsCatalogOpen(!isCatalogOpen)}
+               {/* Catalog button — pinned to far right of tab bar (only in edit mode) */}
+               {showEditControls && (
+                  <button
+                     onClick={() => setIsCatalogOpen(!isCatalogOpen)}
                   style={{
                      position: 'absolute', right: '1.5rem', bottom: '0.6rem',
                      padding: '0.55rem 1rem',
@@ -625,7 +626,8 @@ export function Dashboard({
                >
                   <Library size={15} /> Catalog
                </button>
-            </div>
+               )}
+            </div>            </div>
          )}
 
          {/* Main Content Area */}
@@ -800,7 +802,7 @@ export function Dashboard({
          {/* --- Modals --- */}
          {isCatalogOpen && (
             <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: draggedSectionId?.startsWith('catalogSection:') ? 'transparent' : 'rgba(0,0,0,0.35)', backdropFilter: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end', pointerEvents: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
-               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: drawerBg, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: '1px solid ' + effectivePrimaryColor, pointerEvents: 'auto' }}>
+               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: isLight ? 'rgba(255,255,255,0.9)' : 'rgba(18,18,18,0.9)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: '1px solid ' + effectivePrimaryColor, pointerEvents: 'auto' }}>
                   <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(var(--primary-rgb), 0.05)' }}>
                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Library size={20} /> Public Catalog</h2>
                      <button onClick={() => setIsCatalogOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
@@ -852,7 +854,7 @@ export function Dashboard({
                                     e.dataTransfer.effectAllowed = "all";
                                     e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
                                     setDraggedSectionId(`catalogSection:${libSec.id}`);
-                                    setIsCatalogOpen(false);
+                                    setTimeout(() => setIsCatalogOpen(false), 50); // Defer closing so drag isn't interrupted
                                  }}
                                   onDragEnd={() => setDraggedSectionId(null)}
                                  style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'grab' }}
