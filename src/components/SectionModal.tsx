@@ -12,9 +12,10 @@ export interface SectionModalProps {
   onSaved: () => void;
   iconRegistry?: { selfhost: any[], walkx: any[] };
   onUploadIcon?: (e: React.ChangeEvent<HTMLInputElement>) => Promise<string | null>;
+  currentUserId?: string;
 }
 
-export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegistry, onUploadIcon }: SectionModalProps) {
+export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegistry, onUploadIcon, currentUserId }: SectionModalProps) {
   const [title, setTitle] = useState(section?.title || "");
   const [icon, setIcon] = useState(section?.icon || "");
   const [description, setDescription] = useState(section?.description || "");
@@ -22,6 +23,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
   const [defaultCollapsed, setDefaultCollapsed] = useState(section ? section.defaultCollapsed : false);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const isOwner = section?.owners?.some((u: any) => u.id === currentUserId);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,11 +111,50 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
              </div>
           </div>
 
-          <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', background: 'rgba(var(--primary-rgb), 0.03)' }}>
-             <button onClick={onClose} className="btn" style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600 }}>Cancel</button>
-             <button onClick={handleSave} disabled={saving || !title.trim()} className="btn btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '12px', fontWeight: 600, opacity: (saving || !title.trim()) ? 0.5 : 1 }}>
-                {saving ? "Saving..." : "Save Config"}
-             </button>
+          <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>
+             <div>
+                {section && targetTabId && (
+                   <button 
+                      onClick={async () => {
+                         if(isOwner) {
+                            if(confirm(`Are you sure you want to permanently delete the section "${section.title}" for all users?`)) {
+                               setSaving(true);
+                               try {
+                                  await actions.deleteSection(section.id);
+                                  onSaved();
+                               } catch(e) {
+                                  console.error(e);
+                                  setSaving(false);
+                               }
+                            }
+                         } else {
+                            if(confirm(`Are you sure you want to remove the section "${section.title}" from this workspace?`)) {
+                               setSaving(true);
+                               try {
+                                  await actions.removeSectionFromTab(section.id, targetTabId);
+                                  onSaved();
+                               } catch(e) {
+                                  console.error(e);
+                                  setSaving(false);
+                               }
+                            }
+                         }
+                      }}
+                      disabled={saving}
+                      style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600, color: '#e74c3c', background: 'transparent', border: '1px solid #e74c3c55', cursor: 'pointer', transition: 'all 0.2s ease', opacity: saving ? 0.5 : 1 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#e74c3c11'; e.currentTarget.style.borderColor = '#e74c3c'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#e74c3c55'; }}
+                   >
+                      {isOwner ? "Delete Section" : "Remove Section"}
+                   </button>
+                )}
+             </div>
+             <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={onClose} className="btn" style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600 }}>Cancel</button>
+                <button onClick={handleSave} disabled={saving || !title.trim()} className="btn btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '12px', fontWeight: 600, opacity: (saving || !title.trim()) ? 0.5 : 1 }}>
+                   {saving ? "Saving..." : "Save Config"}
+                </button>
+             </div>
           </div>
        </div>
     </div>

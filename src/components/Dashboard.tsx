@@ -117,7 +117,20 @@ export function Dashboard({
    const [tabs, setTabs] = useState<Tab[]>(initialTabs);
 
    // States
-   const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0].id : "");
+   
+   // Helper to determine text color based on background hex
+   const getContrastYIQ = (hexcolor: string) => {
+      if (!hexcolor) return 'var(--text)';
+      hexcolor = hexcolor.replace("#", "");
+      if (hexcolor.length === 3) hexcolor = hexcolor.split('').map(c => c + c).join('');
+      if (hexcolor.length !== 6) return 'var(--text)';
+      const r = parseInt(hexcolor.substr(0, 2), 16);
+      const g = parseInt(hexcolor.substr(2, 2), 16);
+      const b = parseInt(hexcolor.substr(4, 2), 16);
+      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+      return (yiq >= 128) ? '#000000' : '#ffffff';
+   };
+const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0].id : "");
    const [searchQuery, setSearchQuery] = useState("");
    const [showEditControls, setShowEditControls] = useState(false);
    const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -560,7 +573,7 @@ export function Dashboard({
                               borderTop: isDragOver ? '3px solid ' + tabPrimary : '1px solid ' + (isActiveTab ? tabPrimary : tabPrimary + 'B3'),
                               borderBottom: 'none',
                               cursor: showEditControls ? 'grab' : 'pointer', borderRadius: '12px 12px 0 0',
-                              color: isActiveTab ? 'var(--nav-text)' : 'var(--text)',
+                              color: getContrastYIQ(tabPrimary),
                               textShadow: !isActiveTab ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
                               fontWeight: isActiveTab ? 700 : 500,
                               fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.2s ease', backdropFilter: 'blur(10px)',
@@ -826,47 +839,61 @@ export function Dashboard({
                   <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                      {catalogTab === "workspaces" && (
                         libraryTabs.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared workspaces available.</div> :
-                           libraryTabs.map(libTab => (
-                              <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                           libraryTabs.map(libTab => {
+                              const isAdded = displayedTabs.some(t => t.id === libTab.id);
+                              return (
+                              <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', opacity: isAdded ? 0.5 : 1 }}>
                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>
                                     {libTab.icon && <IconComponent name={libTab.icon} size={18} />}
                                     {libTab.title}
                                  </div>
                                  {libTab.description && <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{libTab.description}</div>}
-                                 <button
-                                    onClick={async () => { await actions.addTabToUser(libTab.id); router.refresh(); }}
-                                    style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
-                                 >
-                                    <Plus size={16} /> Add to Dashboard
-                                 </button>
+                                 {isAdded ? (
+                                    <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(0,0,0,0.05)', color: 'var(--text)', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'center', opacity: 0.7 }}>
+                                       Already added to dashboard
+                                    </div>
+                                 ) : (
+                                    <button
+                                       onClick={async () => { await actions.addTabToUser(libTab.id); router.refresh(); }}
+                                       style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+                                    >
+                                       <Plus size={16} /> Add to Dashboard
+                                    </button>
+                                 )}
                               </div>
-                           ))
+                           )})
                      )}
 
                      {catalogTab === "sections" && (
                         librarySections.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared sections available.</div> :
-                           librarySections.map(libSec => (
+                           librarySections.map(libSec => {
+                              const activeTabObj = tabs.find(t => t.id === activeTabId);
+                              const isAdded = activeTabObj?.sections?.some(s => s.id === libSec.id);
+                              return (
                               <div
                                  key={libSec.id}
                                  className="glass-card"
-                                 draggable={true}
+                                 draggable={!isAdded}
                                  onDragStart={(e) => {
+                                    if(isAdded) { e.preventDefault(); return; }
                                     e.dataTransfer.effectAllowed = "all";
                                     e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
                                     setDraggedSectionId(`catalogSection:${libSec.id}`);
                                     setTimeout(() => setIsCatalogOpen(false), 50); // Defer closing so drag isn't interrupted
                                  }}
                                   onDragEnd={() => setDraggedSectionId(null)}
-                                 style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'grab' }}
+                                 style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: isAdded ? 'default' : 'grab', opacity: isAdded ? 0.5 : 1 }}
                               >
                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--primary)' }}>
-                                    <GripVertical size={16} style={{ opacity: 0.5 }} />
+                                    {!isAdded && <GripVertical size={16} style={{ opacity: 0.5 }} />}
                                     {libSec.icon && <IconComponent name={libSec.icon} size={16} />}
                                     {libSec.title}
                                  </div>
-                                 <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: '1.5rem' }}>{libSec.description || "Drag this card onto any column in your dashboard to insert it."}</div>
+                                 <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: isAdded ? '0' : '1.5rem' }}>
+                                    {isAdded ? "Already added to this workspace." : (libSec.description || "Drag this card onto any column in your dashboard to insert it.")}
+                                 </div>
                               </div>
-                           ))
+                           )})
                      )}
                   </div>
                </div>

@@ -13,9 +13,10 @@ export interface TabModalProps {
   iconRegistry?: { selfhost: any[], walkx: any[] };
   onUploadIcon?: (e: React.ChangeEvent<HTMLInputElement>) => Promise<string | null>;
   allThemes?: any[];
+  currentUserId?: string;
 }
 
-export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [] }: TabModalProps) {
+export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [], currentUserId }: TabModalProps) {
   const [title, setTitle] = useState(tab?.title || "");
   const [icon, setIcon] = useState(tab?.icon || "");
   const [isLibraryItem, setIsLibraryItem] = useState(tab?.isLibraryItem ?? false);
@@ -23,6 +24,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
   const [columns, setColumns] = useState(tab?.columns || 3);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const isOwner = tab?.owners?.some((u: any) => u.id === currentUserId);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,14 +128,27 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                 {tab && (
                    <button 
                       onClick={async () => {
-                         if(confirm(`Are you sure you want to permanently delete the workspace "${tab.title}"?`)) {
-                            setSaving(true);
-                            try {
-                               await actions.deleteTab(tab.id);
-                               onSaved();
-                            } catch(e) {
-                               console.error(e);
-                               setSaving(false);
+                         if(isOwner) {
+                            if(confirm(`Are you sure you want to permanently delete the workspace "${tab.title}" for all users?`)) {
+                               setSaving(true);
+                               try {
+                                  await actions.deleteTab(tab.id);
+                                  onSaved();
+                               } catch(e) {
+                                  console.error(e);
+                                  setSaving(false);
+                               }
+                            }
+                         } else {
+                            if(confirm(`Are you sure you want to remove the workspace "${tab.title}" from your dashboard?`)) {
+                               setSaving(true);
+                               try {
+                                  await actions.removeTabFromUser(tab.id);
+                                  onSaved();
+                               } catch(e) {
+                                  console.error(e);
+                                  setSaving(false);
+                               }
                             }
                          }
                       }}
@@ -142,7 +157,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                       onMouseEnter={(e) => { e.currentTarget.style.background = '#e74c3c11'; e.currentTarget.style.borderColor = '#e74c3c'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#e74c3c55'; }}
                    >
-                      Delete Workspace
+                      {isOwner ? "Delete Workspace" : "Remove Workspace"}
                    </button>
                 )}
              </div>
