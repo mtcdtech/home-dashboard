@@ -360,25 +360,27 @@ export function Dashboard({
    const secOpac = activeTheme.sectionOpacity ?? 0.7;
    const glsOpac = activeTheme.glassOpacity ?? 0.12;
 
+   // Use the active TAB's primary color if it has its own theme, else fall back to global theme
+   const activeTabObj = tabs.find((t: any) => t.id === activeTabId);
+   const effectivePrimaryColor = activeTabObj?.theme?.primaryColor || activeTheme.primaryColor;
+
    // PROPERLY tie glass wash to glassOpacity!
-   // Dark mode requires lower raw alpha than light mode for the same visual effect
    const glassOverlayAlpha = isLight ? (glsOpac * 0.9) : (glsOpac * 0.4);
 
    // Tie background density to sectionOpacity
-   // Let the user push the tint up to 60-80% if they want solid opaque cards
    const colorTintAlpha = isLight ? (secOpac * 0.8) : (secOpac * 0.45);
 
-   const glassBg = activeTheme.glassEffect === false ? `rgba(${hexToRgb(activeTheme.primaryColor)}, ${colorTintAlpha})` :
-      `linear-gradient(rgba(255, 255, 255, ${glassOverlayAlpha}), rgba(255, 255, 255, ${glassOverlayAlpha})), rgba(${hexToRgb(activeTheme.primaryColor)}, ${colorTintAlpha})`;
+   const glassBg = activeTheme.glassEffect === false ? `rgba(${hexToRgb(effectivePrimaryColor)}, ${colorTintAlpha})` :
+      `linear-gradient(rgba(255, 255, 255, ${glassOverlayAlpha}), rgba(255, 255, 255, ${glassOverlayAlpha})), rgba(${hexToRgb(effectivePrimaryColor)}, ${colorTintAlpha})`;
 
-   const glassBorder = activeTheme.glassEffect === false ? `rgba(${hexToRgb(activeTheme.primaryColor)}, 0.2)` :
-      `rgba(${hexToRgb(activeTheme.primaryColor)}, ${isLight ? 0.2 : 0.25})`;
+   const glassBorder = activeTheme.glassEffect === false ? `rgba(${hexToRgb(effectivePrimaryColor)}, 0.2)` :
+      `rgba(${hexToRgb(effectivePrimaryColor)}, ${isLight ? 0.2 : 0.25})`;
 
    const dynamicCSS = `
     :root, [data-theme='dark'], [data-theme='light'] {
-      --primary: ${activeTheme.primaryColor};
-      --primary-rgb: ${hexToRgb(activeTheme.primaryColor)};
-      --primary-glow: rgba(${hexToRgb(activeTheme.primaryColor)}, 0.5);
+      --primary: ${effectivePrimaryColor};
+      --primary-rgb: ${hexToRgb(effectivePrimaryColor)};
+      --primary-glow: rgba(${hexToRgb(effectivePrimaryColor)}, 0.5);
       --glass-bg: ${glassBg};
       --glass-border: ${glassBorder};
     }
@@ -649,7 +651,7 @@ export function Dashboard({
                               onDragOver={(e) => {
                                  if (!showEditControls) return;
                                  e.preventDefault();
-                                 e.dataTransfer.dropEffect = "move";
+                                 e.dataTransfer.dropEffect = draggedSectionId?.startsWith("catalogSection:") ? "copy" : "move";
                                  setDragOverColIdx(colIdx);
                               }}
                               onDragLeave={(e) => {
@@ -671,7 +673,7 @@ export function Dashboard({
                                        key={section.id}
                                        draggable={showEditControls && hasTabEditAccess(tab)}
                                        onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", section.id); e.stopPropagation(); } }}
-                                       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; e.stopPropagation(); setDragOverSectionId(section.id); }}
+                                       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = draggedSectionId?.startsWith("catalogSection:") ? "copy" : "move"; e.stopPropagation(); setDragOverSectionId(section.id); }}
                                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setDragOverSectionId(null); } }}
                                        onDragEnd={() => { setDraggedSectionId(null); setDragOverSectionId(null); setDragOverColIdx(null); }}
                                        onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleSectionDrop(e, section.id, tab.id, colIdx); }}
