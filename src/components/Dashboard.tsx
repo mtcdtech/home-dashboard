@@ -208,53 +208,49 @@ export function Dashboard({
          return;
       }
 
-      let syncedTabs = [...tabs];
-      // Optimistic Local Update
-      setTabs(currentTabs => {
-         const newTabs = [...currentTabs];
-         const tabIndex = newTabs.findIndex(t => t.id === currentTabId);
-         if (tabIndex === -1) return currentTabs;
-         const targetTab = { ...newTabs[tabIndex], sections: [...newTabs[tabIndex].sections] };
+      // Compute the new layout directly (synchronously) before touching state
+      const newTabs = [...tabs];
+      const tabIndex = newTabs.findIndex(t => t.id === currentTabId);
+      if (tabIndex === -1) return;
+      const targetTab = { ...newTabs[tabIndex], sections: [...newTabs[tabIndex].sections] };
 
-         const srcSectionIndex = targetTab.sections.findIndex(s => s.id === srcId);
-         if (srcSectionIndex === -1) return currentTabs;
+      const srcSectionIndex = targetTab.sections.findIndex(s => s.id === srcId);
+      if (srcSectionIndex === -1) return;
 
-         const [movedSection] = targetTab.sections.splice(srcSectionIndex, 1);
-         movedSection.column = colIdx;
+      const [movedSection] = targetTab.sections.splice(srcSectionIndex, 1);
+      movedSection.column = colIdx;
 
-         if (targetId) {
-            const dstSectionIndex = targetTab.sections.findIndex(s => s.id === targetId);
-            if (dstSectionIndex !== -1) {
-               targetTab.sections.splice(dstSectionIndex, 0, movedSection);
-            } else {
-               targetTab.sections.push(movedSection);
-            }
+      if (targetId) {
+         const dstSectionIndex = targetTab.sections.findIndex(s => s.id === targetId);
+         if (dstSectionIndex !== -1) {
+            targetTab.sections.splice(dstSectionIndex, 0, movedSection);
          } else {
             targetTab.sections.push(movedSection);
          }
-         targetTab.sections.filter(s => s.column === colIdx).forEach((s, idx) => { s.order = idx; });
-         newTabs[tabIndex] = targetTab;
-         syncedTabs = newTabs;
-         return newTabs;
-      });
-
-      // Always send entire tab layout as a batch to prevent snap-back from partial updates
-      const currentSyncedTabs = syncedTabs;
-      const tabIdx = currentSyncedTabs.findIndex(t => t.id === currentTabId);
-      if (tabIdx !== -1) {
-         const targetTab = currentSyncedTabs[tabIdx];
-         const allSectionUpdates = targetTab.sections.map(s => ({
-            sectionId: s.id,
-            column: s.column ?? 0,
-            order: s.order ?? 0,
-         }));
-         if (isAdmin) {
-            await actions.updateGlobalLayoutBatch(currentTabId, allSectionUpdates);
-         } else {
-            await actions.updatePersonalLayoutBatch(allSectionUpdates.map(u => ({ ...u, tabId: currentTabId })));
-         }
+      } else {
+         targetTab.sections.push(movedSection);
       }
-      // Do NOT call router.refresh() here — it re-renders from server and overwrites optimistic state
+      // Assign order values to all sections in all columns after the move
+      for (let col = 0; col < (targetTab.columns ?? 3); col++) {
+         targetTab.sections.filter((s: any) => (s.column ?? 0) === col).forEach((s: any, idx: number) => { s.order = idx; });
+      }
+      newTabs[tabIndex] = targetTab;
+
+      // Optimistic UI update with the already-computed layout
+      setTabs(newTabs);
+
+      // Send the entire updated layout to the server
+      const allSectionUpdates = targetTab.sections.map((s: any) => ({
+         sectionId: s.id,
+         column: s.column ?? 0,
+         order: s.order ?? 0,
+      }));
+      if (isAdmin) {
+         await actions.updateGlobalLayoutBatch(currentTabId, allSectionUpdates);
+      } else {
+         await actions.updatePersonalLayoutBatch(allSectionUpdates.map((u: any) => ({ ...u, tabId: currentTabId })));
+      }
+      // Do NOT call router.refresh() — it re-renders from server and overwrites optimistic state
    };
 
    const handleBookmarkDrop = async (e: React.DragEvent, targetId: string, currentSectionId: string) => {
@@ -837,7 +833,9 @@ export function Dashboard({
                                  onDragStart={(e) => {
                                     e.dataTransfer.effectAllowed = "copy";
                                     e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
+                                    setDraggedSectionId(`catalogSection:${libSec.id}`);
                                  }}
+                                  onDragEnd={() => setDraggedSectionId(null)}
                                  style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'grab' }}
                               >
                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--primary)' }}>
