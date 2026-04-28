@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import * as LucideIcons from "lucide-react";
 import { 
-  Search, Settings, Edit2, Lock, Trash2, ExternalLink, Moon, Sun, LayoutGrid, ChevronDown, ChevronRight, MoreVertical, GripVertical, LogOut, Maximize2, Plus, Move, X, Upload, Palette, LayoutTemplate, Copy, ChevronLeft, Grid, ArrowRight, PlusCircle, Layout, Download, Library, Check, Menu, Star
+  Search, Settings, Edit2, Lock, Trash2, ExternalLink, Moon, Sun, LayoutGrid, ChevronDown, ChevronRight, MoreVertical, GripVertical, LogOut, Maximize2, Plus, Move, X, Upload, Palette, LayoutTemplate, Copy, ChevronLeft, Grid, ArrowRight, PlusCircle, Layout, Download, Library, Check, Menu, Star, Users, Info
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as actions from "@/app/admin/actions";
@@ -38,6 +38,12 @@ export interface Section {
   defaultCollapsed?: boolean;
   bookmarks: Bookmark[];
   organization?: string | null;
+  isLibraryItem?: boolean;
+  description?: string | null;
+  owners?: { id: string }[];
+  editors?: { id: string }[];
+  allowedUsers?: { id: string }[];
+  departmentAccess?: any[];
 }
 
 export interface Theme {
@@ -143,6 +149,23 @@ export function Dashboard({
   const [draggedBookmarkSectionId, setDraggedBookmarkSectionId] = useState<string | null>(null);
   const [dragOverBookmarkId, setDragOverBookmarkId] = useState<string | null>(null);
   const [dragOverColIdx, setDragOverColIdx] = useState<number | null>(null);
+
+  const hasTabEditAccess = (tab: Tab) => {
+    if (!currentUserId) return false;
+    if (isAdmin) return true;
+    if (tab.editors?.some(u => u.id === currentUserId)) return true;
+    if (tab.owners?.some(u => u.id === currentUserId)) return true;
+    return false;
+  };
+
+  const hasSectionEditAccess = (section: Section, tab: Tab) => {
+    if (!currentUserId) return false;
+    if (isAdmin) return true;
+    if (section.editors?.some(u => u.id === currentUserId)) return true;
+    if (section.owners?.some(u => u.id === currentUserId)) return true;
+    if (hasTabEditAccess(tab)) return true;
+    return false;
+  };
 
   const handleTabDrop = async (e: React.DragEvent, targetTabId: string) => {
      e.preventDefault();
@@ -526,9 +549,11 @@ export function Dashboard({
                        {tab.title}
                        {showEditControls && (
                           <div style={{ marginLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                             <span onClick={(e) => { e.stopPropagation(); setTargetTabToEdit(tab); setIsTabModalOpen(true); }} style={{ opacity: 0.5, cursor: 'pointer', display: 'flex' }} title="Edit Workspace">
-                                <Settings size={14} />
-                             </span>
+                             {hasTabEditAccess(tab) && (
+                                <span onClick={(e) => { e.stopPropagation(); setTargetTabToEdit(tab); setIsTabModalOpen(true); }} style={{ opacity: 0.5, cursor: 'pointer', display: 'flex' }} title="Edit Workspace">
+                                   <Settings size={14} />
+                                </span>
+                             )}
                              {currentUserId && (
                                 <span onClick={async (e) => { e.stopPropagation(); await actions.setUserDefaultTab(currentUserId, tab.id); router.refresh(); }} style={{ opacity: userDefaultTabId === tab.id ? 1 : 0.5, color: userDefaultTabId === tab.id ? '#F7DC6F' : 'inherit', cursor: 'pointer', display: 'flex' }} title="Set as Default Desktop">
                                    {userDefaultTabId === tab.id ? <Star size={14} fill="#F7DC6F" stroke="#F7DC6F" /> : <Star size={14} />}
@@ -554,13 +579,22 @@ export function Dashboard({
            </div>
         )}
 
-        {/* Main Content Area */}
-        <div className="dashboard-main-content" style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden' }}>
-           {displayedTabs.map(tab => (
-              <div key={tab.id} style={{ marginBottom: '2rem' }}>
-                 {searchQuery.trim() && <h2 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>From {tab.title}</h2>}
+         {/* Main Content Area */}
+         <div className="dashboard-main-content" style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden' }}>
+            {displayedTabs.map(tab => {
+               const isShared = tab.isLibraryItem || tab.organization || (tab.allowedUsers && tab.allowedUsers.length > 0) || (tab.departmentAccess && tab.departmentAccess.length > 0);
+               return (
+               <div key={tab.id} style={{ marginBottom: '2rem' }}>
+                  {searchQuery.trim() && <h2 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>From {tab.title}</h2>}
+                  
+                  {isShared && (
+                     <div style={{ background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', border: '1px solid rgba(var(--primary-rgb), 0.2)' }}>
+                        <Info size={18} style={{ flexShrink: 0 }} /> 
+                        <span>This workspace is shared. Personal layout changes (dragging items) only affect you, but editing content (buttons/links) affects all users.</span>
+                     </div>
+                  )}
 
-                 {/* Multi-column layout: columns are side-by-side, sections stack vertically within each column */}
+                  {/* Multi-column layout: columns are side-by-side, sections stack vertically within each column */}
                  <div 
                     className="dashboard-grid"
                     style={{ '--desktop-cols': tab.columns || 3 } as React.CSSProperties}
@@ -627,7 +661,7 @@ export function Dashboard({
                                       </div>
                                       <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: '1 1 auto', minWidth: 0 }}>{section.title}</h3>
                                    </div>
-                                   {showEditControls && (
+                                   {showEditControls && hasSectionEditAccess(section, tab) && (
                                       <div style={{ display: 'flex', gap: '0.75rem' }}>
                                          <button onClick={() => { setEditingBookmark({} as any); setTargetSectionIdForBookmark(section.id); setModalMode("add"); setIsBookmarkModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Plus size={20}/></button>
                                          <button onClick={() => { setEditingSection(section); setIsSectionModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Settings size={20}/></button>
@@ -664,7 +698,7 @@ export function Dashboard({
                                                   {bookmark.description ? <span style={{ fontSize: '0.8rem', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{bookmark.description}</span> : null}
                                                </div>
                                             </a>
-                                            {showEditControls && (
+                                            {showEditControls && hasSectionEditAccess(section, tab) && (
                                                <div style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '0.25rem', background: 'var(--glass-bg)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                                                   <button onClick={(e) => { e.preventDefault(); setEditingBookmark(bookmark); setModalMode("edit"); setIsBookmarkModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Edit2 size={14}/></button>
                                                   <button onClick={(e) => { e.preventDefault(); if(confirm('Delete app?')) actions.deleteBookmark(bookmark.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff4444' }}><Trash2 size={14}/></button>
@@ -699,8 +733,9 @@ export function Dashboard({
                     ))}
                  </div>
               </div>
-           ))}
-        </div>
+               );
+            })}
+         </div>
 
 
         {/* --- Modals --- */}

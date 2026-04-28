@@ -161,11 +161,14 @@ export async function deleteTab(id: string) {
 
 // --- SECTION ORCHESTRATION ---
 export async function createSection(data: any) {
+  const session = await auth();
+  const userId = session?.user?.id;
   const section = await prisma.section.create({ 
     data: {
       ...data,
       isLibraryItem: data.isLibraryItem ?? false,
-      description: data.description || null
+      description: data.description || null,
+      ...(userId ? { owners: { connect: { id: userId } } } : {})
     }
   } as any);
   revalidatePath("/");

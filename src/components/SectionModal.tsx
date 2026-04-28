@@ -17,6 +17,8 @@ export interface SectionModalProps {
 export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegistry, onUploadIcon }: SectionModalProps) {
   const [title, setTitle] = useState(section?.title || "");
   const [icon, setIcon] = useState(section?.icon || "");
+  const [description, setDescription] = useState(section?.description || "");
+  const [isLibraryItem, setIsLibraryItem] = useState(section ? section.isLibraryItem : false);
   const [defaultCollapsed, setDefaultCollapsed] = useState(section ? section.defaultCollapsed : false);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
@@ -27,10 +29,10 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
     setSaving(true);
     try {
       if (section) {
-        await actions.updateSection(section.id, { title, icon } as any);
+        await actions.updateSection(section.id, { title, icon, isLibraryItem, description } as any);
         if (targetTabId) await actions.updateTabSectionCollapsed(section.id, targetTabId, defaultCollapsed);
       } else if (targetTabId) {
-        const newSection = await actions.createSection({ title, icon, isGlobal: false } as any);
+        const newSection = await actions.createSection({ title, icon, isLibraryItem, description, isGlobal: false } as any);
         await actions.addSectionToTab(newSection.id, targetTabId);
         await actions.updateTabSectionCollapsed(newSection.id, targetTabId, defaultCollapsed);
       }
@@ -71,6 +73,32 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                    />
                    <span style={{ fontSize: '1rem', fontWeight: 500 }}>Default Collapsed (Start minimized on dashboard load)</span>
                 </label>
+
+                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.5rem 0' }}></div>
+                 
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer' }}>
+                   <input 
+                      type="checkbox" 
+                      checked={isLibraryItem} 
+                      onChange={(e) => setIsLibraryItem(e.target.checked)} 
+                      style={{ width: '18px', height: '18px' }}
+                   />
+                   <span style={{ fontSize: '1rem', fontWeight: 500 }}>Share in Public Catalog (Allow others to add this section)</span>
+                </label>
+                 
+                {isLibraryItem && (
+                   <div style={{ marginTop: '0.5rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Description for Catalog</label>
+                      <textarea 
+                         value={description}
+                         onChange={(e) => setDescription(e.target.value)}
+                         placeholder="Briefly describe what this section contains..." 
+                         className="glass" 
+                         rows={2}
+                         style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '0.95rem', boxSizing: 'border-box', resize: 'vertical' }} 
+                      />
+                   </div>
+                )}
              </div>
 
              <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)' }}>
