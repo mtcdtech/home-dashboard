@@ -610,7 +610,7 @@ export function Dashboard({
                </div>
                {/* Catalog button — always pinned to the far right */}
                <button
-                  onClick={() => setIsCatalogOpen(v => !v)}
+                  onClick={() => setIsCatalogOpen(!isCatalogOpen)}
                   style={{
                      position: 'absolute', right: '1.5rem', bottom: '0.6rem',
                      padding: '0.55rem 1rem',
