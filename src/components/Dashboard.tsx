@@ -632,23 +632,45 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                      </div>
                   )}
                </div>
-               {/* Catalog button — pinned to far right of tab bar (only in edit mode) */}
+               {/* Catalog button / Cancel Drop Zone */}
                {showEditControls && (
-                  <button
-                     onClick={() => setIsCatalogOpen(!isCatalogOpen)}
-                  style={{
-                     position: 'absolute', right: '1.5rem', bottom: '0.6rem',
-                     padding: '0.55rem 1rem',
-                     background: catBtnBg,
-                     border: '1px solid ' + effectivePrimaryColor,
-                     borderRadius: '10px', cursor: 'pointer', color: '#fff', fontWeight: 700,
-                     fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem',
-                     boxShadow: '0 2px 12px ' + effectivePrimaryColor + '55',
-                     transition: 'all 0.2s ease', zIndex: 3,
-                  }}
-               >
-                  <Library size={15} /> Catalog
-               </button>
+                  draggedSectionId?.startsWith('catalogSection:') ? (
+                     <div
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "none"; }}
+                        onDrop={(e) => {
+                           e.preventDefault();
+                           setDraggedSectionId(null);
+                        }}
+                        style={{
+                           position: 'absolute', right: '1.5rem', bottom: '0.6rem',
+                           padding: '0.55rem 1.5rem',
+                           background: 'rgba(231, 76, 60, 0.95)',
+                           border: '2px dashed #fff',
+                           borderRadius: '10px', cursor: 'pointer', color: '#fff', fontWeight: 700,
+                           fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                           boxShadow: '0 4px 16px rgba(231, 76, 60, 0.5)',
+                           transition: 'all 0.2s ease', zIndex: 3,
+                        }}
+                     >
+                        <X size={18} /> Cancel Drop
+                     </div>
+                  ) : (
+                     <button
+                        onClick={() => setIsCatalogOpen(!isCatalogOpen)}
+                     style={{
+                        position: 'absolute', right: '1.5rem', bottom: '0.6rem',
+                        padding: '0.55rem 1rem',
+                        background: catBtnBg,
+                        border: '1px solid ' + effectivePrimaryColor,
+                        borderRadius: '10px', cursor: 'pointer', color: '#fff', fontWeight: 700,
+                        fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                        boxShadow: '0 2px 12px ' + effectivePrimaryColor + '55',
+                        transition: 'all 0.2s ease', zIndex: 3,
+                     }}
+                  >
+                     <Library size={15} /> Catalog
+                  </button>
+                  )
                )}
             </div>
          )}

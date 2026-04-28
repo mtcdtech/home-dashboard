@@ -63,7 +63,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Workspace Name (e.g. Finance)" 
                       className="glass" 
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '1rem', boxSizing: 'border-box' }} 
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
                    />
 
                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -110,7 +110,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                       <BookMarked size={16} style={{ opacity: 0.6, flexShrink: 0 }} />
                       <div>
                          <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Add to Workspace Catalog</div>
-                         <div style={{ fontSize: '0.75rem', opacity: 0.55, marginTop: '2px' }}>Other users can discover and add this workspace to their dashboard</div>
+                         <div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Other users can discover and add this workspace to their dashboard</div>
                       </div>
                    </label>
                 </div>

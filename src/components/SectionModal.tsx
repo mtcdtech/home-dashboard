@@ -64,7 +64,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                    onChange={(e) => setTitle(e.target.value)}
                    placeholder="e.g. Finance Dashboard" 
                    className="glass" 
-                   style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '1rem', boxSizing: 'border-box' }} 
+                   style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
                 />
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer', marginTop: '0.5rem' }}>
@@ -74,7 +74,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                       onChange={(e) => setDefaultCollapsed(e.target.checked)} 
                       style={{ width: '18px', height: '18px' }}
                    />
-                   <span style={{ fontSize: '1rem', fontWeight: 500 }}>Default Collapsed (Start minimized on dashboard load)</span>
+                   <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Default Collapsed (Start minimized on dashboard load)</span>
                 </label>
 
                 <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.5rem 0' }}></div>
@@ -86,7 +86,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                       onChange={(e) => setIsLibraryItem(e.target.checked)} 
                       style={{ width: '18px', height: '18px' }}
                    />
-                   <span style={{ fontSize: '1rem', fontWeight: 500 }}>Share in Public Catalog (Allow others to add this section)</span>
+                   <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Share in Public Catalog (Allow others to add this section)</span>
                 </label>
                  
                 {isLibraryItem && (
