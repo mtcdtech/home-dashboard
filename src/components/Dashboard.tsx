@@ -634,7 +634,6 @@ export function Dashboard({
                >
                   <Library size={15} /> Catalog
                </button>
-               </div>
             </div>
          )}
 
