@@ -617,7 +617,7 @@ export function Dashboard({
                   style={{
                      position: 'absolute', right: '1.5rem', bottom: '0.6rem',
                      padding: '0.55rem 1rem',
-                     background: isCatalogOpen ? effectivePrimaryColor : `${effectivePrimaryColor}CC`,
+                     background: catBtnBg,
                      border: `1px solid ${effectivePrimaryColor}`,
                      borderRadius: '10px',
                      cursor: 'pointer',
@@ -627,7 +627,7 @@ export function Dashboard({
                      display: 'flex',
                      alignItems: 'center',
                      gap: '0.4rem',
-                     boxShadow: `0 2px 12px ${effectivePrimaryColor}55`,
+                     boxShadow: catBtnShadow,
                      transition: 'all 0.2s ease',
                      zIndex: 3,
                   }}
@@ -809,7 +809,7 @@ export function Dashboard({
          {/* --- Modals --- */}
          {isCatalogOpen && (
             <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: draggedSectionId?.startsWith('catalogSection:') ? 'transparent' : 'rgba(0,0,0,0.35)', backdropFilter: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end', pointerEvents: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
-               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: `${effectivePrimaryColor}CC`, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: `1px solid ${effectivePrimaryColor}`, pointerEvents: 'auto' }}>
+               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: drawerBg, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: `1px solid ${effectivePrimaryColor}`, pointerEvents: 'auto' }}>
                   <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(var(--primary-rgb), 0.05)' }}>
                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Library size={20} /> Public Catalog</h2>
                      <button onClick={() => setIsCatalogOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
@@ -941,6 +941,12 @@ export function Dashboard({
 const AmbientBackground = ({ theme }: { theme?: Theme | null }) => {
    if (!theme) return null;
    const bgImg = (theme.backgroundColor && (theme.backgroundColor.startsWith('http') || theme.backgroundColor.startsWith('/') || theme.backgroundColor.startsWith('api') || theme.backgroundColor.startsWith('data:'))) ? theme.backgroundColor : null;
+
+   // Pre-computed theme colors for JSX (avoids Turbopack template literal parsing issues)
+   const catBtnBg = isCatalogOpen ? effectivePrimaryColor : (effectivePrimaryColor + 'CC');
+   const catBtnBorder = effectivePrimaryColor;
+   const catBtnShadow = '0 2px 12px ' + effectivePrimaryColor + '55';
+   const drawerBg = effectivePrimaryColor + 'CC';
 
    return (
       <div style={{ position: 'fixed', top: '-100px', bottom: '-100px', left: 0, right: 0, zIndex: -1, overflow: 'hidden', background: 'var(--bg-base)', pointerEvents: 'none' }}>
