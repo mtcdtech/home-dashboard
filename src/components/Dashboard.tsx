@@ -624,7 +624,7 @@ export function Dashboard({
                      {searchQuery.trim() && <h2 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>From {tab.title}</h2>}
 
                      {isShared && showEditControls && (
-                        <div style={{ background: 'var(--primary)', color: '#ffffff', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                        <div style={{ background: 'rgba(var(--primary-rgb), 0.75)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
                            <Info size={18} style={{ flexShrink: 0 }} />
                            <span>
                               {hasTabEditAccess(tab) ?
@@ -905,7 +905,7 @@ export function Dashboard({
 
          {/* Version Footer */}
          <div style={{ textAlign: 'center', padding: 'max(1rem, env(safe-area-inset-bottom))', opacity: 0.5, fontSize: '0.8rem', color: 'var(--text)', marginTop: 'auto' }}>
-            v1.1.0
+            v1.2.0
          </div>
       </main>
    );
