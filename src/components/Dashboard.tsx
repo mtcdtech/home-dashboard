@@ -310,6 +310,19 @@ export function Dashboard({
 
   useEffect(() => {
      setTabs(initialTabs);
+     
+     const hash = window.location.hash.replace('#', '');
+     if (hash) {
+         const matchedTab = initialTabs.find(t => {
+             const slug = t.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+             return slug === hash || t.id === hash;
+         });
+         if (matchedTab) {
+             setActiveTabId(matchedTab.id);
+             return;
+         }
+     }
+
      if (!initialTabs.find(t => t.id === activeTabId) && initialTabs.length > 0) {
         setActiveTabId(initialTabs[0].id);
      }
@@ -540,7 +553,11 @@ export function Dashboard({
                     <button 
                        key={tab.id}
                        className="workspace-tab-btn"
-                       onClick={() => setActiveTabId(tab.id)}
+                       onClick={() => {
+                          setActiveTabId(tab.id);
+                          const slug = tab.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                          window.history.replaceState(null, '', `#${slug}`);
+                       }}
                        draggable={showEditControls && hasTabEditAccess(tab)}
                        onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedTabId(tab.id); e.dataTransfer.effectAllowed = "move"; } }}
                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverTabId(tab.id); }}
