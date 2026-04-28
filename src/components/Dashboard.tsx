@@ -654,7 +654,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                            transition: 'all 0.2s ease', zIndex: 3,
                         }}
                      >
-                        <LucideIcons.X size={18} /> Cancel Drop
+                        <X size={18} /> Cancel Drop
                      </div>
                   ) : (
                      <button
@@ -670,10 +670,230 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                         transition: 'all 0.2s ease', zIndex: 3,
                      }}
                   >
-                     <LucideIcons.Library size={15} /> Catalog
+                     <Library size={15} /> Catalog
                   </button>
                   )
                )}
+            </div>
+         )}
+
+         {/* Main Content Area */}
+         <div className="dashboard-main-content" style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden' }}>
+            {displayedTabs.map(tab => {
+               const isShared = tab.isLibraryItem || tab.organization || (tab.allowedUsers && tab.allowedUsers.length > 0) || (tab.departmentAccess && tab.departmentAccess.length > 0);
+               return (
+                  <div key={tab.id} style={{ marginBottom: '2rem' }}>
+                     {searchQuery.trim() && <h2 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>From {tab.title}</h2>}
+
+                     {isShared && showEditControls && (
+                        <div style={{ background: 'rgba(var(--primary-rgb), 0.75)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                           <Info size={18} style={{ flexShrink: 0 }} />
+                           <span>
+                              {hasTabEditAccess(tab) ?
+                                 "This workspace is shared. Personal layout changes (dragging items) only affect you, but editing content (buttons/links) affects all users." :
+                                 "This workspace is shared and locked. You do not have permission to rearrange or edit its contents."
+                              }
+                           </span>
+                        </div>
+                     )}
+
+                     {/* Multi-column layout: columns are side-by-side, sections stack vertically within each column */}
+                     <div
+                        className="dashboard-grid"
+                        style={{ '--desktop-cols': tab.columns || 3 } as React.CSSProperties}
+                     >
+                        {Array.from({ length: tab.columns || 3 }, (_, colIdx) => (
+                           <div
+                              key={colIdx}
+                              style={{
+                                 display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0,
+                                 minHeight: '150px',
+                                 background: dragOverColIdx === colIdx && !dragOverSectionId ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
+                                 borderRadius: '16px',
+                                 transition: 'all 0.2s',
+                                 border: dragOverColIdx === colIdx && !dragOverSectionId ? '2px dashed var(--primary)' : '2px solid transparent'
+                              }}
+                              onDragOver={(e) => {
+                                 if (!showEditControls) return;
+                                 e.preventDefault();
+                                 e.dataTransfer.dropEffect = draggedSectionId?.startsWith("catalogSection:") ? "copy" : "move";
+                                 setDragOverColIdx(colIdx);
+                              }}
+                              onDragLeave={(e) => {
+                                 if (!showEditControls) return;
+                                 if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                    setDragOverColIdx(null);
+                                 }
+                              }}
+                              onDrop={(e) => {
+                                 if (!showEditControls) return;
+                                 handleSectionDrop(e, undefined, tab.id, colIdx);
+                              }}
+                           >
+                              {tab.sections
+                                 .filter(s => (s.column ?? 0) === colIdx)
+                                 .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                                 .map(section => (
+                                    <div
+                                       key={section.id}
+                                       draggable={showEditControls && hasTabEditAccess(tab)}
+                                       onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", section.id); e.stopPropagation(); } }}
+                                       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = draggedSectionId?.startsWith("catalogSection:") ? "copy" : "move"; e.stopPropagation(); setDragOverSectionId(section.id); }}
+                                       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setDragOverSectionId(null); } }}
+                                       onDragEnd={() => { setDraggedSectionId(null); setDragOverSectionId(null); setDragOverColIdx(null); }}
+                                       onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleSectionDrop(e, section.id, tab.id, colIdx); }}
+                                       style={{
+                                          background: 'var(--glass-bg)', borderRadius: '16px',
+                                          border: dragOverSectionId === section.id ? '2px dashed var(--primary)' : '1px solid var(--glass-border)',
+                                          overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                                          height: 'fit-content', minWidth: 0, width: '100%', boxSizing: 'border-box',
+                                          opacity: draggedSectionId === section.id ? 0.45 : 1,
+                                          cursor: showEditControls ? 'grab' : 'default',
+                                          transform: dragOverSectionId === section.id ? 'scale(1.02)' : 'none',
+                                          transition: 'all 0.2s'
+                                       }}
+                                    >
+                                       {/* Section Header */}
+                                       <div style={{ padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.1)', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                          <div onClick={() => toggleSection(tab.id, section.id, section.defaultCollapsed)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                                             <div style={{ flexShrink: 0, display: 'flex' }}>
+                                                {(collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                                             </div>
+                                             <div style={{ flexShrink: 0, display: 'flex' }}>
+                                                <IconComponent name={section.icon || "LayoutGrid"} size={18} />
+                                             </div>
+                                             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: '1 1 auto', minWidth: 0 }}>{section.title}</h3>
+                                             {showEditControls && !hasSectionEditAccess(section, tab) && (
+                                                <div style={{ display: 'flex', opacity: 0.3, flexShrink: 0, marginLeft: '0.5rem' }} title="Locked: You do not have Editor or Owner permissions for this section.">
+                                                   <Lock size={14} />
+                                                </div>
+                                             )}
+                                          </div>
+                                          {showEditControls && hasSectionEditAccess(section, tab) && (
+                                             <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                                <button onClick={() => { setEditingBookmark({} as any); setTargetSectionIdForBookmark(section.id); setModalMode("add"); setIsBookmarkModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Plus size={20} /></button>
+                                                <button onClick={() => { setEditingSection(section); setIsSectionModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Settings size={20} /></button>
+                                             </div>
+                                          )}
+                                       </div>
+
+                                       {/* Bookmarks */}
+                                       {!(collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) && (
+                                          <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
+                                             {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => (
+                                                <div
+                                                   key={bookmark.id}
+                                                   draggable={showEditControls && hasTabEditAccess(tab)}
+                                                   onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedBookmarkId(bookmark.id); setDraggedBookmarkSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", bookmark.id); e.stopPropagation(); } }}
+                                                   onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; setDragOverBookmarkId(bookmark.id); }}
+                                                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverBookmarkId(null); }}
+                                                   onDragEnd={() => { setDraggedBookmarkId(null); setDraggedBookmarkSectionId(null); setDragOverBookmarkId(null); }}
+                                                   onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleBookmarkDrop(e, bookmark.id, section.id); }}
+                                                   style={{ position: 'relative', width: '100%', boxSizing: 'border-box', minWidth: 0, opacity: draggedBookmarkId === bookmark.id ? 0.45 : 1, borderTop: dragOverBookmarkId === bookmark.id ? '2px solid var(--primary)' : '2px solid transparent' }}
+                                                >
+                                                   <a href={showEditControls ? "#" : bookmark.url} target={showEditControls ? "_self" : (bookmark.openInNewTab !== false ? "_blank" : "_self")} style={{
+                                                      display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', borderRadius: '12px', width: '100%', boxSizing: 'border-box', minWidth: 0,
+                                                      textDecoration: 'none', color: 'var(--text)', transition: 'background 0.2s', ...(!showEditControls ? { cursor: 'pointer' } : { cursor: 'grab' })
+                                                   }}
+                                                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(150,150,150,0.1)'}
+                                                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                   >
+                                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', flexShrink: 0 }}>
+                                                         <IconComponent name={bookmark.icon} size={28} />
+                                                      </div>
+                                                      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: '1 1 auto', minWidth: 0 }}>
+                                                         <span style={{ fontWeight: 600, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{bookmark.title}</span>
+                                                         {bookmark.description ? <span style={{ fontSize: '0.8rem', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{bookmark.description}</span> : null}
+                                                      </div>
+                                                   </a>
+                                                   {showEditControls && hasSectionEditAccess(section, tab) && (
+                                                      <div style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '0.25rem', background: 'var(--glass-bg)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                                                         <button onClick={(e) => { e.preventDefault(); setEditingBookmark(bookmark); setModalMode("edit"); setIsBookmarkModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Edit2 size={14} /></button>
+                                                         <button onClick={(e) => { e.preventDefault(); if (confirm('Delete app?')) actions.deleteBookmark(bookmark.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff4444' }}><Trash2 size={14} /></button>
+                                                      </div>
+                                                   )}
+                                                </div>
+                                             ))}
+
+                                          </div>
+                                       )}
+                                    </div>
+                                 ))}
+
+                              {/* Drop placeholder (ghost area) inside column when dragging */}
+                              {draggedSectionId && dragOverColIdx === colIdx && !dragOverSectionId && (
+                                 <div style={{ width: '100%', height: '80px', borderRadius: '16px', border: '2px dashed var(--primary)', background: 'rgba(var(--primary-rgb), 0.1)', transition: 'all 0.2s' }} />
+                              )}
+
+                              {/* Add Section inside column */}
+                              {showEditControls && (
+                                 <div
+                                    onClick={() => { setEditingSection(null); setIsSectionModalOpen(true); }}
+                                    style={{ background: 'transparent', borderRadius: '16px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.2s', color: 'var(--text)', marginTop: '0.5rem' }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}
+                                 >
+                                    <Plus size={16} />
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Add Section</span>
+                                 </div>
+                              )}
+                           </div>
+                        ))}
+                     </div>
+                  </div>
+               );
+            })}
+         </div>
+
+
+         {/* --- Modals --- */}
+         {isCatalogOpen && (
+            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: draggedSectionId?.startsWith('catalogSection:') ? 'transparent' : 'rgba(0,0,0,0.35)', backdropFilter: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end', pointerEvents: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
+               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', background: drawerBg, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: '1px solid ' + effectivePrimaryColor, pointerEvents: 'auto' }}>
+                  <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(var(--primary-rgb), 0.05)' }}>
+                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Library size={20} /> Public Catalog</h2>
+                     <button onClick={() => setIsCatalogOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
+                  </div>
+
+                  <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)' }}>
+                     <button
+                        onClick={() => setCatalogTab("workspaces")}
+                        style={{ flex: 1, padding: '1rem', background: catalogTab === "workspaces" ? 'transparent' : 'rgba(0,0,0,0.05)', border: 'none', borderBottom: catalogTab === "workspaces" ? '2px solid var(--primary)' : '2px solid transparent', color: catalogTab === "workspaces" ? 'var(--primary)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+                     >
+                        Workspaces
+                     </button>
+                     <button
+                        onClick={() => setCatalogTab("sections")}
+                        style={{ flex: 1, padding: '1rem', background: catalogTab === "sections" ? 'transparent' : 'rgba(0,0,0,0.05)', border: 'none', borderBottom: catalogTab === "sections" ? '2px solid var(--primary)' : '2px solid transparent', color: catalogTab === "sections" ? 'var(--primary)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+                     >
+                        Sections
+                     </button>
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     {catalogTab === "workspaces" && (
+                        libraryTabs.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared workspaces available.</div> :
+                           libraryTabs.map(libTab => {
+                              const isAdded = tabs.some(t => t.id === libTab.id);
+                              return (
+                              <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', opacity: isAdded ? 0.5 : 1 }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>
+                                    {libTab.icon && <IconComponent name={libTab.icon} size={18} />}
+                                    {libTab.title}
+                                 </div>
+                                 {libTab.description && <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{libTab.description}</div>}
+                                 {isAdded ? (
+                                    <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(0,0,0,0.05)', color: 'var(--text)', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'center', opacity: 0.7 }}>
+                                       Already added to dashboard
+                                    </div>
+                                 ) : (
+                                    <button
+                                       onClick={async () => { await actions.addTabToUser(libTab.id); router.refresh(); }}
+                                       style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+                                    >
+                                       <Plus size={16} /> Add to Dashboard
+                                    </button>
+                                 )}
                               </div>
                            )})
                      )}
@@ -682,7 +902,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                         librarySections.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared sections available.</div> :
                            librarySections.map(libSec => {
                               const activeTabObj = tabs.find(t => t.id === activeTabId);
-                              const isAdded = activeTabObj?.tabSections?.some(ts => ts.section.id === libSec.id);
+                              const isAdded = activeTabObj?.sections?.some(s => s.id === libSec.id);
                               return (
                               <div
                                  key={libSec.id}
@@ -747,6 +967,8 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
             <SectionModal
                section={editingSection}
                targetTabId={activeTab?.id}
+               isAdmin={isAdmin}
+               currentUserId={currentUserId}
                onClose={() => setIsSectionModalOpen(false)}
                onSaved={() => { setIsSectionModalOpen(false); router.refresh(); }}
             />
@@ -758,6 +980,8 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                tab={targetTabToEdit}
                allDepartments={allDepartments}
                allThemes={allThemes}
+               isAdmin={isAdmin}
+               currentUserId={currentUserId}
                onClose={() => setIsTabModalOpen(false)}
                onSaved={() => { setIsTabModalOpen(false); router.refresh(); }}
             />
@@ -765,7 +989,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
 
          {/* Version Footer */}
          <div style={{ textAlign: 'center', padding: 'max(1rem, env(safe-area-inset-bottom))', opacity: 0.5, fontSize: '0.8rem', color: 'var(--text)', marginTop: 'auto' }}>
-            v1.2.1
+            v1.2.2
          </div>
       </main>
    );
