@@ -900,6 +900,7 @@ export function Dashboard({
             <TabModal
                tab={targetTabToEdit}
                allDepartments={allDepartments}
+               allThemes={allThemes}
                onClose={() => setIsTabModalOpen(false)}
                onSaved={() => { setIsTabModalOpen(false); router.refresh(); }}
             />
