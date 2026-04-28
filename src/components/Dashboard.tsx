@@ -247,9 +247,10 @@ export function Dashboard({
          if (tabIndex !== -1) {
             const targetTab = newTabs[tabIndex];
             const sortedInCol = targetTab.sections.filter(s => s.column === colIdx).sort((a,b) => (a.order??0)-(b.order??0));
-            // Send the update for all items in the column so order is preserved
-            for (let i = 0; i < sortedInCol.length; i++) {
-                await actions.updatePersonalLayout({ tabId: currentTabId, sectionId: sortedInCol[i].id, column: colIdx, order: i });
+            // Send the update as a single batch to prevent React re-render snapping
+            const updates = sortedInCol.map((s, i) => ({ tabId: currentTabId, sectionId: s.id, column: colIdx, order: i }));
+            if (updates.length > 0) {
+               await actions.updatePersonalLayoutBatch(updates);
             }
          }
      }
@@ -431,12 +432,12 @@ export function Dashboard({
   `;
 
   return (
-     <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', maxWidth: '100vw', paddingTop: '0.5rem' }}>
+     <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', maxWidth: '100vw' }}>
         <style dangerouslySetInnerHTML={{ __html: dynamicCSS }} />
         <AmbientBackground theme={activeTheme} />
 
         {/* Global Nav Bar - Updated for Mobile / Multi-row */}
-        <nav className="navbar glass" style={{ background: 'var(--glass-bg)', display: 'flex', flexDirection: 'column', gap: '0.5rem', height: 'auto', minHeight: 'var(--nav-height)' }}>
+        <nav className="navbar glass" style={{ paddingTop: '0.5rem', background: 'var(--glass-bg)', display: 'flex', flexDirection: 'column', gap: '0.5rem', height: 'auto', minHeight: 'var(--nav-height)' }}>
            {/* Top Row: Workspace + Mobile Menu/Right Buttons */}
            <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap' }}>
              {/* 1. Workspace Name */}
@@ -535,7 +536,7 @@ export function Dashboard({
         {(tabs.length > 1 || showEditControls) && !searchQuery.trim() && (
            <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent' }}>
               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
-                 {tabs.map(tab => (
+                 {tabs.map(tab => { const tabPrimary = tab.theme?.primaryColor || "var(--primary)"; return (
                     <button 
                        key={tab.id}
                        className="workspace-tab-btn"
@@ -547,9 +548,9 @@ export function Dashboard({
                        onDrop={(e) => { handleTabDrop(e, tab.id); setDragOverTabId(null); }}
                        style={{ 
                           padding: '0.75rem 1.25rem',
-                          background: dragOverTabId === tab.id ? 'rgba(var(--primary-rgb), 0.2)' : activeTabId === tab.id ? 'var(--primary)' : 'var(--glass-bg)', 
-                          border: `1px solid ${activeTabId === tab.id ? 'var(--primary)' : 'var(--glass-border)'}`,
-                          borderTop: dragOverTabId === tab.id ? '3px solid var(--primary)' : `1px solid ${activeTabId === tab.id ? 'var(--primary)' : 'var(--glass-border)'}`,
+                          background: dragOverTabId === tab.id ? 'rgba(var(--primary-rgb), 0.2)' : activeTabId === tab.id ? tabPrimary : 'var(--glass-bg)', 
+                          border: `1px solid ${activeTabId === tab.id ? tabPrimary : 'var(--glass-border)'}`,
+                          borderTop: dragOverTabId === tab.id ? `3px solid ${tabPrimary}` : `1px solid ${activeTabId === tab.id ? tabPrimary : 'var(--glass-border)'}`,
                           borderBottom: 'none',
                           cursor: showEditControls ? 'grab' : 'pointer', borderRadius: '12px 12px 0 0',
                           color: activeTabId === tab.id ? 'var(--nav-text)' : 'var(--text)',
@@ -584,7 +585,7 @@ export function Dashboard({
                           </div>
                        )}
                     </button>
-                 ))}
+                 );})}
                  
                  {showEditControls && (
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -621,7 +622,7 @@ export function Dashboard({
                   {searchQuery.trim() && <h2 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>From {tab.title}</h2>}
                   
                   {isShared && showEditControls && (
-                     <div style={{ background: 'rgba(var(--primary-rgb), 0.2)', backdropFilter: 'blur(10px)', color: 'var(--primary)', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', border: '1px solid rgba(var(--primary-rgb), 0.4)' }}>
+                     <div style={{ background: 'var(--primary)', color: '#ffffff', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
                         <Info size={18} style={{ flexShrink: 0 }} /> 
                         <span>
                            {hasTabEditAccess(tab) ? 
@@ -784,7 +785,7 @@ export function Dashboard({
          {/* --- Modals --- */}
          {isCatalogOpen && (
             <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end' }}>
-               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--background)', borderLeft: '1px solid var(--glass-border)' }}>
+               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: theme === 'dark' ? '#121212' : '#ffffff', borderLeft: '1px solid var(--glass-border)' }}>
                   <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(var(--primary-rgb), 0.05)' }}>
                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Library size={20} /> Public Catalog</h2>
                      <button onClick={() => setIsCatalogOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
