@@ -105,9 +105,6 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
         setSectionOpacity(0.5 + Math.random() * 0.4);
         setGlassOpacity(0.08 + Math.random() * 0.12);
         setIsLibraryItem(false);
-
-        // Auto-generate a backdrop
-        setTimeout(() => autoGenerateBackdrop(initColor, dark), 100);
       }
       setIsDeleteModalOpen(false);
     }
@@ -310,25 +307,9 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     }
 
     ctx.globalCompositeOperation = 'source-over';
-    const imgData = ctx.getImageData(0, 0, 1600, 900);
-    for (let p = 0; p < imgData.data.length; p += 4) {
-      const noise = (Math.random() - 0.5) * 12;
-      imgData.data[p] = Math.min(255, Math.max(0, imgData.data[p] + noise));
-      imgData.data[p + 1] = Math.min(255, Math.max(0, imgData.data[p + 1] + noise));
-      imgData.data[p + 2] = Math.min(255, Math.max(0, imgData.data[p + 2] + noise));
-    }
-    ctx.putImageData(imgData, 0, 0);
 
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     return await actions.saveGeneratedImage(dataUrl);
-  };
-
-  const autoGenerateBackdrop = async (color: string, dark: boolean) => {
-    setIsGenerating(true);
-    try {
-      const url = await doGenerate(randomName(), color, dark);
-      if (url) setBackgroundColor(url);
-    } finally { setIsGenerating(false); }
   };
 
   const generateAbstract = async () => {

@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import * as LucideIcons from "lucide-react";
-import { Search, Upload, X } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import { Icon } from "@iconify/react";
+import { getIconRegistry, getCachedIconRegistry } from "@/lib/iconRegistry";
 
 export const IconComponent = ({ name, size = 24, className = "", fallback }: { name?: string | null | undefined, size?: number, className?: string, fallback?: React.ReactNode }) => {
   if (!name) return fallback || null;
@@ -59,15 +60,16 @@ export const IconPicker = ({
       if (file) await uploadFile(file);
   };
 
-  const [localRegistry, setLocalRegistry] = useState<string[]>(iconRegistry || []);
+  const [localRegistry, setLocalRegistry] = useState<string[]>(
+    iconRegistry && iconRegistry.length ? iconRegistry : (getCachedIconRegistry() || [])
+  );
   React.useEffect(() => {
+     if (iconRegistry && iconRegistry.length) {
+        setLocalRegistry(iconRegistry);
+        return;
+     }
      if (localRegistry.length === 0) {
-        Promise.all([
-           fetch("https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/icon-index.json").then(r => r.json()).catch(() => []),
-           fetch("/api/icons").then(r => r.json()).catch(() => [])
-        ]).then(([github, local]) => {
-           setLocalRegistry([...(local || []), ...(github || [])]);
-        });
+        getIconRegistry().then(icons => setLocalRegistry(icons));
      }
   }, [iconRegistry]);
 

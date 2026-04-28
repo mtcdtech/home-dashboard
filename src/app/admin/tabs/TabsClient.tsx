@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { IconPicker, IconComponent } from "@/components/IconPicker";
+import { getIconRegistry } from "@/lib/iconRegistry";
 import * as actions from "@/app/admin/actions";
 import { 
   Settings, 
@@ -64,39 +65,9 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
   const [description, setDescription] = useState("");
   const [pushDept, setPushDept] = useState("");
 
-  const fetchIcons = async () => {
-    try {
-      const [dashRes, selfRes] = await Promise.all([
-        fetch("https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/tree.json"),
-        fetch("https://cdn.jsdelivr.net/gh/selfhst/icons/index.json")
-      ]);
-      const [dashData, selfData] = await Promise.all([dashRes.json(), selfRes.json()]);
-      
-      let allIcons: string[] = [];
-      
-      if (Array.isArray(dashData)) {
-          allIcons = dashData.map((item: any) => typeof item === 'string' ? item : item.name);
-      } else if (dashData && typeof dashData === 'object') {
-          const list = (dashData as any).png || (dashData as any).icons || [];
-          if (Array.isArray(list)) allIcons = list.map((n: string) => n.replace('.png', ''));
-      }
-      
-      if (Array.isArray(selfData)) {
-          const selfIcons = selfData.map((item: any) => `https://cdn.jsdelivr.net/gh/selfhst/icons/png/${item.id}.png`);
-          allIcons = [...allIcons, ...selfIcons];
-      } else if (selfData && typeof selfData === 'object') {
-          const selfIcons = Object.keys(selfData).map(id => `https://cdn.jsdelivr.net/gh/selfhst/icons/png/${id}.png`);
-          allIcons = [...allIcons, ...selfIcons];
-      }
-
-      setIconRegistry(allIcons);
-    } catch (e) { 
-      console.error("Failed to load icon catalog:", e); 
-      setIconRegistry([]);
-    }
-  };
-
-  React.useEffect(() => { fetchIcons(); }, []);
+  React.useEffect(() => {
+    getIconRegistry().then(setIconRegistry);
+  }, []);
 
   const openAdd = () => {
     setEditingTab(null);
