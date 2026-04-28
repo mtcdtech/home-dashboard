@@ -238,24 +238,23 @@ export function Dashboard({
          return newTabs;
       });
 
-      if (isAdmin) {
-         await actions.moveSection(srcId, currentTabId, colIdx, targetId);
-      } else {
-         // Determine new order value
-         const newTabs = syncedTabs;
-         const tabIndex = newTabs.findIndex(t => t.id === currentTabId);
-         if (tabIndex !== -1) {
-            const targetTab = newTabs[tabIndex];
-            const sortedInCol = targetTab.sections.filter(s => s.column === colIdx).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-            // Send the update as a single batch to prevent React re-render snapping
-            const updates = sortedInCol.map((s, i) => ({ tabId: currentTabId, sectionId: s.id, column: colIdx, order: i }));
-            if (updates.length > 0) {
-               await actions.updatePersonalLayoutBatch(updates);
-            }
+      // Always send entire tab layout as a batch to prevent snap-back from partial updates
+      const currentSyncedTabs = syncedTabs;
+      const tabIdx = currentSyncedTabs.findIndex(t => t.id === currentTabId);
+      if (tabIdx !== -1) {
+         const targetTab = currentSyncedTabs[tabIdx];
+         const allSectionUpdates = targetTab.sections.map(s => ({
+            sectionId: s.id,
+            column: s.column ?? 0,
+            order: s.order ?? 0,
+         }));
+         if (isAdmin) {
+            await actions.updateGlobalLayoutBatch(currentTabId, allSectionUpdates);
+         } else {
+            await actions.updatePersonalLayoutBatch(allSectionUpdates.map(u => ({ ...u, tabId: currentTabId })));
          }
       }
-      // refresh in background without tearing UI
-      router.refresh();
+      // Do NOT call router.refresh() here — it re-renders from server and overwrites optimistic state
    };
 
    const handleBookmarkDrop = async (e: React.DragEvent, targetId: string, currentSectionId: string) => {
@@ -537,7 +536,7 @@ export function Dashboard({
             <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent' }}>
                <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
                   {tabs.map(tab => {
-                     const tabPrimary = tab.theme?.primaryColor || "var(--primary)"; return (
+                     const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor; return (
                         <button
                            key={tab.id}
                            className="workspace-tab-btn"
