@@ -159,6 +159,17 @@ export async function deleteTab(id: string) {
   revalidatePath("/admin/tabs");
 }
 
+export async function addTabToUser(tabId: string) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return;
+  await (prisma as any).tab.update({
+    where: { id: tabId },
+    data: { allowedUsers: { connect: { id: userId } } }
+  });
+  revalidatePath("/");
+}
+
 // --- SECTION ORCHESTRATION ---
 export async function createSection(data: any) {
   const session = await auth();

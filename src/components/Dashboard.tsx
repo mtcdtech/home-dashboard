@@ -150,6 +150,9 @@ export function Dashboard({
   const [dragOverBookmarkId, setDragOverBookmarkId] = useState<string | null>(null);
   const [dragOverColIdx, setDragOverColIdx] = useState<number | null>(null);
 
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [catalogTab, setCatalogTab] = useState<"workspaces" | "sections">("workspaces");
+
   const hasTabEditAccess = (tab: Tab) => {
     if (!currentUserId) return false;
     if (isAdmin) return true;
@@ -189,11 +192,21 @@ export function Dashboard({
   const handleSectionDrop = async (e: React.DragEvent, targetId: string | undefined, currentTabId: string, colIdx: number) => {
      e.preventDefault();
      e.stopPropagation();
-     const srcId = draggedSectionId;
+     
+     const dataTransferId = e.dataTransfer.getData("text/plain");
+     const srcId = draggedSectionId || dataTransferId;
+     
      setDraggedSectionId(null);
      setDragOverSectionId(null);
      setDragOverColIdx(null);
      if (!srcId || srcId === targetId) return;
+
+     if (srcId.startsWith("catalogSection:")) {
+         const catalogSectionId = srcId.replace("catalogSection:", "");
+         await actions.addSectionToTab(catalogSectionId, currentTabId, colIdx);
+         router.refresh();
+         return;
+     }
 
      // Optimistic Local Update
      setTabs(currentTabs => {
@@ -547,6 +560,11 @@ export function Dashboard({
                     >
                        {tab.icon && <IconComponent name={tab.icon} size={18} />}
                        {tab.title}
+                       {showEditControls && !hasTabEditAccess(tab) && (
+                          <div style={{ marginLeft: '0.25rem', display: 'flex', opacity: 0.3 }} title="You cannot configure this workspace">
+                             <Lock size={12} />
+                          </div>
+                       )}
                        {showEditControls && (
                           <div style={{ marginLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                              {hasTabEditAccess(tab) && (
@@ -565,15 +583,26 @@ export function Dashboard({
                  ))}
                  
                  {showEditControls && (
-                    <button 
-                       onClick={() => { setTargetTabToEdit(null); setIsTabModalOpen(true); }}
-                       style={{ 
-                          padding: '0.75rem 1.25rem', background: 'transparent', border: '1px dashed var(--glass-border)', borderBottom: 'none',
-                          cursor: 'pointer', borderRadius: '12px 12px 0 0', color: 'var(--text)', opacity: 0.7, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' 
-                       }}
-                    >
-                       <Plus size={18} /> New Workspace
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                       <button 
+                          onClick={() => { setTargetTabToEdit(null); setIsTabModalOpen(true); }}
+                          style={{ 
+                             padding: '0.75rem 1.25rem', background: 'transparent', border: '1px dashed var(--glass-border)', borderBottom: 'none',
+                             cursor: 'pointer', borderRadius: '12px 12px 0 0', color: 'var(--text)', opacity: 0.7, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' 
+                          }}
+                       >
+                          <Plus size={18} /> New Workspace
+                       </button>
+                       <button 
+                          onClick={() => setIsCatalogOpen(true)}
+                          style={{ 
+                             padding: '0.75rem 1.25rem', background: 'rgba(var(--primary-rgb), 0.1)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderBottom: 'none',
+                             cursor: 'pointer', borderRadius: '12px 12px 0 0', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' 
+                          }}
+                       >
+                          <Library size={18} /> Catalog
+                       </button>
+                    </div>
                  )}
               </div>
            </div>
@@ -587,8 +616,8 @@ export function Dashboard({
                <div key={tab.id} style={{ marginBottom: '2rem' }}>
                   {searchQuery.trim() && <h2 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>From {tab.title}</h2>}
                   
-                  {isShared && (
-                     <div style={{ background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', border: '1px solid rgba(var(--primary-rgb), 0.2)' }}>
+                  {isShared && showEditControls && (
+                     <div style={{ background: 'rgba(var(--primary-rgb), 0.2)', backdropFilter: 'blur(10px)', color: 'var(--primary)', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', border: '1px solid rgba(var(--primary-rgb), 0.4)' }}>
                         <Info size={18} style={{ flexShrink: 0 }} /> 
                         <span>This workspace is shared. Personal layout changes (dragging items) only affect you, but editing content (buttons/links) affects all users.</span>
                      </div>
@@ -660,6 +689,11 @@ export function Dashboard({
                                          <IconComponent name={section.icon || "LayoutGrid"} size={18} />
                                       </div>
                                       <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: '1 1 auto', minWidth: 0 }}>{section.title}</h3>
+                                      {showEditControls && !hasSectionEditAccess(section, tab) && (
+                                         <div style={{ display: 'flex', opacity: 0.3, flexShrink: 0, marginLeft: '0.5rem' }} title="You cannot configure this section">
+                                            <Lock size={14} />
+                                         </div>
+                                      )}
                                    </div>
                                    {showEditControls && hasSectionEditAccess(section, tab) && (
                                       <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -738,7 +772,76 @@ export function Dashboard({
          </div>
 
 
-        {/* --- Modals --- */}
+         {/* --- Modals --- */}
+         {isCatalogOpen && (
+            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end' }}>
+               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--background)', borderLeft: '1px solid var(--glass-border)' }}>
+                  <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(var(--primary-rgb), 0.05)' }}>
+                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Library size={20} /> Public Catalog</h2>
+                     <button onClick={() => setIsCatalogOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
+                  </div>
+                  
+                  <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)' }}>
+                     <button 
+                        onClick={() => setCatalogTab("workspaces")}
+                        style={{ flex: 1, padding: '1rem', background: catalogTab === "workspaces" ? 'transparent' : 'rgba(0,0,0,0.05)', border: 'none', borderBottom: catalogTab === "workspaces" ? '2px solid var(--primary)' : '2px solid transparent', color: catalogTab === "workspaces" ? 'var(--primary)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+                     >
+                        Workspaces
+                     </button>
+                     <button 
+                        onClick={() => setCatalogTab("sections")}
+                        style={{ flex: 1, padding: '1rem', background: catalogTab === "sections" ? 'transparent' : 'rgba(0,0,0,0.05)', border: 'none', borderBottom: catalogTab === "sections" ? '2px solid var(--primary)' : '2px solid transparent', color: catalogTab === "sections" ? 'var(--primary)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+                     >
+                        Sections
+                     </button>
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     {catalogTab === "workspaces" && (
+                        libraryTabs.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared workspaces available.</div> :
+                        libraryTabs.map(libTab => (
+                           <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>
+                                 {libTab.icon && <IconComponent name={libTab.icon} size={18} />}
+                                 {libTab.title}
+                              </div>
+                              {libTab.description && <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{libTab.description}</div>}
+                              <button 
+                                 onClick={async () => { await actions.addTabToUser(libTab.id); router.refresh(); }}
+                                 style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+                              >
+                                 <Plus size={16} /> Add to Dashboard
+                              </button>
+                           </div>
+                        ))
+                     )}
+                     
+                     {catalogTab === "sections" && (
+                        librarySections.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared sections available.</div> :
+                        librarySections.map(libSec => (
+                           <div 
+                              key={libSec.id} 
+                              className="glass-card" 
+                              draggable={true}
+                              onDragStart={(e) => { 
+                                 e.dataTransfer.effectAllowed = "copy"; 
+                                 e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
+                              }}
+                              style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'grab' }}
+                           >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--primary)' }}>
+                                 <GripVertical size={16} style={{ opacity: 0.5 }} />
+                                 {libSec.icon && <IconComponent name={libSec.icon} size={16} />}
+                                 {libSec.title}
+                              </div>
+                              <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: '1.5rem' }}>{libSec.description || "Drag this card onto any column in your dashboard to insert it."}</div>
+                           </div>
+                        ))
+                     )}
+                  </div>
+               </div>
+            </div>
+         )}
 
         {isThemeModalOpen && <ThemeModal 
             editingTheme={activeTheme} 
