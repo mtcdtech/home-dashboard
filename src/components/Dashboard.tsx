@@ -508,6 +508,7 @@ export function Dashboard({
                   <button className="nav-menu-btn" title="Toggle Theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text)', padding: '0.5rem', display: 'flex', alignItems: 'center' }}>
                      {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} <span className="mobile-menu-text">Toggle Dark Mode</span>
                   </button>
+               </div>
             </div>
 
             {/* 2. Search Bar Row (Moved Below Header) */}
@@ -534,14 +535,11 @@ export function Dashboard({
          {/* Tab Selection */}
          {(tabs.length > 1 || showEditControls) && !searchQuery.trim() && (
             <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent', position: 'relative' }}>
-               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start', position: 'relative' }}>
+               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
                   {tabs.map(tab => {
                      const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor;
                      const isActiveTab = activeTabId === tab.id;
                      const isDragOver = dragOverTabId === tab.id;
-                     const tabBgInactive = tabPrimary + '99';
-                     const tabBgDragOver = tabPrimary + '80';
-                     const tabBorderInactive = tabPrimary + 'B3';
                      return (
                         <button
                            key={tab.id}
@@ -554,9 +552,9 @@ export function Dashboard({
                            onDrop={(e) => { handleTabDrop(e, tab.id); setDragOverTabId(null); }}
                            style={{
                               padding: '0.75rem 1.25rem',
-                              background: isDragOver ? tabBgDragOver : isActiveTab ? tabPrimary : tabBgInactive,
-                              border: '1px solid ' + (isActiveTab || isDragOver ? tabPrimary : tabBorderInactive),
-                              borderTop: isDragOver ? ('3px solid ' + tabPrimary) : ('1px solid ' + (isActiveTab ? tabPrimary : tabBorderInactive)),
+                              background: isDragOver ? tabPrimary + '80' : isActiveTab ? tabPrimary : tabPrimary + '99',
+                              border: '1px solid ' + (isActiveTab || isDragOver ? tabPrimary : tabPrimary + 'B3'),
+                              borderTop: isDragOver ? '3px solid ' + tabPrimary : '1px solid ' + (isActiveTab ? tabPrimary : tabPrimary + 'B3'),
                               borderBottom: 'none',
                               cursor: showEditControls ? 'grab' : 'pointer', borderRadius: '12px 12px 0 0',
                               color: isActiveTab ? 'var(--nav-text)' : 'var(--text)',
@@ -608,25 +606,18 @@ export function Dashboard({
                      </div>
                   )}
                </div>
-               {/* Catalog button — always pinned to the far right */}
+               {/* Catalog button — pinned to far right of tab bar */}
                <button
                   onClick={() => setIsCatalogOpen(!isCatalogOpen)}
                   style={{
                      position: 'absolute', right: '1.5rem', bottom: '0.6rem',
                      padding: '0.55rem 1rem',
                      background: catBtnBg,
-                     border: `1px solid ${effectivePrimaryColor}`,
-                     borderRadius: '10px',
-                     cursor: 'pointer',
-                     color: '#fff',
-                     fontWeight: 700,
-                     fontSize: '0.85rem',
-                     display: 'flex',
-                     alignItems: 'center',
-                     gap: '0.4rem',
-                     boxShadow: catBtnShadow,
-                     transition: 'all 0.2s ease',
-                     zIndex: 3,
+                     border: '1px solid ' + effectivePrimaryColor,
+                     borderRadius: '10px', cursor: 'pointer', color: '#fff', fontWeight: 700,
+                     fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                     boxShadow: '0 2px 12px ' + effectivePrimaryColor + '55',
+                     transition: 'all 0.2s ease', zIndex: 3,
                   }}
                >
                   <Library size={15} /> Catalog
@@ -806,7 +797,7 @@ export function Dashboard({
          {/* --- Modals --- */}
          {isCatalogOpen && (
             <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: draggedSectionId?.startsWith('catalogSection:') ? 'transparent' : 'rgba(0,0,0,0.35)', backdropFilter: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'blur(2px)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end', pointerEvents: draggedSectionId?.startsWith('catalogSection:') ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
-               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: drawerBg, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: `1px solid ${effectivePrimaryColor}`, pointerEvents: 'auto' }}>
+               <div className="glass modal-content slide-in-right" style={{ width: '100%', maxWidth: '400px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: drawerBg, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderLeft: '1px solid ' + effectivePrimaryColor, pointerEvents: 'auto' }}>
                   <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(var(--primary-rgb), 0.05)' }}>
                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Library size={20} /> Public Catalog</h2>
                      <button onClick={() => setIsCatalogOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
@@ -939,12 +930,11 @@ const AmbientBackground = ({ theme }: { theme?: Theme | null }) => {
    if (!theme) return null;
    const bgImg = (theme.backgroundColor && (theme.backgroundColor.startsWith('http') || theme.backgroundColor.startsWith('/') || theme.backgroundColor.startsWith('api') || theme.backgroundColor.startsWith('data:'))) ? theme.backgroundColor : null;
 
-   // Pre-computed theme colors for JSX (avoids nested template literal parse issues)
-   const catBtnBg = isCatalogOpen ? effectivePrimaryColor : (effectivePrimaryColor + 'CC');
-   const catBtnShadow = '0 2px 12px ' + effectivePrimaryColor + '55';
+   // Pre-computed theme colors to avoid nested template literal issues
+   const catBtnBg = isCatalogOpen ? effectivePrimaryColor : effectivePrimaryColor + 'CC';
    const drawerBg = effectivePrimaryColor + 'CC';
 
-      return (
+   return (
       <div style={{ position: 'fixed', top: '-100px', bottom: '-100px', left: 0, right: 0, zIndex: -1, overflow: 'hidden', background: 'var(--bg-base)', pointerEvents: 'none' }}>
          <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '80%', height: '80%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(100px)', opacity: 0.8, animation: 'float 20s infinite alternate linear' }} />
          <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '70%', height: '70%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(120px)', opacity: 0.6, animation: 'float 25s infinite alternate-reverse linear' }} />
