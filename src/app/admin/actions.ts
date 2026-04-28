@@ -242,10 +242,14 @@ export async function updateSectionLayout(sectionId: string, tabId: string, data
 }
 
 export async function updateTabSectionCollapsed(sectionId: string, tabId: string, defaultCollapsed: boolean) {
-  await (prisma as any).tabSection.update({
-    where: { tabId_sectionId: { tabId, sectionId } },
-    data: { defaultCollapsed },
-  });
+  await prisma.$transaction(
+    [{ sectionId, tabId, defaultCollapsed }].map(update =>
+      (prisma as any).tabSection.updateMany({
+        where: { tabId: update.tabId, sectionId: update.sectionId },
+        data: { defaultCollapsed: update.defaultCollapsed }
+      })
+    )
+  );
   revalidatePath("/");
 }
 
@@ -898,3 +902,22 @@ export async function setUserDefaultTab(userId: string, tabId: string) {
   await prisma.user.update({ where: { id: userId }, data: { defaultTabId: tabId } });
 }
 
+
+export async function updateGlobalLayoutBatch(tabId: string, updates: { sectionId: string; column: number; order?: number }[]) {
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.email) throw new Error("Unauthorized");
+  
+  await prisma.$transaction(
+    updates.map(update =>
+      (prisma as any).tabSection.updateMany({
+        where: { tabId: tabId, sectionId: update.sectionId },
+        data: {
+          column: update.column,
+          ...(update.order !== undefined ? { order: update.order } : {})
+        }
+      })
+    )
+  );
+  revalidatePath("/");
+}
