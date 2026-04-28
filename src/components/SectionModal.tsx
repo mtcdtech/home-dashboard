@@ -13,9 +13,10 @@ export interface SectionModalProps {
   iconRegistry?: { selfhost: any[], walkx: any[] };
   onUploadIcon?: (e: React.ChangeEvent<HTMLInputElement>) => Promise<string | null>;
   currentUserId?: string;
+  isAdmin?: boolean;
 }
 
-export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegistry, onUploadIcon, currentUserId }: SectionModalProps) {
+export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegistry, onUploadIcon, currentUserId, isAdmin }: SectionModalProps) {
   const [title, setTitle] = useState(section?.title || "");
   const [icon, setIcon] = useState(section?.icon || "");
   const [description, setDescription] = useState(section?.description || "");
@@ -23,7 +24,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
   const [defaultCollapsed, setDefaultCollapsed] = useState(section ? section.defaultCollapsed : false);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
-  const isOwner = section?.owners?.some((u: any) => u.id === currentUserId);
+  const isOwner = isAdmin || section?.owners?.some((u: any) => u.id === currentUserId);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,9 +142,9 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                          }
                       }}
                       disabled={saving}
-                      style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600, color: '#e74c3c', background: 'transparent', border: '1px solid #e74c3c55', cursor: 'pointer', transition: 'all 0.2s ease', opacity: saving ? 0.5 : 1 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#e74c3c11'; e.currentTarget.style.borderColor = '#e74c3c'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#e74c3c55'; }}
+                      style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600, color: '#fff', background: 'rgba(231, 76, 60, 0.8)', border: 'none', cursor: 'pointer', transition: 'all 0.2s ease', opacity: saving ? 0.5 : 1 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 0.8)'; }}
                    >
                       {isOwner ? "Delete Section" : "Remove Section"}
                    </button>

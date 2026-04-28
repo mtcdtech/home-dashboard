@@ -14,9 +14,10 @@ export interface TabModalProps {
   onUploadIcon?: (e: React.ChangeEvent<HTMLInputElement>) => Promise<string | null>;
   allThemes?: any[];
   currentUserId?: string;
+  isAdmin?: boolean;
 }
 
-export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [], currentUserId }: TabModalProps) {
+export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [], currentUserId, isAdmin }: TabModalProps) {
   const [title, setTitle] = useState(tab?.title || "");
   const [icon, setIcon] = useState(tab?.icon || "");
   const [isLibraryItem, setIsLibraryItem] = useState(tab?.isLibraryItem ?? false);
@@ -24,7 +25,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
   const [columns, setColumns] = useState(tab?.columns || 3);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
-  const isOwner = tab?.owners?.some((u: any) => u.id === currentUserId);
+  const isOwner = isAdmin || tab?.owners?.some((u: any) => u.id === currentUserId);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +53,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
           </div>
 
-          <div style={{ padding: '2rem', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '2rem' }}>
+          <div style={{ padding: '2rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Workspace Settings</label>
@@ -153,9 +154,9 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                          }
                       }}
                       disabled={saving}
-                      style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600, color: '#e74c3c', background: 'transparent', border: '1px solid #e74c3c55', cursor: 'pointer', transition: 'all 0.2s ease', opacity: saving ? 0.5 : 1 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#e74c3c11'; e.currentTarget.style.borderColor = '#e74c3c'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#e74c3c55'; }}
+                      style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600, color: '#fff', background: 'rgba(231, 76, 60, 0.8)', border: 'none', cursor: 'pointer', transition: 'all 0.2s ease', opacity: saving ? 0.5 : 1 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 0.8)'; }}
                    >
                       {isOwner ? "Delete Workspace" : "Remove Workspace"}
                    </button>
