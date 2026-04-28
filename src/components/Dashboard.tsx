@@ -989,7 +989,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
 
          {/* Version Footer */}
          <div style={{ textAlign: 'center', padding: 'max(1rem, env(safe-area-inset-bottom))', opacity: 0.5, fontSize: '0.8rem', color: 'var(--text)', marginTop: 'auto' }}>
-            v1.2.2
+            v1.2.3
          </div>
       </main>
    );

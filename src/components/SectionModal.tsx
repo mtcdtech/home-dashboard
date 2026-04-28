@@ -25,6 +25,9 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const isOwner = isAdmin || section?.owners?.some((u: any) => u.id === currentUserId);
+  const isShared = section?.isLibraryItem || section?.organization || (section?.allowedUsers && section.allowedUsers.length > 0) || (section?.departmentAccess && section.departmentAccess.length > 0);
+  const showDelete = isOwner;
+  const showRemove = isShared || !isOwner;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,31 +116,40 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
           </div>
 
           <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>
-             <div>
-                {section && targetTabId && (
+             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {section && targetTabId && showRemove && (
                    <button 
                       onClick={async () => {
-                         if(isOwner) {
-                            if(confirm(`Are you sure you want to permanently delete the section "${section.title}" for all users?`)) {
-                               setSaving(true);
-                               try {
-                                  await actions.deleteSection(section.id);
-                                  onSaved();
-                               } catch(e) {
-                                  console.error(e);
-                                  setSaving(false);
-                               }
+                         if(confirm(`Are you sure you want to remove the section "${section.title}" from this workspace?`)) {
+                            setSaving(true);
+                            try {
+                               await actions.removeSectionFromTab(section.id, targetTabId);
+                               onSaved();
+                            } catch(e) {
+                               console.error(e);
+                               setSaving(false);
                             }
-                         } else {
-                            if(confirm(`Are you sure you want to remove the section "${section.title}" from this workspace?`)) {
-                               setSaving(true);
-                               try {
-                                  await actions.removeSectionFromTab(section.id, targetTabId);
-                                  onSaved();
-                               } catch(e) {
-                                  console.error(e);
-                                  setSaving(false);
-                               }
+                         }
+                      }}
+                      disabled={saving}
+                      style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600, color: '#fff', background: 'rgba(231, 140, 60, 0.8)', border: 'none', cursor: 'pointer', transition: 'all 0.2s ease', opacity: saving ? 0.5 : 1 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(231, 140, 60, 1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(231, 140, 60, 0.8)'; }}
+                   >
+                      Remove Section
+                   </button>
+                )}
+                {section && targetTabId && showDelete && (
+                   <button 
+                      onClick={async () => {
+                         if(confirm(`Are you sure you want to permanently delete the section "${section.title}" for all users?`)) {
+                            setSaving(true);
+                            try {
+                               await actions.deleteSection(section.id);
+                               onSaved();
+                            } catch(e) {
+                               console.error(e);
+                               setSaving(false);
                             }
                          }
                       }}
@@ -146,7 +158,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 1)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 0.8)'; }}
                    >
-                      {isOwner ? "Delete Section" : "Remove Section"}
+                      Delete Section
                    </button>
                 )}
              </div>
