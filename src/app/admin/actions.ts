@@ -42,7 +42,7 @@ export async function uploadImage(formData: FormData) {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
   const uploadDir = join(process.cwd(), "public", "uploads");
-  try { await mkdir(uploadDir, { recursive: true }); } catch (e) {}
+  try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
   const filename = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
   const path = join(uploadDir, filename);
   await writeFile(path, buffer);
@@ -53,7 +53,7 @@ export async function saveGeneratedImage(base64: string) {
   const base64Data = base64.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64Data, 'base64');
   const uploadDir = join(process.cwd(), "public", "uploads");
-  try { await mkdir(uploadDir, { recursive: true }); } catch (e) {}
+  try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
   const filename = `gen-${Date.now()}.jpg`;
   const path = join(uploadDir, filename);
   await writeFile(path, buffer);
@@ -66,10 +66,10 @@ export async function downloadImageFromUrl(url: string) {
     if (!response.ok) return null;
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    
+
     const uploadDir = join(process.cwd(), "public", "uploads");
-    try { await mkdir(uploadDir, { recursive: true }); } catch (e) {}
-    
+    try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
+
     const urlObj = new URL(url);
     const ext = urlObj.pathname.split('.').pop() || 'png';
     const filename = `remote-${Date.now()}.${ext}`;
@@ -86,20 +86,20 @@ export async function fetchFavicon(targetUrl: string) {
     const domain = new URL(targetUrl).hostname;
     // High-fidelity favicon signal from Google's high-res proxy
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-    
+
     const response = await fetch(faviconUrl);
     if (!response.ok) return null;
-    
+
     const bytes = await response.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
+
     const uploadDir = join(process.cwd(), "public", "uploads");
-    try { await mkdir(uploadDir, { recursive: true }); } catch (e) {}
-    
+    try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
+
     const filename = `fav-${domain}-${Date.now()}.png`;
     const path = join(uploadDir, filename);
     await writeFile(path, buffer);
-    
+
     return `/api/uploads/${filename}`;
   } catch (e) {
     console.error("Favicon manifestation error:", e);
@@ -149,8 +149,8 @@ export async function updateTab(id: string, data: { title: string; icon?: string
 }
 
 export async function reorderTabs(orderedIds: string[]) {
-    await Promise.all(orderedIds.map((id, idx) => (prisma as any).tab.update({ where: { id }, data: { order: idx } })));
-    revalidatePath("/");
+  await Promise.all(orderedIds.map((id, idx) => (prisma as any).tab.update({ where: { id }, data: { order: idx } })));
+  revalidatePath("/");
 }
 
 export async function deleteTab(id: string) {
@@ -174,7 +174,7 @@ export async function addTabToUser(tabId: string) {
 export async function createSection(data: any) {
   const session = await auth();
   const userId = session?.user?.id;
-  const section = await prisma.section.create({ 
+  const section = await prisma.section.create({
     data: {
       ...data,
       isLibraryItem: data.isLibraryItem ?? false,
@@ -204,19 +204,19 @@ export async function removeSectionFromTab(sectionId: string, tabId: string) {
 }
 
 export async function toggleSectionInTab(tabId: string, sectionId: string, isAssigned: boolean) {
-    if (isAssigned) {
-        const existing = await (prisma as any).tabSection.findUnique({ where: { tabId_sectionId: { tabId, sectionId } } });
-        if (!existing) await (prisma as any).tabSection.create({ data: { tabId, sectionId, order: 999, column: 0 } });
-    } else {
-        await (prisma as any).tabSection.delete({ where: { tabId_sectionId: { tabId, sectionId } } });
-    }
-    revalidatePath("/");
-    revalidatePath("/admin/sections");
+  if (isAssigned) {
+    const existing = await (prisma as any).tabSection.findUnique({ where: { tabId_sectionId: { tabId, sectionId } } });
+    if (!existing) await (prisma as any).tabSection.create({ data: { tabId, sectionId, order: 999, column: 0 } });
+  } else {
+    await (prisma as any).tabSection.delete({ where: { tabId_sectionId: { tabId, sectionId } } });
+  }
+  revalidatePath("/");
+  revalidatePath("/admin/sections");
 }
 
 export async function updateSection(id: string, data: any) {
-  await prisma.section.update({ 
-    where: { id }, 
+  await prisma.section.update({
+    where: { id },
     data: {
       ...data,
       isLibraryItem: data.isLibraryItem ?? false,
@@ -339,16 +339,16 @@ export async function updatePersonalLayoutBatch(updates: {
   if (!dbUser) throw new Error("User not found");
 
   let layout: any = dbUser.layout || {};
-  
-  for (const data of updates) {
-      if (!layout.tabSections) layout.tabSections = {};
-      if (!layout.tabSections[data.tabId]) layout.tabSections[data.tabId] = {};
-      if (!layout.tabSections[data.tabId][data.sectionId]) layout.tabSections[data.tabId][data.sectionId] = {};
 
-      const secLayout = layout.tabSections[data.tabId][data.sectionId];
-      if (data.column !== undefined) secLayout.column = data.column;
-      if (data.order !== undefined) secLayout.order = data.order;
-      if (data.collapsed !== undefined) secLayout.collapsed = data.collapsed;
+  for (const data of updates) {
+    if (!layout.tabSections) layout.tabSections = {};
+    if (!layout.tabSections[data.tabId]) layout.tabSections[data.tabId] = {};
+    if (!layout.tabSections[data.tabId][data.sectionId]) layout.tabSections[data.tabId][data.sectionId] = {};
+
+    const secLayout = layout.tabSections[data.tabId][data.sectionId];
+    if (data.column !== undefined) secLayout.column = data.column;
+    if (data.order !== undefined) secLayout.order = data.order;
+    if (data.collapsed !== undefined) secLayout.collapsed = data.collapsed;
   }
 
   await prisma.user.update({
@@ -396,7 +396,7 @@ export async function moveBookmark(bookmarkId: string, targetSectionId: string, 
   const allInTarget = await prisma.bookmark.findMany({ where: { sectionId: targetSectionId }, orderBy: { order: "asc" } });
   const withoutMoved = allInTarget.filter((b) => b.id !== bookmarkId);
   const movedBookmark = allInTarget.find((b) => b.id === bookmarkId)!;
-  let finalOrder = beforeBookmarkId 
+  let finalOrder = beforeBookmarkId
     ? [...withoutMoved.slice(0, withoutMoved.findIndex((b) => b.id === beforeBookmarkId)), movedBookmark, ...withoutMoved.slice(withoutMoved.findIndex((b) => b.id === beforeBookmarkId))].filter(Boolean)
     : [...withoutMoved, movedBookmark];
   await Promise.all(finalOrder.map((b, idx) => prisma.bookmark.update({ where: { id: b.id }, data: { order: idx } })));
@@ -405,11 +405,11 @@ export async function moveBookmark(bookmarkId: string, targetSectionId: string, 
 
 // --- THEME & AESTHETIC FORGE ---
 export async function createTheme(data: any) {
-  const result = await prisma.theme.create({ 
+  const result = await prisma.theme.create({
     data: {
       ...data,
       owners: { connect: { id: (await auth())?.user?.id } }
-    } 
+    }
   });
   revalidatePath("/admin/theme");
   return result;
@@ -430,34 +430,34 @@ export async function updateTabTheme(tabId: string, themeData: any) {
   const session = await auth();
   const user = (session as any)?.user;
   if (!user) throw new Error("Unauthorized");
-  
+
   const tab = await prisma.tab.findUnique({ where: { id: tabId }, include: { theme: true } });
   if (!tab) throw new Error("Tab not found");
-  
+
   let shouldCreateNew = true;
   if (tab.theme) {
     const isOwner = await prisma.theme.findFirst({
-        where: { id: tab.theme.id, owners: { some: { id: user.id } } }
+      where: { id: tab.theme.id, owners: { some: { id: user.id } } }
     });
     if (isOwner && !tab.theme.isLibraryItem && !tab.theme.isActive) {
-        shouldCreateNew = false;
+      shouldCreateNew = false;
     }
   }
 
   if (shouldCreateNew) {
     const newTheme = await prisma.theme.create({
-        data: {
-            ...themeData,
-            owners: { connect: { id: user.id } }
-        }
+      data: {
+        ...themeData,
+        owners: { connect: { id: user.id } }
+      }
     });
     await prisma.tab.update({ where: { id: tabId }, data: { themeId: newTheme.id } });
     revalidatePath("/");
     return newTheme;
   } else {
     const updated = await prisma.theme.update({
-        where: { id: tab.theme!.id },
-        data: themeData
+      where: { id: tab.theme!.id },
+      data: themeData
     });
     revalidatePath("/");
     revalidatePath("/admin/theme");
@@ -517,51 +517,51 @@ export async function setTabEditors(tabId: string, userIds: string[]) {
 }
 
 async function _updateTabUserRole(tabId: string, userId: string, role: string) {
-    await prisma.tab.update({
-        where: { id: tabId },
-        data: {
-            owners: { disconnect: { id: userId } },
-            editors: { disconnect: { id: userId } },
-            allowedUsers: { disconnect: { id: userId } },
-            blockedUsers: { disconnect: { id: userId } }
-        }
-    });
-
-    if (role === "owner") {
-        await prisma.tab.update({ where: { id: tabId }, data: { owners: { connect: { id: userId } } } });
-    } else if (role === "editor") {
-        await prisma.tab.update({ where: { id: tabId }, data: { editors: { connect: { id: userId } } } });
-    } else if (role === "viewer") {
-        await prisma.tab.update({ where: { id: tabId }, data: { allowedUsers: { connect: { id: userId } } } });
-    } else if (role === "none") {
-        await prisma.tab.update({ where: { id: tabId }, data: { blockedUsers: { connect: { id: userId } } } });
+  await prisma.tab.update({
+    where: { id: tabId },
+    data: {
+      owners: { disconnect: { id: userId } },
+      editors: { disconnect: { id: userId } },
+      allowedUsers: { disconnect: { id: userId } },
+      blockedUsers: { disconnect: { id: userId } }
     }
+  });
+
+  if (role === "owner") {
+    await prisma.tab.update({ where: { id: tabId }, data: { owners: { connect: { id: userId } } } });
+  } else if (role === "editor") {
+    await prisma.tab.update({ where: { id: tabId }, data: { editors: { connect: { id: userId } } } });
+  } else if (role === "viewer") {
+    await prisma.tab.update({ where: { id: tabId }, data: { allowedUsers: { connect: { id: userId } } } });
+  } else if (role === "none") {
+    await prisma.tab.update({ where: { id: tabId }, data: { blockedUsers: { connect: { id: userId } } } });
+  }
 }
 
 export async function updateTabUserRole(tabId: string, userId: string, role: string) {
-    await _updateTabUserRole(tabId, userId, role);
-    revalidatePath("/");
-    revalidatePath("/admin/tabs");
+  await _updateTabUserRole(tabId, userId, role);
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
 }
 
 async function _updateTabDepartmentRole(tabId: string, department: string, role: string) {
-    if (role === "none") {
-        await (prisma as any).tabDepartmentAccess.deleteMany({
-            where: { tabId, department }
-        });
-    } else {
-        await (prisma as any).tabDepartmentAccess.upsert({
-            where: { tabId_department: { tabId, department } },
-            update: { role },
-            create: { tabId, department, role }
-        });
-    }
+  if (role === "none") {
+    await (prisma as any).tabDepartmentAccess.deleteMany({
+      where: { tabId, department }
+    });
+  } else {
+    await (prisma as any).tabDepartmentAccess.upsert({
+      where: { tabId_department: { tabId, department } },
+      update: { role },
+      create: { tabId, department, role }
+    });
+  }
 }
 
 export async function updateTabDepartmentRole(tabId: string, department: string, role: string) {
-    await _updateTabDepartmentRole(tabId, department, role);
-    revalidatePath("/");
-    revalidatePath("/admin/tabs");
+  await _updateTabDepartmentRole(tabId, department, role);
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
 }
 
 export async function setSectionEditors(sectionId: string, userIds: string[]) {
@@ -576,51 +576,51 @@ export async function setSectionEditors(sectionId: string, userIds: string[]) {
 }
 
 async function _updateSectionUserRole(sectionId: string, userId: string, role: string) {
-    await prisma.section.update({
-        where: { id: sectionId },
-        data: {
-            owners: { disconnect: { id: userId } },
-            editors: { disconnect: { id: userId } },
-            allowedUsers: { disconnect: { id: userId } },
-            blockedUsers: { disconnect: { id: userId } }
-        }
-    });
-
-    if (role === "owner") {
-        await prisma.section.update({ where: { id: sectionId }, data: { owners: { connect: { id: userId } } } });
-    } else if (role === "editor") {
-        await prisma.section.update({ where: { id: sectionId }, data: { editors: { connect: { id: userId } } } });
-    } else if (role === "viewer") {
-        await prisma.section.update({ where: { id: sectionId }, data: { allowedUsers: { connect: { id: userId } } } });
-    } else if (role === "none") {
-        await prisma.section.update({ where: { id: sectionId }, data: { blockedUsers: { connect: { id: userId } } } });
+  await prisma.section.update({
+    where: { id: sectionId },
+    data: {
+      owners: { disconnect: { id: userId } },
+      editors: { disconnect: { id: userId } },
+      allowedUsers: { disconnect: { id: userId } },
+      blockedUsers: { disconnect: { id: userId } }
     }
+  });
+
+  if (role === "owner") {
+    await prisma.section.update({ where: { id: sectionId }, data: { owners: { connect: { id: userId } } } });
+  } else if (role === "editor") {
+    await prisma.section.update({ where: { id: sectionId }, data: { editors: { connect: { id: userId } } } });
+  } else if (role === "viewer") {
+    await prisma.section.update({ where: { id: sectionId }, data: { allowedUsers: { connect: { id: userId } } } });
+  } else if (role === "none") {
+    await prisma.section.update({ where: { id: sectionId }, data: { blockedUsers: { connect: { id: userId } } } });
+  }
 }
 
 export async function updateSectionUserRole(sectionId: string, userId: string, role: string) {
-    await _updateSectionUserRole(sectionId, userId, role);
-    revalidatePath("/");
-    revalidatePath("/admin/sections");
+  await _updateSectionUserRole(sectionId, userId, role);
+  revalidatePath("/");
+  revalidatePath("/admin/sections");
 }
 
 async function _updateSectionDepartmentRole(sectionId: string, department: string, role: string) {
-    if (role === "none") {
-        await (prisma as any).sectionDepartmentAccess.deleteMany({
-            where: { sectionId, department }
-        });
-    } else {
-        await (prisma as any).sectionDepartmentAccess.upsert({
-            where: { sectionId_department: { sectionId, department } },
-            update: { role },
-            create: { sectionId, department, role }
-        });
-    }
+  if (role === "none") {
+    await (prisma as any).sectionDepartmentAccess.deleteMany({
+      where: { sectionId, department }
+    });
+  } else {
+    await (prisma as any).sectionDepartmentAccess.upsert({
+      where: { sectionId_department: { sectionId, department } },
+      update: { role },
+      create: { sectionId, department, role }
+    });
+  }
 }
 
 export async function updateSectionDepartmentRole(sectionId: string, department: string, role: string) {
-    await _updateSectionDepartmentRole(sectionId, department, role);
-    revalidatePath("/");
-    revalidatePath("/admin/sections");
+  await _updateSectionDepartmentRole(sectionId, department, role);
+  revalidatePath("/");
+  revalidatePath("/admin/sections");
 }
 
 // --- CATALOG & PUSH ORCHESTRATION ---
@@ -649,7 +649,7 @@ export async function pushSectionToDepartment(sectionId: string, department: str
 export async function importTabFromLibrary(tabId: string) {
   const session = await auth();
   if (!session?.user?.email) throw new Error("Unauthorized");
-  
+
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) throw new Error("User not found");
 
@@ -671,14 +671,14 @@ export async function importTabFromLibrary(tabId: string) {
       data: { allowedUsers: { connect: { id: user.id } } }
     }))
   ]);
-  
+
   revalidatePath("/");
 }
 
 export async function removeTabFromUser(tabId: string) {
   const session = await auth();
   if (!session?.user?.email) throw new Error("Unauthorized");
-  
+
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) throw new Error("User not found");
 
@@ -720,178 +720,178 @@ export async function executeBookmarkImport(mappings: any[]) {
       await prisma.bookmark.create({ data: { title: bookmark.title, url: bookmark.url, icon: bookmark.icon, sectionId, order: currentOrder++ } });
       revalidatePath("/");
     }
-        revalidatePath("/");
-    }
-    return { success: true };
+    revalidatePath("/");
+  }
+  return { success: true };
 }
 
 export async function bulkApplyDeptTabRole(tabId: string, department: string, role: string) {
-    // 1. Update the department-level setting
-    await _updateTabDepartmentRole(tabId, department, role);
-    
-    // 2. Update all members (excluding Global Admins)
-    const users = await prisma.user.findMany({ 
-        where: department === "Entire Organization" 
-            ? { isAdmin: false }
-            : { 
-                department: department === "General" ? null : department, 
-                isAdmin: false 
-            }, 
-        select: { id: true } 
-    });
-    
-    if (users.length > 0) {
-        const userIds = users.map(u => ({ id: u.id }));
-        await (prisma as any).tab.update({
-            where: { id: tabId },
-            data: {
-                owners: { disconnect: userIds },
-                editors: { disconnect: userIds },
-                allowedUsers: { disconnect: userIds }
-            }
-        });
+  // 1. Update the department-level setting
+  await _updateTabDepartmentRole(tabId, department, role);
 
-        if (role !== "none") {
-            const connectKey = role === "owner" ? "owners" : (role === "editor" ? "editors" : "allowedUsers");
-            await (prisma as any).tab.update({
-                where: { id: tabId },
-                data: { [connectKey]: { connect: userIds } }
-            });
-        }
+  // 2. Update all members (excluding Global Admins)
+  const users = await prisma.user.findMany({
+    where: department === "Entire Organization"
+      ? { isAdmin: false }
+      : {
+        department: department === "General" ? null : department,
+        isAdmin: false
+      },
+    select: { id: true }
+  });
+
+  if (users.length > 0) {
+    const userIds = users.map(u => ({ id: u.id }));
+    await (prisma as any).tab.update({
+      where: { id: tabId },
+      data: {
+        owners: { disconnect: userIds },
+        editors: { disconnect: userIds },
+        allowedUsers: { disconnect: userIds }
+      }
+    });
+
+    if (role !== "none") {
+      const connectKey = role === "owner" ? "owners" : (role === "editor" ? "editors" : "allowedUsers");
+      await (prisma as any).tab.update({
+        where: { id: tabId },
+        data: { [connectKey]: { connect: userIds } }
+      });
     }
-    
-    revalidatePath("/");
-    revalidatePath("/admin/tabs");
-    return { success: true };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
+  return { success: true };
 }
 
 export async function bulkApplyDeptSectionRole(sectionId: string, department: string, role: string) {
-    // 1. Update the department-level setting
-    await _updateSectionDepartmentRole(sectionId, department, role);
-    
-    // 2. Update all members (excluding Global Admins)
-    const users = await prisma.user.findMany({ 
-        where: department === "Entire Organization" 
-            ? { isAdmin: false }
-            : { 
-                department: department === "General" ? null : department, 
-                isAdmin: false 
-            }, 
-        select: { id: true } 
-    });
-    
-    if (users.length > 0) {
-        const userIds = users.map(u => ({ id: u.id }));
-        await prisma.section.update({
-            where: { id: sectionId },
-            data: {
-                owners: { disconnect: userIds },
-                editors: { disconnect: userIds },
-                allowedUsers: { disconnect: userIds }
-            }
-        });
+  // 1. Update the department-level setting
+  await _updateSectionDepartmentRole(sectionId, department, role);
 
-        if (role !== "none") {
-            const connectKey = role === "owner" ? "owners" : (role === "editor" ? "editors" : "allowedUsers");
-            await prisma.section.update({
-                where: { id: sectionId },
-                data: { [connectKey]: { connect: userIds } }
-            });
-        }
+  // 2. Update all members (excluding Global Admins)
+  const users = await prisma.user.findMany({
+    where: department === "Entire Organization"
+      ? { isAdmin: false }
+      : {
+        department: department === "General" ? null : department,
+        isAdmin: false
+      },
+    select: { id: true }
+  });
+
+  if (users.length > 0) {
+    const userIds = users.map(u => ({ id: u.id }));
+    await prisma.section.update({
+      where: { id: sectionId },
+      data: {
+        owners: { disconnect: userIds },
+        editors: { disconnect: userIds },
+        allowedUsers: { disconnect: userIds }
+      }
+    });
+
+    if (role !== "none") {
+      const connectKey = role === "owner" ? "owners" : (role === "editor" ? "editors" : "allowedUsers");
+      await prisma.section.update({
+        where: { id: sectionId },
+        data: { [connectKey]: { connect: userIds } }
+      });
     }
-    
-    revalidatePath("/");
-    revalidatePath("/admin/sections");
-    return { success: true };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/sections");
+  return { success: true };
 }
 
 // --- THEME GOVERNANCE ORCHESTRATION ---
 async function _updateThemeUserRole(themeId: string, userId: string, role: string) {
-    await prisma.theme.update({
-        where: { id: themeId },
-        data: {
-            owners: { disconnect: { id: userId } },
-            editors: { disconnect: { id: userId } },
-            allowedUsers: { disconnect: { id: userId } },
-            blockedUsers: { disconnect: { id: userId } }
-        }
-    });
-
-    if (role === "owner") {
-        await prisma.theme.update({ where: { id: themeId }, data: { owners: { connect: { id: userId } } } });
-    } else if (role === "editor") {
-        await prisma.theme.update({ where: { id: themeId }, data: { editors: { connect: { id: userId } } } });
-    } else if (role === "viewer") {
-        await prisma.theme.update({ where: { id: themeId }, data: { allowedUsers: { connect: { id: userId } } } });
-    } else if (role === "none") {
-        await prisma.theme.update({ where: { id: themeId }, data: { blockedUsers: { connect: { id: userId } } } });
+  await prisma.theme.update({
+    where: { id: themeId },
+    data: {
+      owners: { disconnect: { id: userId } },
+      editors: { disconnect: { id: userId } },
+      allowedUsers: { disconnect: { id: userId } },
+      blockedUsers: { disconnect: { id: userId } }
     }
+  });
+
+  if (role === "owner") {
+    await prisma.theme.update({ where: { id: themeId }, data: { owners: { connect: { id: userId } } } });
+  } else if (role === "editor") {
+    await prisma.theme.update({ where: { id: themeId }, data: { editors: { connect: { id: userId } } } });
+  } else if (role === "viewer") {
+    await prisma.theme.update({ where: { id: themeId }, data: { allowedUsers: { connect: { id: userId } } } });
+  } else if (role === "none") {
+    await prisma.theme.update({ where: { id: themeId }, data: { blockedUsers: { connect: { id: userId } } } });
+  }
 }
 
 export async function updateThemeUserRole(themeId: string, userId: string, role: string) {
-    await _updateThemeUserRole(themeId, userId, role);
-    revalidatePath("/");
-    revalidatePath("/admin/theme");
+  await _updateThemeUserRole(themeId, userId, role);
+  revalidatePath("/");
+  revalidatePath("/admin/theme");
 }
 
 async function _updateThemeDepartmentRole(themeId: string, department: string, role: string) {
-    if (role === "none") {
-        await (prisma as any).themeDepartmentAccess.deleteMany({
-            where: { themeId, department }
-        });
-    } else {
-        await (prisma as any).themeDepartmentAccess.upsert({
-            where: { themeId_department: { themeId, department } },
-            update: { role },
-            create: { themeId, department, role }
-        });
-    }
+  if (role === "none") {
+    await (prisma as any).themeDepartmentAccess.deleteMany({
+      where: { themeId, department }
+    });
+  } else {
+    await (prisma as any).themeDepartmentAccess.upsert({
+      where: { themeId_department: { themeId, department } },
+      update: { role },
+      create: { themeId, department, role }
+    });
+  }
 }
 
 export async function updateThemeDepartmentRole(themeId: string, department: string, role: string) {
-    await _updateThemeDepartmentRole(themeId, department, role);
-    revalidatePath("/");
-    revalidatePath("/admin/theme");
+  await _updateThemeDepartmentRole(themeId, department, role);
+  revalidatePath("/");
+  revalidatePath("/admin/theme");
 }
 
 export async function bulkApplyDeptThemeRole(themeId: string, department: string, role: string) {
-    // 1. Update the department-level setting
-    await _updateThemeDepartmentRole(themeId, department, role);
-    
-    // 2. Update all members (excluding Global Admins)
-    const users = await prisma.user.findMany({ 
-        where: department === "Entire Organization" 
-            ? { isAdmin: false }
-            : { 
-                department: department === "General" ? null : department, 
-                isAdmin: false 
-            }, 
-        select: { id: true } 
-    });
-    
-    if (users.length > 0) {
-        const userIds = users.map(u => ({ id: u.id }));
-        await prisma.theme.update({
-            where: { id: themeId },
-            data: {
-                owners: { disconnect: userIds },
-                editors: { disconnect: userIds },
-                allowedUsers: { disconnect: userIds }
-            }
-        });
+  // 1. Update the department-level setting
+  await _updateThemeDepartmentRole(themeId, department, role);
 
-        if (role !== "none") {
-            const connectKey = role === "owner" ? "owners" : (role === "editor" ? "editors" : "allowedUsers");
-            await prisma.theme.update({
-                where: { id: themeId },
-                data: { [connectKey]: { connect: userIds } }
-            });
-        }
+  // 2. Update all members (excluding Global Admins)
+  const users = await prisma.user.findMany({
+    where: department === "Entire Organization"
+      ? { isAdmin: false }
+      : {
+        department: department === "General" ? null : department,
+        isAdmin: false
+      },
+    select: { id: true }
+  });
+
+  if (users.length > 0) {
+    const userIds = users.map(u => ({ id: u.id }));
+    await prisma.theme.update({
+      where: { id: themeId },
+      data: {
+        owners: { disconnect: userIds },
+        editors: { disconnect: userIds },
+        allowedUsers: { disconnect: userIds }
+      }
+    });
+
+    if (role !== "none") {
+      const connectKey = role === "owner" ? "owners" : (role === "editor" ? "editors" : "allowedUsers");
+      await prisma.theme.update({
+        where: { id: themeId },
+        data: { [connectKey]: { connect: userIds } }
+      });
     }
-    
-    revalidatePath("/");
-    revalidatePath("/admin/theme");
-    return { success: true };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/theme");
+  return { success: true };
 }
 
 export async function setUserDefaultTab(userId: string, tabId: string) {
