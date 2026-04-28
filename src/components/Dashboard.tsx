@@ -537,7 +537,10 @@ export function Dashboard({
             <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent' }}>
                <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
                   {tabs.map(tab => {
-                     const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor; return (
+                     const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor;
+                     const isActiveTab = activeTabId === tab.id;
+                     const isDragOver = dragOverTabId === tab.id;
+                     return (
                         <button
                            key={tab.id}
                            className="workspace-tab-btn"
@@ -549,18 +552,24 @@ export function Dashboard({
                            onDrop={(e) => { handleTabDrop(e, tab.id); setDragOverTabId(null); }}
                            style={{
                               padding: '0.75rem 1.25rem',
-                              background: dragOverTabId === tab.id ? 'rgba(var(--primary-rgb), 0.2)' : activeTabId === tab.id ? tabPrimary : 'var(--glass-bg)',
-                              border: `1px solid ${activeTabId === tab.id ? tabPrimary : 'var(--glass-border)'}`,
-                              borderTop: dragOverTabId === tab.id ? `3px solid ${tabPrimary}` : `1px solid ${activeTabId === tab.id ? tabPrimary : 'var(--glass-border)'}`,
+                              background: isDragOver
+                                 ? `${tabPrimary}59`
+                                 : isActiveTab
+                                 ? tabPrimary
+                                 : `${tabPrimary}33`,
+                              border: `1px solid ${isActiveTab || isDragOver ? tabPrimary : `${tabPrimary}80`}`,
+                              borderTop: isDragOver
+                                 ? `3px solid ${tabPrimary}`
+                                 : `1px solid ${isActiveTab ? tabPrimary : `${tabPrimary}80`}`,
                               borderBottom: 'none',
                               cursor: showEditControls ? 'grab' : 'pointer', borderRadius: '12px 12px 0 0',
-                              color: activeTabId === tab.id ? 'var(--nav-text)' : 'var(--text)',
-                              textShadow: activeTabId !== tab.id ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
-                              fontWeight: activeTabId === tab.id ? 700 : 500,
+                              color: isActiveTab ? 'var(--nav-text)' : 'var(--text)',
+                              textShadow: !isActiveTab ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                              fontWeight: isActiveTab ? 700 : 500,
                               fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.2s ease', backdropFilter: 'blur(10px)',
                               display: 'flex', alignItems: 'center', gap: '0.5rem',
-                              marginBottom: activeTabId === tab.id ? '-1px' : '0',
-                              zIndex: activeTabId === tab.id ? 2 : 1,
+                              marginBottom: isActiveTab ? '-1px' : '0',
+                              zIndex: isActiveTab ? 2 : 1,
                               opacity: draggedTabId === tab.id ? 0.5 : 1
                            }}
                         >
