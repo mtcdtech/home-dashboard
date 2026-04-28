@@ -208,6 +208,7 @@ export function Dashboard({
          return;
      }
 
+     let syncedTabs = [...tabs];
      // Optimistic Local Update
      setTabs(currentTabs => {
         const newTabs = [...currentTabs];
@@ -233,6 +234,7 @@ export function Dashboard({
         }
         targetTab.sections.filter(s => s.column === colIdx).forEach((s, idx) => { s.order = idx; });
         newTabs[tabIndex] = targetTab;
+        syncedTabs = newTabs;
         return newTabs;
      });
 
@@ -240,7 +242,7 @@ export function Dashboard({
          await actions.moveSection(srcId, currentTabId, colIdx, targetId);
      } else {
          // Determine new order value
-         const newTabs = [...tabs];
+         const newTabs = syncedTabs;
          const tabIndex = newTabs.findIndex(t => t.id === currentTabId);
          if (tabIndex !== -1) {
             const targetTab = newTabs[tabIndex];
@@ -266,6 +268,7 @@ export function Dashboard({
      setDraggedBookmarkSectionId(null);
      setDragOverBookmarkId(null);
      
+     let syncedTabs = [...tabs];
      // Optimistic Local Update
      setTabs(currentTabs => {
          const newTabs = [...currentTabs];
@@ -293,6 +296,7 @@ export function Dashboard({
              }
              if (changed) newTabs[tIdx] = { ...tab, sections: newSections };
          });
+         syncedTabs = newTabs;
          return newTabs;
      });
      
@@ -536,8 +540,8 @@ export function Dashboard({
                        key={tab.id}
                        className="workspace-tab-btn"
                        onClick={() => setActiveTabId(tab.id)}
-                       draggable={showEditControls}
-                       onDragStart={(e) => { if (showEditControls) { setDraggedTabId(tab.id); e.dataTransfer.effectAllowed = "move"; } }}
+                       draggable={showEditControls && hasTabEditAccess(tab)}
+                       onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedTabId(tab.id); e.dataTransfer.effectAllowed = "move"; } }}
                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverTabId(tab.id); }}
                        onDragLeave={() => setDragOverTabId(null)}
                        onDrop={(e) => { handleTabDrop(e, tab.id); setDragOverTabId(null); }}
@@ -561,7 +565,7 @@ export function Dashboard({
                        {tab.icon && <IconComponent name={tab.icon} size={18} />}
                        {tab.title}
                        {showEditControls && !hasTabEditAccess(tab) && (
-                          <div style={{ marginLeft: '0.25rem', display: 'flex', opacity: 0.3 }} title="You cannot configure this workspace">
+                          <div style={{ marginLeft: '0.25rem', display: 'flex', opacity: 0.3 }} title="Locked: You do not have Editor or Owner permissions for this workspace.">
                              <Lock size={12} />
                           </div>
                        )}
@@ -619,7 +623,12 @@ export function Dashboard({
                   {isShared && showEditControls && (
                      <div style={{ background: 'rgba(var(--primary-rgb), 0.2)', backdropFilter: 'blur(10px)', color: 'var(--primary)', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', border: '1px solid rgba(var(--primary-rgb), 0.4)' }}>
                         <Info size={18} style={{ flexShrink: 0 }} /> 
-                        <span>This workspace is shared. Personal layout changes (dragging items) only affect you, but editing content (buttons/links) affects all users.</span>
+                        <span>
+                           {hasTabEditAccess(tab) ? 
+                              "This workspace is shared. Personal layout changes (dragging items) only affect you, but editing content (buttons/links) affects all users." : 
+                              "This workspace is shared and locked. You do not have permission to rearrange or edit its contents."
+                           }
+                        </span>
                      </div>
                   )}
 
@@ -662,12 +671,12 @@ export function Dashboard({
                              .map(section => (
                              <div
                                 key={section.id}
-                                draggable={showEditControls}
-                                onDragStart={(e) => { if (showEditControls) { setDraggedSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", section.id); e.stopPropagation(); } }}
+                                draggable={showEditControls && hasTabEditAccess(tab)}
+                                onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", section.id); e.stopPropagation(); } }}
                                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; e.stopPropagation(); setDragOverSectionId(section.id); }}
                                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setDragOverSectionId(null); } }}
                                 onDragEnd={() => { setDraggedSectionId(null); setDragOverSectionId(null); setDragOverColIdx(null); }}
-                                onDrop={(e) => { handleSectionDrop(e, section.id, tab.id, colIdx); }}
+                                onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleSectionDrop(e, section.id, tab.id, colIdx); }}
                                 style={{
                                    background: 'var(--glass-bg)', borderRadius: '16px',
                                    border: dragOverSectionId === section.id ? '2px dashed var(--primary)' : '1px solid var(--glass-border)',
@@ -690,7 +699,7 @@ export function Dashboard({
                                       </div>
                                       <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: '1 1 auto', minWidth: 0 }}>{section.title}</h3>
                                       {showEditControls && !hasSectionEditAccess(section, tab) && (
-                                         <div style={{ display: 'flex', opacity: 0.3, flexShrink: 0, marginLeft: '0.5rem' }} title="You cannot configure this section">
+                                         <div style={{ display: 'flex', opacity: 0.3, flexShrink: 0, marginLeft: '0.5rem' }} title="Locked: You do not have Editor or Owner permissions for this section.">
                                             <Lock size={14} />
                                          </div>
                                       )}
@@ -709,12 +718,12 @@ export function Dashboard({
                                       {section.bookmarks.sort((a,b) => a.order - b.order).map(bookmark => (
                                          <div
                                             key={bookmark.id}
-                                            draggable={showEditControls}
-                                            onDragStart={(e) => { if (showEditControls) { setDraggedBookmarkId(bookmark.id); setDraggedBookmarkSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", bookmark.id); e.stopPropagation(); } }}
+                                            draggable={showEditControls && hasTabEditAccess(tab)}
+                                            onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedBookmarkId(bookmark.id); setDraggedBookmarkSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", bookmark.id); e.stopPropagation(); } }}
                                             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; setDragOverBookmarkId(bookmark.id); }}
                                             onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverBookmarkId(null); }}
                                             onDragEnd={() => { setDraggedBookmarkId(null); setDraggedBookmarkSectionId(null); setDragOverBookmarkId(null); }}
-                                            onDrop={(e) => handleBookmarkDrop(e, bookmark.id, section.id)}
+                                            onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleBookmarkDrop(e, bookmark.id, section.id); }}
                                             style={{ position: 'relative', width: '100%', boxSizing: 'border-box', minWidth: 0, opacity: draggedBookmarkId === bookmark.id ? 0.45 : 1, borderTop: dragOverBookmarkId === bookmark.id ? '2px solid var(--primary)' : '2px solid transparent' }}
                                          >
                                             <a href={showEditControls ? "#" : bookmark.url} target={showEditControls ? "_self" : (bookmark.openInNewTab !== false ? "_blank" : "_self")} style={{
