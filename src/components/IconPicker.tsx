@@ -211,7 +211,7 @@ export const IconPicker = ({
   );
 };
 
-const IconifyPicker = ({ setIcon, currentIcon }: any) => {
+function IconifyPicker({ setIcon, currentIcon }: any) {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<string[]>([]);
     const [searching, setSearching] = useState(false);
@@ -267,7 +267,7 @@ const IconifyPicker = ({ setIcon, currentIcon }: any) => {
 };
 
 
-const BrandfetchPicker = ({ setIcon, currentIcon }: any) => {
+function BrandfetchPicker({ setIcon, currentIcon }: any) {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);

@@ -359,15 +359,17 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
 
   const previewBg = previewIsDark ? '#080810' : '#f8fafc';
   const previewText = previewIsDark ? '#f8fafc' : '#080810';
-  // Create accurate preview logic mimicking the actual Dashboard rendering
-  const glsOverlay = previewIsDark ? (glassOpacity * 0.4) : (glassOpacity * 0.9);
-  const colorTint = previewIsDark ? (sectionOpacity * 0.45) : (sectionOpacity * 0.8);
-  const rgbPrimary = "59, 130, 246"; // Base hex proxy for preview
-  
-  const previewSectionBg = glassEffect === false ? `rgba(${rgbPrimary}, ${colorTint})` : 
-     `linear-gradient(rgba(255, 255, 255, ${glsOverlay}), rgba(255, 255, 255, ${glsOverlay})), rgba(${rgbPrimary}, ${colorTint})`;
-     
-  const previewBookmarkBg = previewIsDark ? `rgba(255,255,255,0.05)` : `rgba(255,255,255,0.4)`;
+  // Preview: Card Color slider blends from pure primary → 90% white/black
+  // Glass Opacity = card alpha 40%–90%
+  const rgbPrimary = [59, 130, 246]; // proxy for preview
+  const targetRGB = !previewIsDark ? [230, 230, 230] : [25, 25, 25];
+  const mixR = Math.round(rgbPrimary[0] + (targetRGB[0] - rgbPrimary[0]) * sectionOpacity);
+  const mixG = Math.round(rgbPrimary[1] + (targetRGB[1] - rgbPrimary[1]) * sectionOpacity);
+  const mixB = Math.round(rgbPrimary[2] + (targetRGB[2] - rgbPrimary[2]) * sectionOpacity);
+  const cardAlpha = 0.4 + glassOpacity * 0.5; // 40% to 90%
+
+  const previewSectionBg = `rgba(${mixR}, ${mixG}, ${mixB}, ${cardAlpha})`;
+  const previewBookmarkBg = previewIsDark ? `rgba(255,255,255,0.05)` : `rgba(255,255,255,0.35)`;
 
   return (
     <>
@@ -425,7 +427,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                             <div className="field">
                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Background Blur</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{backgroundBlur}px</span></div>
-                               <input type="range" min="0" max="100" value={backgroundBlur} onChange={(e) => setBackgroundBlur(parseInt(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                               <input type="range" min="0" max="50" step="1" value={backgroundBlur} onChange={(e) => setBackgroundBlur(parseInt(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
                             </div>
                             <div className="field">
                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Color Overlay</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundTint * 100)}%</span></div>
@@ -434,12 +436,14 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
                          </div>
                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                             <div className="field">
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Card Opacity</span></div>
-                               <input type="range" min="0" max="1" step="0.05" value={sectionOpacity} onChange={(e) => setSectionOpacity(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Card Color</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(sectionOpacity * 100)}%</span></div>
+                               <input type="range" min="0" max="1" step="0.01" value={sectionOpacity} onChange={(e) => setSectionOpacity(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                               <p style={{ fontSize: '0.68rem', opacity: 0.4, marginTop: '0.35rem' }}>0% = theme color, 100% = near black/white</p>
                             </div>
                             <div className="field">
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Glass Effect</span></div>
+                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Card Opacity</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(40 + glassOpacity * 50)}%</span></div>
                                <input type="range" min="0" max="1" step="0.01" value={glassOpacity} onChange={(e) => setGlassOpacity(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                               <p style={{ fontSize: '0.68rem', opacity: 0.4, marginTop: '0.35rem' }}>Range: 40% to 90% opacity</p>
                             </div>
                          </div>
                       </div>
@@ -577,7 +581,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
                   <div className="glass" style={{ 
                     flex: 1, borderRadius: '32px', overflow: 'hidden', position: 'relative', border: `1px solid ${primaryColor}44`, background: previewBg, minHeight: '400px', boxShadow: `0 20px 80px -20px ${primaryColor}44`
                   }}>
-                     <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${backgroundBlur}px) brightness(${previewIsDark ? 0.6 : 1.1})`, transform: 'scale(1.1)' }} />
+                     <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `brightness(${previewIsDark ? 0.6 : 1.1})`, transform: 'scale(1.1)' }} />
                      <div style={{ position: 'absolute', inset: 0, background: primaryColor, opacity: backgroundTint, mixBlendMode: previewIsDark ? 'soft-light' : 'overlay' }} />
                      <div style={{ position: 'relative', zIndex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><div style={{ width: '32px', height: '32px', borderRadius: '8px', background: primaryColor }} /><div style={{ fontSize: '1rem', fontWeight: 800, color: previewText }}>{dashboardTitle}</div></div>

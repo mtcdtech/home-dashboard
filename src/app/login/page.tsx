@@ -30,7 +30,7 @@ export default async function LoginPage() {
         themeColor={themeColor}
         logoIcon={logoIcon}
         loginTheme={loginTheme}
-        hasMicrosoft={!!process.env.AUTH_MICROSOFT_ENTRA_ID_ID}
+        hasMicrosoft={!!process.env.AUTH_MICROSOFT_ENTRA_ID_ID && !process.env.NEXTAUTH_URL?.includes("abraham16")}
         hasSynology={!!process.env.SYNOLOGY_CLIENT_ID}
       />
     </Suspense>

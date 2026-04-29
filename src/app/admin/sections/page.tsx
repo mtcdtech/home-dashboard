@@ -11,6 +11,7 @@ export default async function SectionsAdminPage() {
 
   const [sections, tabs, users, themes] = await Promise.all([
     prisma.section.findMany({
+      where: { isLibraryItem: true },
       orderBy: { title: "asc" },
       include: { 
         tabSections: true,
@@ -23,14 +24,15 @@ export default async function SectionsAdminPage() {
       }
     }),
     prisma.tab.findMany({
+      where: { isLibraryItem: true },
       orderBy: { order: "asc" },
-      select: { id: true, title: true, icon: true }
+      select: { id: true, title: true, icon: true, pushRules: true, tabSections: { select: { sectionId: true } } }
     }),
-    prisma.user.findMany({ select: { id: true, name: true, email: true, department: true, avatarColor: true, isAdmin: true } }),
+    prisma.user.findMany({ select: { id: true, name: true, email: true, department: true, dashboardGroup: true, avatarColor: true, isAdmin: true } }),
     prisma.theme.findMany()
   ]);
 
-  const departments = Array.from(new Set(users.map(u => u.department || "General")));
+  const departments = Array.from(new Set(users.map(u => u.dashboardGroup || "General")));
 
   return (
     <div className="fade-in">

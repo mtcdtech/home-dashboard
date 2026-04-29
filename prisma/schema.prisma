@@ -17,6 +17,7 @@ model User {
   image         String?
   password      String?   // For local admin/admin
   department    String?   // Maps to "Department" in MS profile
+  departmentOverride String? // Admin-set group override — survives MS sync
   dashboardGroup String   @default("General") // Custom drag-and-drop grouping
   isAdmin       Boolean   @default(false)
   canEditContent Boolean  @default(false)
@@ -94,6 +95,11 @@ model Tab {
   tabSections TabSection[] // new relation
   columns     Int          @default(3)
   departmentAccess TabDepartmentAccess[]
+  syncToken   String?      @unique // Token to allow exporting this workspace
+  syncSourceUrl String?    // URL to pull updates from (if this is an imported workspace)
+  isReadOnlySync Boolean   @default(false) // True if this is an imported workspace
+  pushToNewUsers Boolean   @default(false) // Legacy - migrated to pushRules
+  pushRules     TabPushRule[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -109,6 +115,18 @@ model TabDepartmentAccess {
   @@unique([tabId, department])
 }
 
+model TabPushRule {
+  id         String   @id @default(cuid())
+  tabId      String
+  targetType String   // "global", "department", "user"
+  targetId   String   @default("") // department name or user ID ("" for global)
+  locked     Boolean  @default(false) // If true, user cannot remove tab from their dashboard
+
+  tab        Tab      @relation(fields: [tabId], references: [id], onDelete: Cascade)
+
+  @@unique([tabId, targetType, targetId])
+}
+
 model Section {
   id              String       @id @default(cuid())
   title           String
@@ -116,6 +134,7 @@ model Section {
   icon            String?
   isGlobal        Boolean      @default(true)
   isLibraryItem   Boolean      @default(false)
+  isReadOnlySync  Boolean      @default(false)
   description     String?      // Description for the library
   tabSections     TabSection[] // new relation
   bookmarks       Bookmark[]
@@ -165,8 +184,31 @@ model Bookmark {
   order         Int      @default(0)
   sectionId     String
   section       Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  clicks        ClickEvent[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model ClickEvent {
+  id           String   @id @default(cuid())
+  bookmarkId   String
+  bookmark     Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  userId       String?
+  createdAt    DateTime @default(now())
+  @@index([bookmarkId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  userName  String?
+  type      String   // "login", "bookmark_click", "section_edit", "tab_edit"
+  detail    String?
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Theme {
@@ -185,6 +227,7 @@ model Theme {
   glassOpacity  Float    @default(0.12)
   iconSize      Int      @default(64) // Default icon size for this theme
   isLibraryItem Boolean  @default(false)
+  isReadOnlySync Boolean @default(false)
   tabs          Tab[]    // Tabs using this theme
   allowedUsers  User[]   @relation("UserAllowedThemes")
   editors       User[]   @relation("ThemeEditors")

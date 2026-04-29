@@ -41,7 +41,7 @@ export default function ThemeClient({
   users?: any[],
   departments?: string[]
 }) {
-    const [themes, setThemes] = useState(initialThemes);
+    const [themes, setThemes] = useState(initialThemes.filter((t: any) => !t.isReadOnlySync));
   const [globalBrand, setGlobalBrand] = useState(globalSettings);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTheme, setEditingTheme] = useState<any>(null);
@@ -309,7 +309,12 @@ export default function ThemeClient({
                         {theme.backgroundColor && <img src={theme.backgroundColor} alt={theme.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(2px) brightness(0.7)' }} />}
                         <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(to top, rgba(0,0,0,0.4), transparent)`, zIndex: 1 }} />
                         <div style={{ position: 'absolute', bottom: '1.25rem', left: '1.5rem', zIndex: 2 }}>
-                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{theme.name}</h3>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                                {theme.name}
+                                {theme.isReadOnlySync && (
+                                   <span style={{ marginLeft: '0.5rem', fontSize: '0.6rem', color: '#10b981', background: 'rgba(16,185,129,0.2)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase', verticalAlign: 'middle' }}>Imported</span>
+                                )}
+                            </h3>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}><span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}><Palette size={12} /> {theme.primaryColor}</span></div>
                         </div>
                         <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 2 }}>
@@ -331,13 +336,23 @@ export default function ThemeClient({
                            <span style={{ fontSize: "0.65rem", opacity: 0.6, fontWeight: 600 }}>Created by {theme.owners?.[0]?.name || "System"} • {theme.createdAt ? new Date(theme.createdAt).toLocaleDateString() : "Unknown"}</span>
                            <span style={{ fontSize: "0.65rem", opacity: 0.4, fontWeight: 500 }}>Last updated: {theme.updatedAt ? new Date(theme.updatedAt).toLocaleDateString() : "Unknown"}</span>
                         </div>
-                       <button 
-                          onClick={() => openEdit(theme)} 
-                          className="btn btn-primary" 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                       >
-                          Manage Theme
-                       </button>
+                       {theme.isReadOnlySync ? (
+                          <button 
+                             disabled
+                             className="btn" 
+                             style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', opacity: 0.5, cursor: 'not-allowed' }}
+                          >
+                             Imported (Locked)
+                          </button>
+                       ) : (
+                          <button 
+                             onClick={() => openEdit(theme)} 
+                             className="btn btn-primary" 
+                             style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                          >
+                             Manage Theme
+                          </button>
+                       )}
                     </div>
                 </div>
              ))}
@@ -363,10 +378,10 @@ export default function ThemeClient({
              </div>
 
              <div className="glass" style={{ padding: '0', borderRadius: '24px', overflowX: 'auto', border: '1px solid var(--glass-border)', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: Math.max(1000, themes.length * 160 + 300) + 'px' }}>
                     <thead style={{ background: 'rgba(var(--primary-rgb), 0.06)', borderBottom: '1px solid var(--glass-border)' }}>
                        <tr>
-                          <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', width: '1%', whiteSpace: 'nowrap' }}>Identity Registry</th>
+                          <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', width: '1%', whiteSpace: 'nowrap' }}>Themes</th>
                           {themes.map((t: any) => (
                              <th key={t.id} style={{ padding: '1rem 0.25rem', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'center', width: '135px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
@@ -378,33 +393,28 @@ export default function ThemeClient({
                        </tr>
                     </thead>
                     <tbody>
-                       {["Entire Organization", ...departments].map((dept: string) => {
-                          const isEntireOrg = dept === "Entire Organization";
-                          const deptUsers = isEntireOrg ? filteredUsers : filteredUsers.filter((u: any) => (u.department || "General") === dept);
-                          if (!isEntireOrg && deptUsers.length === 0) return null;
+                       {departments.map((dept: string) => {
+                          const deptUsers = filteredUsers.filter((u: any) => (u.dashboardGroup || "General") === dept);
+                          if (deptUsers.length === 0) return null;
 
                           return (
                              <React.Fragment key={dept}>
-                                <tr style={{ background: isEntireOrg ? 'rgba(var(--primary-rgb), 0.1)' : 'rgba(var(--primary-rgb), 0.05)', borderBottom: isEntireOrg ? '2px solid var(--primary)' : '1px solid var(--glass-border)' }}>
+                                <tr style={{ background: 'rgba(var(--primary-rgb), 0.05)', borderBottom: '1px solid var(--glass-border)' }}>
                                    <td style={{ padding: '0.75rem 1.25rem', width: '1%', whiteSpace: 'nowrap' }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                         {!isEntireOrg ? (
-                                            <button 
-                                               onClick={() => {
-                                                  setCollapsedDepts(prev => prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]);
-                                               }}
-                                               style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.5 }}
-                                            >
-                                               {collapsedDepts.includes(dept) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                                            </button>
-                                         ) : (
-                                            <div style={{ width: '16px' }} />
-                                         )}
-                                         <div style={{ padding: '0.4rem', borderRadius: '8px', background: isEntireOrg ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.08)', display: 'flex', color: isEntireOrg ? '#fff' : 'inherit' }}>
-                                            {isEntireOrg ? <Globe size={14} /> : <Users size={14} style={{ opacity: 0.5 }} />}
+                                         <button 
+                                            onClick={() => {
+                                               setCollapsedDepts(prev => prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]);
+                                            }}
+                                            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.5 }}
+                                         >
+                                            {collapsedDepts.includes(dept) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                                         </button>
+                                         <div style={{ padding: '0.4rem', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.08)', display: 'flex', color: 'inherit' }}>
+                                            <Users size={14} style={{ opacity: 0.5 }} />
                                          </div>
                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                            <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: isEntireOrg ? 1 : 0.6, color: isEntireOrg ? 'var(--primary)' : 'inherit' }}>{dept}</span>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.6, color: 'inherit' }}>{dept}</span>
                                          </div>
                                       </div>
                                    </td>
@@ -483,7 +493,7 @@ export default function ThemeClient({
                                    })}
                                 </tr>
                                 {/* User Items */}
-                                {!isEntireOrg && !collapsedDepts.includes(dept) && deptUsers.map((u: any) => {
+                                {!collapsedDepts.includes(dept) && deptUsers.map((u: any) => {
                                    return (
                                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(var(--primary-rgb), 0.03)' }}>
                                         <td style={{ padding: '0.85rem 3rem' }}>

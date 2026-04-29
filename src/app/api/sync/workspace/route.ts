@@ -1,0 +1,114 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
+
+export async function GET(request: Request) {
+   const { searchParams } = new URL(request.url);
+   const id = searchParams.get('id');
+   const token = searchParams.get('token');
+
+   if (!id || !token) {
+      return NextResponse.json({ error: 'Missing id or token' }, { status: 400 });
+   }
+
+   try {
+      const tab = await prisma.tab.findUnique({
+         where: { id },
+         include: {
+            theme: true,
+            tabSections: {
+               include: {
+                  section: {
+                     include: {
+                        bookmarks: true,
+                     }
+                  }
+               }
+            }
+         }
+      });
+
+      if (!tab) {
+         return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+      }
+
+      if (tab.syncToken !== token) {
+         return NextResponse.json({ error: 'Invalid sync token' }, { status: 403 });
+      }
+
+      const makeAbsolute = (url: string | null | undefined) => url?.startsWith('/') ? `${new URL(request.url).origin}${url}` : url;
+
+      const encodeMediaToBase64 = async (url: string | null | undefined) => {
+         if (!url) return url;
+         if (url.startsWith('/api/uploads/') || url.startsWith('/uploads/')) {
+            try {
+               const filename = url.split('/').pop() || '';
+               const filePath = join(process.cwd(), 'public', 'uploads', filename);
+               if (existsSync(filePath)) {
+                  const buffer = await readFile(filePath);
+                  const ext = filename.split('.').pop()?.toLowerCase() || 'png';
+                  let mimeType = 'image/png';
+                  if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+                  if (ext === 'svg') mimeType = 'image/svg+xml';
+                  if (ext === 'gif') mimeType = 'image/gif';
+                  if (ext === 'webp') mimeType = 'image/webp';
+                  return `data:${mimeType};base64,${buffer.toString('base64')}`;
+               }
+            } catch (e) {
+               console.error("Base64 encode error:", e);
+            }
+         }
+         return makeAbsolute(url);
+      };
+
+      // Format payload
+      const payload = {
+         version: '1.0',
+         tab: {
+            title: tab.title,
+            icon: await encodeMediaToBase64(tab.icon),
+            columns: tab.columns,
+            description: tab.description,
+            theme: tab.theme ? {
+               name: tab.theme.name,
+               dashboardTitle: tab.theme.dashboardTitle,
+               logoIcon: await encodeMediaToBase64(tab.theme.logoIcon),
+               primaryColor: tab.theme.primaryColor,
+               backgroundColor: await encodeMediaToBase64(tab.theme.backgroundColor),
+               darkMode: tab.theme.darkMode,
+               glassEffect: tab.theme.glassEffect,
+               backgroundBlur: tab.theme.backgroundBlur,
+               backgroundTint: tab.theme.backgroundTint,
+               sectionOpacity: tab.theme.sectionOpacity,
+               glassOpacity: tab.theme.glassOpacity,
+               iconSize: tab.theme.iconSize,
+            } : null,
+            sections: await Promise.all(tab.tabSections.map(async ts => ({
+               title: ts.section.title,
+               icon: await encodeMediaToBase64(ts.section.icon),
+               description: ts.section.description,
+               order: ts.order,
+               column: ts.column,
+               height: ts.height,
+               defaultCollapsed: ts.defaultCollapsed,
+               bookmarks: await Promise.all(ts.section.bookmarks.map(async b => ({
+                  title: b.title,
+                  url: b.url,
+                  description: b.description,
+                  icon: await encodeMediaToBase64(b.icon),
+                  longDescription: b.longDescription,
+                  openInNewTab: b.openInNewTab,
+                  order: b.order,
+               })))
+            })))
+         }
+      };
+
+      return NextResponse.json(payload);
+   } catch (error) {
+      console.error('Export error:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+   }
+}

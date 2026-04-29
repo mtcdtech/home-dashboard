@@ -34,9 +34,10 @@ if (process.env.SYNOLOGY_CLIENT_ID) {
       authorization: { params: { scope: "openid email groups" } },
       allowDangerousEmailAccountLinking: true,
       profile(profile: any) {
+        console.log("Synology OIDC Profile claims:", profile);
         return {
           id: profile.sub,
-          name: profile.name || profile.username || profile.sub,
+          name: profile.description || profile.name || profile.username || profile.sub,
           email: profile.email || `${profile.username}@abraham16.com`,
           image: null,
           department: profile.groups && profile.groups.includes("administrators") ? "Admin" : "Synology",
@@ -58,7 +59,7 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const isAdmin = (auth?.user as any)?.isAdmin;
       const isLoginPage = nextUrl.pathname.startsWith("/login");
-      const isPublicApi = nextUrl.pathname.startsWith("/api/auth");
+      const isPublicApi = nextUrl.pathname.startsWith("/api/auth") || nextUrl.pathname.startsWith("/api/sync");
       const isPublicAsset =
         nextUrl.pathname.startsWith("/_next") ||
         nextUrl.pathname.startsWith("/favicon.ico") ||

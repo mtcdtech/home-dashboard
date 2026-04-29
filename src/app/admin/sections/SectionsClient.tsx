@@ -25,7 +25,8 @@ import {
   ArrowDownLeft,
   Eye,
   Edit3,
-  Globe
+  Globe,
+  Send
 } from "lucide-react";
 
 interface Section {
@@ -35,6 +36,7 @@ interface Section {
   organization: string;
   isGlobal: boolean;
   isLibraryItem: boolean;
+  isReadOnlySync?: boolean;
   description?: string;
   tabSections: { tabId: string; sectionId: string }[];
   bookmarks: any[];
@@ -48,6 +50,8 @@ interface Tab {
   id: string;
   title: string;
   icon: string;
+  pushRules?: any[];
+  tabSections?: { sectionId: string }[];
 }
 
 export default function SectionsClient({ 
@@ -66,7 +70,7 @@ export default function SectionsClient({
   const activeTheme = themes.find((t: any) => t.isActive);
   const themeTintColor = activeTheme?.tintColor || '#be123c';
 
-  const [sections, setSections] = useState<Section[]>(initialSections);
+  const [sections, setSections] = useState<Section[]>(initialSections.filter(s => !s.isReadOnlySync));
 
   function getContrastText(hexcolor: string) {
     if (!hexcolor || hexcolor.length < 7) return '#fff';
@@ -78,6 +82,24 @@ export default function SectionsClient({
   }
 
   const ownerTextColor = getContrastText(activeTheme?.primaryColor || themeTintColor);
+
+  // Check if a section is pushed to a given target via its parent workspace push rules
+  function getSectionPushInfo(section: Section, targetType: string, targetId?: string): { pushed: boolean; viaTab?: string } {
+    for (const tab of tabs) {
+      const sectionInTab = tab.tabSections?.some(ts => ts.sectionId === section.id);
+      if (!sectionInTab) continue;
+      const matchingRule = tab.pushRules?.find(r => {
+        if (r.targetType !== targetType) return false;
+        if (targetType === 'global') return true;
+        if (targetType === 'department') return (r.targetId || '').toLowerCase().trim() === (targetId || '').toLowerCase().trim();
+        if (targetType === 'user') return r.targetId === targetId;
+        return false;
+      });
+      if (matchingRule) return { pushed: true, viaTab: tab.title };
+    }
+    return { pushed: false };
+  }
+
   const [viewMode, setViewMode] = useState<"grid" | "matrix">("grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -225,14 +247,14 @@ export default function SectionsClient({
                 </div>
 
                 <div className="glass" style={{ padding: '0', borderRadius: '24px', overflowX: 'auto', border: '1px solid var(--glass-border)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: Math.max(800, filtered.length * 160 + 300) + 'px' }}>
                        <thead style={{ background: 'rgba(var(--primary-rgb), 0.06)', borderBottom: '1px solid var(--glass-border)' }}>
                           <tr>
                              <th style={{ padding: '1rem 0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.05em', width: '1%', whiteSpace: 'nowrap' }}>
                                 Sections
                              </th>
                              {filtered.map((section: any) => (
-                                <th key={section.id} style={{ padding: '0.75rem 0.25rem', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'center', width: '110px' }}>
+                                <th key={section.id} style={{ padding: '0.75rem 0.25rem', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'center', width: '150px' }}>
                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                                       <IconComponent name={section.icon} size={14} />
                                       {section.title}
@@ -242,33 +264,81 @@ export default function SectionsClient({
                           </tr>
                        </thead>
                        <tbody>
-                       {["Entire Organization", ...departments].map((dept: string) => {
-                          const isEntireOrg = dept === "Entire Organization";
-                          const deptUsers = isEntireOrg ? users : users.filter((u: any) => (u.department || "General") === dept);
-                          if (!isEntireOrg && deptUsers.length === 0) return null;
+                       {/* Catalog Toggle Row */}
+                       <tr style={{ background: 'rgba(var(--primary-rgb), 0.08)', borderBottom: '2px solid var(--primary)' }}>
+                          <td style={{ padding: '0.75rem 1.25rem', width: '1%', whiteSpace: 'nowrap' }}>
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ width: 16 }} />
+                                <div style={{ padding: '0.4rem', borderRadius: '8px', background: '#10b981', display: 'flex', color: '#fff' }}><Library size={14} /></div>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#10b981' }}>In Catalog</span>
+                             </div>
+                          </td>
+                          {filtered.map((section: any) => (
+                             <td key={section.id} style={{ padding: '0.5rem 0.25rem', textAlign: 'center' }}>
+                                <button onClick={async () => {
+                                   const newVal = !section.isLibraryItem;
+                                   if (!newVal && !window.confirm("Are you sure you want to remove this from the catalog? Only the creator will be able to see it or add it back.")) return;
+                                   
+                                   const newGlobal = newVal ? section.isGlobal : false;
+                                   setModifiedSections((prev: any) => ({ ...prev, [section.id]: { ...section, isLibraryItem: newVal, isGlobal: newGlobal } }));
+                                   await actions.updateSection(section.id, { ...section, isLibraryItem: newVal, isGlobal: newGlobal });
+                                }} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: (modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? '1px solid #10b981' : '1px solid rgba(var(--primary-rgb), 0.2)', background: (modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? 'rgba(16,185,129,0.15)' : 'rgba(var(--primary-rgb), 0.05)', color: (modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? '#10b981' : 'var(--text)', cursor: "pointer", fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', transition: 'all 0.2s' }}>
+                                   {(modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? '✓ CATALOG' : 'PRIVATE'}
+                                </button>
+                             </td>
+                          ))}
+                       </tr>
+
+                       {/* Entire Org Toggle Row */}
+                       <tr style={{ background: 'rgba(var(--primary-rgb), 0.04)', borderBottom: '1px solid var(--glass-border)' }}>
+                          <td style={{ padding: '0.75rem 1.25rem', width: '1%', whiteSpace: 'nowrap' }}>
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ width: 16 }} />
+                                <div style={{ padding: '0.4rem', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.1)', display: 'flex', color: 'var(--primary)' }}><Globe size={14} /></div>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                   <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--primary)' }}>Entire Org</span>
+                                </div>
+                             </div>
+                          </td>
+                          {filtered.map((section: any) => (
+                             <td key={section.id} style={{ padding: '0.5rem 0.25rem', textAlign: 'center' }}>
+                                {(modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? (
+                                   <button onClick={async () => {
+                                      const newVal = !(modifiedSections[section.id]?.isGlobal ?? section.isGlobal);
+                                      setModifiedSections((prev: any) => ({ ...prev, [section.id]: { ...section, isGlobal: newVal } }));
+                                      await actions.updateSection(section.id, { ...section, isGlobal: newVal });
+                                   }} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: (modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)', background: (modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? 'rgba(var(--primary-rgb), 0.15)' : 'rgba(var(--primary-rgb), 0.05)', color: (modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? 'var(--primary)' : 'var(--text)', cursor: "pointer", fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', transition: 'all 0.2s' }}>
+                                      {(modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? '✓ ALLOWED' : 'RESTRICTED'}
+                                   </button>
+                                ) : (
+                                   <div style={{ fontSize: '0.65rem', opacity: 0.3, textTransform: 'uppercase', fontWeight: 800 }}>N/A</div>
+                                )}
+                             </td>
+                          ))}
+                       </tr>
+
+                       {departments.map((dept: string) => {
+                          const deptUsers = users.filter((u: any) => (u.dashboardGroup || "General") === dept);
+                          if (deptUsers.length === 0) return null;
 
                           return (
                                 <React.Fragment key={dept}>
-                                    <tr style={{ background: isEntireOrg ? 'rgba(var(--primary-rgb), 0.1)' : 'rgba(var(--primary-rgb), 0.05)', borderBottom: isEntireOrg ? '2px solid var(--primary)' : '1px solid var(--glass-border)' }}>
+                                    <tr style={{ background: 'rgba(var(--primary-rgb), 0.05)', borderBottom: '1px solid var(--glass-border)' }}>
                                        <td style={{ padding: '0.75rem 1.25rem', width: '1%', whiteSpace: 'nowrap' }}>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                             {!isEntireOrg ? (
-                                                <button 
-                                                   onClick={() => {
-                                                      setCollapsedDepts(prev => prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]);
-                                                   }}
-                                                   style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.5 }}
-                                                >
-                                                   {collapsedDepts.includes(dept) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                                                </button>
-                                             ) : (
-                                                <div style={{ width: '16px' }} />
-                                             )}
-                                             <div style={{ padding: '0.4rem', borderRadius: '8px', background: isEntireOrg ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.08)', display: 'flex', color: isEntireOrg ? '#fff' : 'inherit' }}>
-                                                {isEntireOrg ? <Globe size={14} /> : <Users size={14} style={{ opacity: 0.5 }} />}
+                                             <button 
+                                                onClick={() => {
+                                                   setCollapsedDepts(prev => prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]);
+                                                }}
+                                                style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.5 }}
+                                             >
+                                                {collapsedDepts.includes(dept) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                                             </button>
+                                             <div style={{ padding: '0.4rem', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.08)', display: 'flex', color: 'inherit' }}>
+                                                <Users size={14} style={{ opacity: 0.5 }} />
                                              </div>
                                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: isEntireOrg ? 1 : 0.6, color: isEntireOrg ? 'var(--primary)' : 'inherit' }}>{dept}</span>
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.6, color: 'inherit' }}>{dept}</span>
                                                 <div className="tooltip-container" style={{ position: 'relative', display: 'flex' }}>
                                                    <Info size={12} style={{ opacity: 0.3, cursor: 'help' }} />
                                                    <div className="tooltip-bubble" style={{ 
@@ -287,41 +357,50 @@ export default function SectionsClient({
                                          const stagingRole = modifiedDepts[`${dept}_${section.id}`];
                                          const savedRole = section.departmentAccess?.find((da: any) => da.department === dept)?.role || "none";
                                          const displayRole = stagingRole !== undefined ? stagingRole : savedRole;
+                                          const pushInfo = isEntireOrg 
+                                             ? getSectionPushInfo(section, 'global') 
+                                             : getSectionPushInfo(section, 'department', dept);
+                                          const globalPush = !isEntireOrg ? getSectionPushInfo(section, 'global') : { pushed: false };
+                                          const isPushedDept = pushInfo.pushed || globalPush.pushed;
+                                          const pushViaTabDept = pushInfo.viaTab || globalPush.viaTab;
+                                          const isITGroup = dept === "IT";
+                                          const effectiveRole = isITGroup ? 'owner' : ((isPushedDept && displayRole === 'none') ? 'viewer' : displayRole);
 
                                          return (
-                                             <td key={section.id} style={{ padding: '0.5rem 0.25rem', textAlign: 'center' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                               <div style={{ 
-                                                   flex: 1, position: 'relative', borderRadius: '8px', overflow: 'hidden', padding: '0.4rem 0.5rem', minHeight: '34px',
-                                                   background: displayRole === 'owner' ? 'var(--primary)' : (displayRole === 'none' || displayRole === 'viewer' ? 'rgba(var(--primary-rgb), 0.05)' : 'rgba(var(--primary-rgb), 0.12)'),
-                                                   border: displayRole === 'owner' ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)',
-                                                   display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                               }}>
-                                                  <div style={{ 
-                                                      position: 'absolute', pointerEvents: 'none', 
-                                                      color: displayRole === 'owner' ? ownerTextColor : 'var(--text)',
-                                                      fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap',
-                                                      zIndex: 1
-                                                  }}>
-                                                      {displayRole === 'owner' ? 'OWNER (DEPT)' : displayRole === 'editor' ? 'EDITOR (DEPT)' : displayRole === 'viewer' ? 'VIEWER (DEPT)' : 'NOT SHARED'}
-                                                  </div>
-                                                  <select 
-                                                      value={displayRole}
-                                                      onChange={async (e) => {
-                                                         const newRole = e.target.value;
-                                                         setModifiedDepts(prev => ({ ...prev, [`${dept}_${section.id}`]: newRole }));
-                                                      }}
-                                                      style={{ 
-                                                         width: '100%', opacity: 0, cursor: 'pointer', height: '100%',
-                                                         position: 'absolute', inset: 0, zIndex: 2
-                                                      }}
-                                                   >
-                                                      <option value="none">Not Shared</option>
-                                                      <option value="owner">Owner (Dept)</option>
-                                                      <option value="editor">Editor (Dept)</option>
-                                                      <option value="viewer">Viewer (Dept)</option>
-                                                   </select>
-                                               </div>
+                                             <td key={section.id} style={{ padding: '0.5rem 0.25rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '0.4rem', width: 'max-content', margin: '0 auto' }}>
+                                                <div style={{ 
+                                                    flex: 1, position: 'relative', borderRadius: '8px', overflow: 'hidden', padding: '0.4rem 0.5rem', minHeight: '34px', minWidth: '130px',
+                                                    background: effectiveRole === 'owner' ? 'var(--primary)' : (effectiveRole === 'none' || effectiveRole === 'viewer' ? 'rgba(var(--primary-rgb), 0.05)' : 'rgba(var(--primary-rgb), 0.12)'),
+                                                    border: effectiveRole === 'owner' ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                   <div style={{ 
+                                                       position: 'absolute', pointerEvents: 'none', 
+                                                       color: effectiveRole === 'owner' ? ownerTextColor : 'var(--text)',
+                                                       fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap',
+                                                       zIndex: 1
+                                                   }}>
+                                                       {effectiveRole === 'owner' ? 'OWNER (DEPT)' : effectiveRole === 'editor' ? 'EDITOR (DEPT)' : effectiveRole === 'viewer' ? 'VIEWER (DEPT)' : 'NOT SHARED'}
+                                                   </div>
+                                                   <select 
+                                                       value={effectiveRole}
+                                                       onChange={async (e) => {
+                                                          const newRole = e.target.value;
+                                                          setModifiedDepts(prev => ({ ...prev, [`${dept}_${section.id}`]: newRole }));
+                                                       }}
+                                                       disabled={isITGroup}
+                                                       style={{ 
+                                                          width: '100%', opacity: 0, cursor: isITGroup ? 'not-allowed' : 'pointer', height: '100%',
+                                                          position: 'absolute', inset: 0, zIndex: 2
+                                                       }}
+                                                    >
+                                                       <option value="none" disabled={isPushedDept || isITGroup}>Not Shared</option>
+                                                       <option value="owner">Owner (Dept)</option>
+                                                       <option value="editor" disabled={isITGroup}>Editor (Dept)</option>
+                                                       <option value="viewer" disabled={isITGroup}>Viewer (Dept)</option>
+                                                    </select>
+                                                </div>
                                                    {modifiedDepts[`${dept}_${section.id}`] && (
                                                       <button 
                                                          type="button"
@@ -383,6 +462,31 @@ export default function SectionsClient({
                                                          <Zap size={14} />
                                                       </button>
                                                    )}
+                                                {isPushedDept && (
+                                                    <div className="tooltip-container" style={{ position: 'relative', display: 'flex' }}>
+                                                       <a 
+                                                          href="/admin/tabs" 
+                                                          style={{
+                                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                             width: '24px', height: '24px', flexShrink: 0,
+                                                             color: '#22c55e', background: 'rgba(34, 197, 94, 0.1)',
+                                                             borderRadius: '6px',
+                                                             border: '1px solid rgba(34, 197, 94, 0.25)',
+                                                             cursor: 'pointer', textDecoration: 'none'
+                                                          }}
+                                                       >
+                                                          <Send size={10} />
+                                                       </a>
+                                                       <div className="tooltip-bubble" style={{ 
+                                                          position: 'absolute', bottom: '100%', right: 0, transform: 'translateY(-8px)', 
+                                                          background: 'rgba(0,0,0,0.9)', color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '8px', 
+                                                          fontSize: '0.65rem', width: 'max-content', zIndex: 10, visibility: 'hidden', opacity: 0, 
+                                                          transition: '0.2s all', border: '1px solid var(--glass-border)', textAlign: 'left', whiteSpace: 'normal', maxWidth: '200px'
+                                                       }}>
+                                                          Pushed via "{pushViaTabDept}" workspace &mdash; click to manage in Push Matrix
+                                                       </div>
+                                                    </div>
+                                                )}
                                                 </div>
                                              </td>
                                          );
@@ -419,17 +523,29 @@ export default function SectionsClient({
                                              const isViewer = section.allowedUsers?.some((a: any) => a.id === user.id);
                                              const isBlocked = section.blockedUsers?.some((b: any) => b.id === user.id);
                                              
-                                              const deptRole = section.departmentAccess?.find((da: any) => da.department === (user.department || "General"))?.role || "none";
-                                              const role = isOwner ? "owner" : isEditor ? "editor" : isViewer ? "viewer" : (isBlocked ? "none" : "inherited");
-                                              const effectiveRole = user.isAdmin ? "owner" : (role === "inherited" ? deptRole : role);
+                                              const userDept = user.dashboardGroup || "General";
+const stagingDeptRole = modifiedDepts[`${userDept}_${section.id}`];
+const savedDeptRole = section.departmentAccess?.find((da: any) => da.department === userDept)?.role || "none";
+const displayDeptRole = stagingDeptRole !== undefined ? stagingDeptRole : savedDeptRole;
+const userPushDept = getSectionPushInfo(section, 'department', userDept);
+const userPushGlobal = getSectionPushInfo(section, 'global');
+const isPushedDept = userPushDept.pushed || userPushGlobal.pushed;
+const isITGroup = userDept === "IT";
+const effectiveDeptRole = isITGroup ? 'owner' : ((isPushedDept && displayDeptRole === 'none') ? 'viewer' : displayDeptRole);
+const role = isOwner ? "owner" : isEditor ? "editor" : isViewer ? "viewer" : (isBlocked ? "none" : "inherited");
+let effectiveRole = user.isAdmin ? "owner" : (role === "inherited" ? effectiveDeptRole : role);
+const userPushDirect = getSectionPushInfo(section, 'user', user.id);
+const isPushedUser = userPushDirect.pushed || isPushedDept;
+const pushViaTabUser = userPushDirect.viaTab || userPushDept.viaTab || userPushGlobal.viaTab;
+if (isPushedUser && effectiveRole === "none") effectiveRole = "viewer";
 
                                              return (
-                                                <td key={section.id} style={{ padding: '0.4rem 0.6rem', textAlign: 'center', minWidth: '150px' }}>
-                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <td key={section.id} style={{ padding: '0.4rem 0.6rem', textAlign: 'center', minWidth: '150px', whiteSpace: 'nowrap' }}>
+                                                 <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '0.5rem', width: 'max-content', margin: '0 auto' }}>
                                                   <div 
                                                      className="glass"
                                                      style={{ 
-                                                        width: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden', minHeight: '34px',
+                                                        width: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden', minHeight: '34px', minWidth: '130px',
                                                         border: effectiveRole === "owner" ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)',
                                                         background: user.isAdmin 
                                                            ? 'repeating-linear-gradient(45deg, rgba(var(--primary-rgb), 0.25), rgba(var(--primary-rgb), 0.25) 10px, rgba(var(--primary-rgb), 0.35) 10px, rgba(var(--primary-rgb), 0.35) 20px)'
@@ -445,7 +561,7 @@ export default function SectionsClient({
                                                      }}>
                                                         {user.isAdmin ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER (ADMIN)</> : (
                                                            role === 'inherited' 
-                                                              ? <><ArrowDownLeft size={11} strokeWidth={3} /> INHERITED ({deptRole === 'none' ? 'NOT SHARED' : deptRole.toUpperCase()})</>
+                                                              ? <><ArrowDownLeft size={11} strokeWidth={3} /> INHERITED ({effectiveDeptRole === 'none' ? 'NOT SHARED' : effectiveDeptRole.toUpperCase()})</>
                                                               : (
                                                                  effectiveRole === 'none' ? <><X size={11} strokeWidth={3} /> NOT SHARED</> : 
                                                                  effectiveRole === 'owner' ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER</> :
@@ -456,7 +572,7 @@ export default function SectionsClient({
                                                      </div>
                                                      <select 
                                                         disabled={user.isAdmin}
-                                                        value={user.isAdmin ? "owner" : role}
+                                                        value={effectiveRole}
                                                         onChange={async (e) => {
                                                            const newRole = e.target.value;
                                                            // 1. Immediate Deep Optimistic Update
@@ -484,11 +600,11 @@ export default function SectionsClient({
                                                      >
                                                         {user.isAdmin ? <option value="owner">Owner (Admin)</option> : (
                                                            <>
-                                                              <option value="inherited">Inherited ({deptRole === 'none' ? 'Not Shared' : deptRole.charAt(0).toUpperCase() + deptRole.slice(1)})</option>
+                                                              <option value="inherited">Inherited ({effectiveDeptRole === 'none' ? 'Not Shared' : effectiveDeptRole.charAt(0).toUpperCase() + effectiveDeptRole.slice(1)})</option>
                                                               <option value="viewer">Viewer</option>
                                                               <option value="editor">Editor</option>
                                                               <option value="owner">Owner</option>
-                                                              <option value="none">Not Shared</option>
+                                                              <option value="none" disabled={isPushedUser}>Not Shared</option>
                                                            </>
                                                         )}
                                                      </select>
@@ -506,9 +622,34 @@ export default function SectionsClient({
                                                            </div>
                                                         </div>
                                                      )}
+                                                   {isPushedUser && (
+                                                      <div className="tooltip-container" style={{ position: 'relative', display: 'flex' }}>
+                                                         <a 
+                                                            href="/admin/tabs" 
+                                                            style={{
+                                                               display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                               width: '24px', height: '24px', flexShrink: 0,
+                                                               color: '#22c55e', background: 'rgba(34, 197, 94, 0.1)',
+                                                               borderRadius: '6px',
+                                                               border: '1px solid rgba(34, 197, 94, 0.25)',
+                                                               cursor: 'pointer', textDecoration: 'none'
+                                                            }}
+                                                         >
+                                                            <Send size={10} />
+                                                         </a>
+                                                         <div className="tooltip-bubble" style={{ 
+                                                            position: 'absolute', bottom: '100%', right: 0, transform: 'translateY(-8px)', 
+                                                            background: 'rgba(0,0,0,0.9)', color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '8px', 
+                                                            fontSize: '0.65rem', width: 'max-content', zIndex: 10, visibility: 'hidden', opacity: 0, 
+                                                            transition: '0.2s all', border: '1px solid var(--glass-border)', textAlign: 'left', whiteSpace: 'normal', maxWidth: '200px'
+                                                         }}>
+                                                            Pushed via "{pushViaTabUser}" workspace &mdash; click to manage in Push Matrix
+                                                         </div>
+                                                      </div>
+                                                   )}
                                                    </div>
                                                   </td>
-                                               );
+                                                );
                                            })}
                                         </tr>
                                       ))}
@@ -525,7 +666,6 @@ export default function SectionsClient({
                  <thead style={{ background: 'rgba(var(--primary-rgb), 0.05)' }}>
                     <tr>
                        <th style={{ padding: '1.25rem 2rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.5 }}>Section Name</th>
-                       <th style={{ padding: '1.25rem 2rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.5, textAlign: 'center' }}>Identity</th>
                        <th style={{ padding: '1.25rem 2rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.5, textAlign: 'center' }}>Catalog</th>
                        {tabs.map((tab: any) => (
                           <th key={tab.id} style={{ padding: '1.25rem 1rem', textAlign: 'center' }}>
@@ -547,21 +687,21 @@ export default function SectionsClient({
                                 <IconComponent name={section.icon} size={20} />
                              </div>
                              <div>
-                                <span style={{ fontSize: '0.95rem', fontWeight: 700, display: 'block' }}>{section.title}</span>
-                                <span style={{ fontSize: '0.7rem', opacity: 0.4, display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Bookmark size={10} /> {section.bookmarks.length} Bookmarks</span>
+                                 <span style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    {section.title}
+                                    {section.isReadOnlySync && (
+                                       <span style={{ fontSize: '0.6rem', color: '#10b981', background: 'rgba(16,185,129,0.2)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800, textTransform: 'uppercase' }}>Imported</span>
+                                    )}
+                                 </span>
+                                 <span style={{ fontSize: '0.7rem', opacity: 0.4, display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Bookmark size={10} /> {section.bookmarks.length} Bookmarks</span>
                              </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", marginTop: "0.4rem" }}>
                                    <span style={{ fontSize: "0.6rem", opacity: 0.5, fontWeight: 600 }}>Created by {section.owners?.[0]?.name || "System"} • {section.createdAt ? new Date(section.createdAt).toLocaleDateString() : "Unknown"}</span>
-                                   <span style={{ fontSize: "0.6rem", opacity: 0.4, fontWeight: 500 }}>Last updated: {section.updatedAt ? new Date(section.updatedAt).toLocaleDateString() : "Unknown"}</span>
+                                   <span style={{ fontSize: '0.6rem', opacity: 0.4, fontWeight: 500 }}>Last updated: {section.updatedAt ? new Date(section.updatedAt).toLocaleDateString() : "Unknown"}</span>
                                 </div>
                           </div>
                        </td>
-                       <td style={{ padding: '1.25rem 2rem', textAlign: 'center' }}>
-                          <div className="glass" style={{ display: 'inline-flex', padding: '0.3rem 0.75rem', borderRadius: '20px', fontSize: '0.7rem', background: 'rgba(var(--primary-rgb), 0.06)', alignItems: 'center', gap: '0.4rem' }}>
-                             <Building2 size={12} style={{ opacity: 0.3 }} />
-                             {section.organization || "Global"}
-                          </div>
-                       </td>
+
                        <td style={{ padding: '1.25rem 2rem', textAlign: 'center' }}>
                            <button 
                                onClick={() => toggleCatalog(section)}
@@ -600,7 +740,11 @@ export default function SectionsClient({
                             );
                          })}
                        <td style={{ padding: '1.25rem 2rem', textAlign: 'right' }}>
-                          <button onClick={() => openEdit(section)} className="btn" style={{ padding: '0.5rem', borderRadius: '8px', opacity: 0.5 }}><Settings size={18} /></button>
+                          {section.isReadOnlySync ? (
+                             <button disabled className="btn" style={{ padding: '0.5rem', borderRadius: '8px', opacity: 0.2, cursor: 'not-allowed' }} title="Imported (Locked)"><Settings size={18} /></button>
+                          ) : (
+                             <button onClick={() => openEdit(section)} className="btn" style={{ padding: '0.5rem', borderRadius: '8px', opacity: 0.5 }}><Settings size={18} /></button>
+                          )}
                        </td>
                     </tr>
                  ))}
@@ -610,122 +754,41 @@ export default function SectionsClient({
       )}
 
        {isModalOpen && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-             <div className="glass" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', borderRadius: '24px', overflow: 'hidden' }}>
-                <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                   <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{editingSection ? `Configure Section: ${editingSection.title}` : "Create New Section"}</h2>
+          <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+             <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '800px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', borderRadius: '32px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
+                <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                   <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{editingSection ? `Configure ${editingSection.title}` : "Create New Section"}</h2>
                    <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
                 </div>
-
-                <div className="modal-grid" style={{ padding: '2rem', overflowY: 'auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                      <div className="glass-card" style={{ padding: '1.25rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)' }}>
-                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, opacity: 0.4, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Section Details</label>
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <input 
-                               value={title}
-                               onChange={(e) => setTitle(e.target.value)}
-                               placeholder="Section Name (e.g. Media Management)" 
-                               className="glass" 
-                               style={{ width: '100%', padding: '0.8rem', borderRadius: '10px' }} 
-                            />
-                            
-                            <div style={{ position: 'relative' }}>
-                               <Building2 size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
-                               <select 
-                                 value={organization}
-                                 onChange={(e) => setOrganization(e.target.value)}
-                                 className="glass"
-                                 style={{ width: '100%', padding: '0.8rem 0.8rem 0.8rem 2.5rem', borderRadius: '10px' }}
-                               >
-                                  <option value="">Global Service</option>
-                                  {departments.map((d: any) => <option key={d} value={d}>{d} Department Access</option>)}
-                               </select>
-                            </div>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.5rem' }}>
-                               <input type="checkbox" checked={isGlobal} onChange={(e) => setIsGlobal(e.target.checked)} />
-                               <span style={{ fontSize: '0.85rem' }}>Service Visibility (Global)</span>
-                             </label>
-
-                             <div className="glass" style={{ padding: '0.75rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', background: 'rgba(var(--primary-rgb), 0.05)' }}>
-                                <input 
-                                   type="checkbox" 
-                                   checked={isLibraryItem} 
-                                   onChange={(e) => setIsLibraryItem(e.target.checked)} 
-                                   id="lib-item-sec"
-                                />
-                                <label htmlFor="lib-item-sec" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>Available in Catalog</label>
-                             </div>
-
-                             <textarea 
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                placeholder="Section Description (shows in Catalog)..."
-                                className="glass"
-                                style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', minHeight: '80px', fontSize: '0.85rem' }}
-                             />
-                          </div>
-                       </div>
-                       
-                       {editingSection && (
-                          <div className="glass-card" style={{ padding: '1.25rem', borderRadius: '16px', background: 'rgba(255,165,0,0.05)', border: '1px solid rgba(255,165,0,0.1)' }}>
-                             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, opacity: 0.4, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Push to Groups</label>
-                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <select 
-                                    value={pushDept}
-                                    onChange={(e) => setPushDept(e.target.value)}
-                                    className="glass"
-                                    style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', fontSize: '0.85rem' }}
-                                >
-                                   <option value="">Select Department...</option>
-                                   {departments.map((d: any) => <option key={d} value={d}>{d}</option>)}
-                                </select>
-                                <button 
-                                   onClick={async () => {
-                                      if (!pushDept) return;
-                                      if (confirm(`Push this section to everyone in ${pushDept}?`)) {
-                                         await actions.pushSectionToDepartment(editingSection.id, pushDept);
-                                         alert("Section pushed successfully!");
-                                      }
-                                   }}
-                                   className="btn"
-                                   style={{ background: 'var(--primary)', color: 'white', padding: '0.6rem 1rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600 }}
-                                >
-                                   Push
-                                </button>
-                             </div>
-                          </div>
-                       )}
-                    </div>
-
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <IconPicker 
-                        currentIcon={icon}
-                        setIcon={setIcon}
-                        query={iconPickerQuery}
-                        setQuery={setIconPickerQuery}
-                        iconRegistry={iconRegistry}
-                        onUpload={async () => {}}
-                      />
+                <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                   <div className="glass-card" style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase' }}>Section Settings</label>
+                      <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Section Name (e.g. Media Management)" className="glass" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.6rem 0.8rem', borderRadius: '12px', border: `1px solid ${isLibraryItem ? 'var(--primary)' : 'var(--glass-border)'}`, background: isLibraryItem ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent', transition: 'all 0.2s ease' }}>
+                         <input type="checkbox" checked={isLibraryItem} onChange={(e) => setIsLibraryItem(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }} />
+                         <div><div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Add to Section Catalog</div><div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Users can discover and add this section from the catalog</div></div>
+                      </label>
+                   </div>
+                   <div className="glass-card" style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(var(--primary-rgb), 0.05)', display: 'flex', flexDirection: 'column' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '1rem' }}>Section Icon</label>
+                      <IconPicker currentIcon={icon} setIcon={setIcon} query={iconPickerQuery} setQuery={setIconPickerQuery} iconRegistry={iconRegistry} onUpload={async () => {}} />
                    </div>
                 </div>
-
-                <div style={{ padding: '1.5rem 2rem', background: 'rgba(var(--primary-rgb), 0.05)', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   {editingSection ? (
-                      <button onClick={() => setIsDeleteModalOpen(true)} className="btn" style={{ color: '#ff4444', background: 'rgba(255,68,68,0.1)', padding: '0.75rem 1.25rem', borderRadius: '10px' }}>
-                         <Trash2 size={16} style={{ marginRight: '0.5rem' }} /> Archive Section
-                      </button>
-                   ) : <div />}
-                   
-                   <div style={{ display: 'flex', gap: '1rem' }}>
-                      <button onClick={() => setIsModalOpen(false)} className="btn" style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', opacity: 0.6 }}>Cancel</button>
-                      <button onClick={save} className="btn btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '10px', fontWeight: 700 }}>{editingSection ? "Save Changes" : "Create Section"}</button>
+                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>
+                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {editingSection && (
+                         <button onClick={() => setIsDeleteModalOpen(true)} style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600, color: '#fff', background: 'rgba(231, 76, 60, 0.8)', border: 'none', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 1)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(231, 76, 60, 0.8)'; }}>Archive Section</button>
+                      )}
+                   </div>
+                   <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <button onClick={() => setIsModalOpen(false)} className="btn" style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600 }}>Cancel</button>
+                      <button onClick={save} className="btn btn-primary" style={{ padding: '0.75rem 2rem', borderRadius: '12px', fontWeight: 600 }}>{editingSection ? "Save Section" : "Create Section"}</button>
                    </div>
                 </div>
              </div>
           </div>
        )}
+
 
        <style jsx global>{`
           .fade-in { animation: fadeIn 0.3s ease-out; }

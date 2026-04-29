@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, LayoutGrid, BookMarked } from "lucide-react";
+import { X, LayoutGrid, BookMarked, KeyRound, Copy } from "lucide-react";
 import { IconPicker } from "./IconPicker";
 import * as actions from "@/app/admin/actions";
 
@@ -116,6 +116,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                          <div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Other users can discover and add this workspace to their dashboard</div>
                       </div>
                    </label>
+
                 </div>
              </div>
 

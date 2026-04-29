@@ -12,11 +12,11 @@ services:
       - AUTH_URL=https://home.server.mtcd.org
       - AUTH_TRUST_HOST=true
       - AUTH_MICROSOFT_ENTRA_ID_ID=a82f1c71-902e-4b86-a257-8e4948f1a141
-      - AUTH_MICROSOFT_ENTRA_ID_SECRET=YOUR_ENTRA_ID_SECRET_HERE
+      - AUTH_MICROSOFT_ENTRA_ID_SECRET=${AUTH_MICROSOFT_ENTRA_ID_SECRET}
       - AUTH_MICROSOFT_ENTRA_ID_TENANT_ID=e4d1ae10-59a0-4640-bbd4-d88df4b9636b
       - AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/e4d1ae10-59a0-4640-bbd4-d88df4b9636b/v2.0
-      - AUTH_SECRET=YOUR_AUTH_SECRET_HERE
-      - REDEPLOY_DATE=1777088924
+      - AUTH_SECRET=${AUTH_SECRET}
+      - REDEPLOY_DATE=1777407702
     volumes:
       - homedashboard_uploads:/app/public/uploads
     depends_on:

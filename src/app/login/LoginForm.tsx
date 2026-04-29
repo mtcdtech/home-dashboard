@@ -16,7 +16,7 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
   const [mounted, setMounted] = useState(false);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showLocalLogin, setShowLocalLogin] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -34,8 +34,9 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
 
   const themeRgb = themeColor.startsWith('#') ? hexToRgb(themeColor) : "99, 102, 241";
   
-  const glassBorder = loginTheme?.darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const glassBg = loginTheme?.darkMode ? `rgba(0,0,0,${loginTheme?.glassOpacity ?? 0.12})` : `rgba(255,255,255,${loginTheme?.glassOpacity ?? 0.4})`;
+  const isDark = loginTheme ? loginTheme.darkMode : true;
+  const glassBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const glassBg = isDark ? `rgba(0,0,0,${loginTheme?.glassOpacity ?? 0.4})` : `rgba(255,255,255,${loginTheme?.glassOpacity ?? 0.5})`;
 
   return (
     <div className="login-atmospheric-container" style={{ 
@@ -95,7 +96,7 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
         textAlign: 'center',
         border: `1px solid ${glassBorder}`,
         boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(${themeRgb}, 0.2)`,
-        backdropFilter: `blur(${loginTheme?.glassEffect ? (loginTheme?.backgroundBlur || 20) : 0}px)`,
+        backdropFilter: `blur(${loginTheme ? (loginTheme.glassEffect ? (loginTheme.backgroundBlur || 20) : 0) : 24}px)`,
         background: glassBg,
         margin: '1rem'
       }}>
@@ -155,79 +156,6 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
           </div>
         )}
 
-        <form 
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            const username = formData.get("username") as string;
-            const password = formData.get("password") as string;
-            await signIn("credentials", { username, password, callbackUrl: "/" });
-          }}
-          style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}
-        >
-          <input 
-            name="username"
-            type="text" 
-            placeholder="Username" 
-            autoComplete="username"
-            style={{ 
-              width: '100%',
-              padding: '1.1rem 1.25rem', 
-              borderRadius: '16px', 
-              background: 'rgba(255,255,255,0.05)', 
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#fff',
-              fontSize: '1rem',
-              outline: 'none',
-              transition: 'all 0.3s ease',
-              boxSizing: 'border-box'
-            }}
-          />
-          <input 
-            name="password"
-            type="password" 
-            placeholder="Password" 
-            autoComplete="current-password"
-            style={{ 
-              width: '100%',
-              padding: '1.1rem 1.25rem', 
-              borderRadius: '16px', 
-              background: 'rgba(255,255,255,0.05)', 
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#fff',
-              fontSize: '1rem',
-              outline: 'none',
-              transition: 'all 0.3s ease',
-              boxSizing: 'border-box'
-            }}
-          />
-          <button 
-            type="submit"
-            style={{ 
-              width: '100%',
-              padding: '1.1rem', 
-              borderRadius: '16px', 
-              background: themeColor, 
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '1rem',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: `0 4px 15px rgba(${themeRgb}, 0.3)`,
-              marginTop: '0.5rem'
-            }}
-          >
-            Sign In Locally
-          </button>
-        </form>
-
-        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
-          <span style={{ margin: '0 1rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>OR</span>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
-        </div>
-
         {hasMicrosoft && (
           <button 
             onClick={() => signIn("microsoft-entra-id", { callbackUrl: "/" })}
@@ -263,7 +191,7 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
               <path d="M11.5 21H3V12.5H11.5V21Z" fill="#00A4EF"/>
               <path d="M21 21H12.5V12.5H21V21Z" fill="#FFB900"/>
             </svg>
-            Sign In with Corporate SSO
+            Sign in with Microsoft
           </button>
         )}
 
@@ -284,7 +212,8 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.75rem'
+              gap: '0.75rem',
+              marginBottom: '1rem'
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
@@ -302,6 +231,95 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
             </svg>
             Sign In with Synology SSO
           </button>
+        )}
+
+        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
+          <button 
+             onClick={() => setShowLocalLogin(!showLocalLogin)}
+             style={{ 
+               background: 'transparent', 
+               border: 'none', 
+               color: 'rgba(255,255,255,0.6)', 
+               fontSize: '0.8rem', 
+               cursor: 'pointer', 
+               padding: '0 1rem', 
+               textTransform: 'uppercase', 
+               letterSpacing: '0.1em' 
+             }}>
+             {showLocalLogin ? 'Hide Local Sign In' : 'Use Local Account'}
+          </button>
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
+        </div>
+
+        {showLocalLogin && (
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const username = formData.get("username") as string;
+              const password = formData.get("password") as string;
+              await signIn("credentials", { username, password, callbackUrl: "/" });
+            }}
+            className="fade-in"
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}
+          >
+            <input 
+              name="username"
+              type="text" 
+              placeholder="Username" 
+              autoComplete="username"
+              style={{ 
+                width: '100%',
+                padding: '1.1rem 1.25rem', 
+                borderRadius: '16px', 
+                background: 'rgba(255,255,255,0.05)', 
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: '#fff',
+                fontSize: '1rem',
+                outline: 'none',
+                transition: 'all 0.3s ease',
+                boxSizing: 'border-box'
+              }}
+            />
+            <input 
+              name="password"
+              type="password" 
+              placeholder="Password" 
+              autoComplete="current-password"
+              style={{ 
+                width: '100%',
+                padding: '1.1rem 1.25rem', 
+                borderRadius: '16px', 
+                background: 'rgba(255,255,255,0.05)', 
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: '#fff',
+                fontSize: '1rem',
+                outline: 'none',
+                transition: 'all 0.3s ease',
+                boxSizing: 'border-box'
+              }}
+            />
+            <button 
+              type="submit"
+              style={{ 
+                width: '100%',
+                padding: '1.1rem', 
+                borderRadius: '16px', 
+                background: themeColor, 
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '1rem',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: `0 4px 15px rgba(${themeRgb}, 0.3)`,
+                marginTop: '0.5rem'
+              }}
+            >
+              Sign In Locally
+            </button>
+          </form>
         )}
 
         <div style={{ marginTop: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', opacity: 0.2 }}>

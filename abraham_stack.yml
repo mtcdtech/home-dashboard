@@ -1,0 +1,43 @@
+services:
+  app:
+    image: mtcdtech/home-dashboard:latest
+    container_name: dashboard-app-sso
+    command: node server.js
+    ports:
+      - "4001:4000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:password@dashboard-db-sso:5432/dashboard?schema=public
+      - NEXTAUTH_URL=https://home.abraham16.com
+      - AUTH_URL=https://home.abraham16.com
+      - AUTH_TRUST_HOST=true
+      - AUTH_SECRET=85Fa8SnqPbz5f7PDa8thsn+bGAAO0m/cjW0l6WZSrF4=
+      - SYNOLOGY_CLIENT_ID=dc7539fab929d7fb6f1725ad64ce4a6f
+      - SYNOLOGY_CLIENT_SECRET=U93mrDlkxacUmeBEJW5KHFa7W1Rq5mhv
+      - SYNOLOGY_ISSUER=https://sso.abraham16.com/webman/sso
+    volumes:
+      - dashboard_uploads_sso:/app/public/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    container_name: dashboard-db-sso
+    restart: always
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=dashboard
+    volumes:
+      - dashboard_db_sso:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d dashboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  dashboard_db_sso:
+  dashboard_uploads_sso:

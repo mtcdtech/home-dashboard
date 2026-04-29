@@ -1,0 +1,79 @@
+Starting Database Sync...
+,Loaded Prisma config from prisma.config.ts.
+
+0Prisma schema loaded from prisma/schema.prisma.
+]Datasource "db": PostgreSQL database "dashboard", schema "public" at "homedashboard-db:5432"
+
+8The database is already in sync with the Prisma schema.
+
+npm notice
+Anpm notice New major version of npm available! 10.8.2 -> 11.13.0
+Gnpm notice Changelog: https://github.com/npm/cli/releases/tag/v11.13.0
+5npm notice To update run: npm install -g npm@11.13.0
+npm notice
+*Starting application with: node server.js
+ Next.js 16.2.2
+'- Local:         http://localhost:4000
+%- Network:       http://0.0.0.0:4000
+ Ready in 0ms
+=SignIn check for: tech@mtcd.org Provider: microsoft-entra-id
+?User upserted  department:  dashboardGroup: Technology Team
+-JWT callback - user logged in: tech@mtcd.org
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123093) {
+  digest: '1839600124'
+}
+?SignIn check for: avteam@mtcd.org Provider: microsoft-entra-id
+?User upserted  department:  dashboardGroup: Technology Team
+/JWT callback - user logged in: avteam@mtcd.org
+4Session created for: avteam@mtcd.org isAdmin: false
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123093) {
+  digest: '1839600124'
+}
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123093) {
+  digest: '1839600124'
+}
+Starting Database Sync...
+,Loaded Prisma config from prisma.config.ts.
+
+0Prisma schema loaded from prisma/schema.prisma.
+]Datasource "db": PostgreSQL database "dashboard", schema "public" at "homedashboard-db:5432"
+
+8The database is already in sync with the Prisma schema.
+
+@  Update available 7.6.0 -> 7.8.0                        
+@  Run the following to update                            
+@    npm i --save-dev prisma@latest                       
+@    npm i @prisma/client@latest                          
+
+
+*Starting application with: node server.js
+ Next.js 16.2.2
+'- Local:         http://localhost:4000
+%- Network:       http://0.0.0.0:4000
+ Ready in 0ms
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123093) {
+  digest: '1839600124'
+}
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123093) {
+  digest: '1839600124'
+}
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123093) {
+  digest: '1839600124'
+}
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123093) {
+  digest: '1839600124'
+}
+

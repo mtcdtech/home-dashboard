@@ -13,7 +13,8 @@ import {
   Palette, 
   Users, 
   ArrowLeft,
-  LogOut
+  LogOut,
+  RefreshCw
 } from "lucide-react";
 import { IconComponent } from "@/components/IconPicker";
 import * as actions from "@/app/admin/actions";
@@ -66,6 +67,10 @@ export default function AdminLayout({
     { label: "Themes", href: "/admin/theme", icon: Palette },
     { label: "Users", href: "/admin/users", icon: Users },
   ];
+
+  if (isAdmin) {
+    navItems.push({ label: "Workspace Sync", href: "/admin/sync", icon: RefreshCw });
+  }
 
   return (
     <div className="fade-in admin-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -182,6 +187,11 @@ export default function AdminLayout({
           {children}
         </main>
         </div>
+      </div>
+      
+      {/* Version Footer */}
+      <div style={{ textAlign: 'center', padding: 'max(1rem, env(safe-area-inset-bottom))', opacity: 0.5, fontSize: '0.8rem', color: 'var(--text)', marginTop: 'auto' }}>
+         v1.3.24
       </div>
 
       <style jsx global>{`

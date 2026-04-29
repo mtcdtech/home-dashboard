@@ -1,0 +1,29 @@
+Starting Database Sync...
+,Loaded Prisma config from prisma.config.ts.
+
+0Prisma schema loaded from prisma/schema.prisma.
+]Datasource "db": PostgreSQL database "dashboard", schema "public" at "homedashboard-db:5432"
+
+8The database is already in sync with the Prisma schema.
+
+npm notice
+Anpm notice New major version of npm available! 10.8.2 -> 11.13.0
+Gnpm notice Changelog: https://github.com/npm/cli/releases/tag/v11.13.0
+5npm notice To update run: npm install -g npm@11.13.0
+npm notice
+*Starting application with: node server.js
+ Next.js 16.2.2
+'- Local:         http://localhost:4000
+%- Network:       http://0.0.0.0:4000
+ Ready in 0ms
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123094) {
+  digest: '2313227092'
+}
+1Session created for: tech@mtcd.org isAdmin: true
+= ReferenceError: Cannot access 'bp' before initialization
+D    at <unknown> (.next/server/chunks/ssr/_0.njw63._.js:1:123094) {
+  digest: '2313227092'
+}
+

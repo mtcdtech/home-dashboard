@@ -50,19 +50,29 @@ export async function uploadImage(formData: FormData) {
 }
 
 export async function saveGeneratedImage(base64: string) {
-  const base64Data = base64.replace(/^data:image\/\w+;base64,/, "");
-  const buffer = Buffer.from(base64Data, 'base64');
-  const uploadDir = join(process.cwd(), "public", "uploads");
-  try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
-  const filename = `gen-${Date.now()}.jpg`;
-  const path = join(uploadDir, filename);
-  await writeFile(path, buffer);
-  return `/api/uploads/${filename}`;
+  try {
+    const base64Data = base64.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+    const uploadDir = join(process.cwd(), "public", "uploads");
+    try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const filename = `gen-${Date.now()}-${randomStr}.png`;
+    const path = join(uploadDir, filename);
+    await writeFile(path, buffer);
+    return `/api/uploads/${filename}`;
+  } catch (err) {
+    console.error("Failed to save base64 image:", err);
+    return null; // Return null instead of throwing to prevent crashing import
+  }
 }
 
 export async function downloadImageFromUrl(url: string) {
   try {
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
     if (!response.ok) return null;
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -80,6 +90,23 @@ export async function downloadImageFromUrl(url: string) {
     console.error("Failed to download remote asset:", e);
     return null;
   }
+}
+
+export async function processMediaField(mediaUrl: string | null | undefined) {
+  if (!mediaUrl) return mediaUrl;
+  try {
+    if (mediaUrl.startsWith('data:image')) {
+      const saved = await saveGeneratedImage(mediaUrl);
+      return saved || mediaUrl; // Fallback to raw base64 if save failed (better than nothing)
+    }
+    if (mediaUrl.startsWith('http')) {
+      const local = await downloadImageFromUrl(mediaUrl);
+      if (local) return local;
+    }
+  } catch (e) {
+    console.error("Failed to process media field:", e);
+  }
+  return mediaUrl;
 }
 export async function fetchFavicon(targetUrl: string) {
   try {
@@ -108,7 +135,23 @@ export async function fetchFavicon(targetUrl: string) {
 }
 
 // --- TAB ORCHESTRATION ---
+
+// Helper: returns the impersonated user ID if impersonating, otherwise the real user
+async function getEffectiveUserId(): Promise<string | undefined> {
+  const { cookies } = require("next/headers");
+  const session = await auth();
+  const realUserId = session?.user?.id;
+  if (!realUserId) return undefined;
+  try {
+    const cookieStore = await cookies();
+    const impId = cookieStore.get("impersonate_user_id")?.value;
+    if (impId && impId !== realUserId) return impId;
+  } catch (e) {}
+  return realUserId;
+}
+
 export async function createTab(data: { title: string; icon?: string; order?: number; themeId?: string | null; organization?: string | null; allowedUserIds?: string[]; columns?: number }) {
+  const effectiveUserId = await getEffectiveUserId();
   await (prisma as any).tab.create({
     data: {
       title: data.title,
@@ -120,7 +163,7 @@ export async function createTab(data: { title: string; icon?: string; order?: nu
       isLibraryItem: (data as any).isLibraryItem ?? false,
       description: (data as any).description || null,
       allowedUsers: data.allowedUserIds ? { connect: data.allowedUserIds.map(id => ({ id })) } : undefined,
-      owners: { connect: { id: (await auth())?.user?.id } } // creator is initial owner
+      owners: effectiveUserId ? { connect: { id: effectiveUserId } } : undefined
     }
   });
   revalidatePath("/");
@@ -138,6 +181,7 @@ export async function updateTab(id: string, data: { title: string; icon?: string
       organization: data.organization || null,
       columns: data.columns ?? 3,
       isLibraryItem: (data as any).isLibraryItem ?? false,
+      pushToNewUsers: (data as any).pushToNewUsers ?? false,
       description: (data as any).description || null,
       allowedUsers: data.allowedUserIds ? { set: data.allowedUserIds.map(uid => ({ id: uid })) } : undefined,
       editors: (data as any).editorUserIds ? { set: (data as any).editorUserIds.map((uid: string) => ({ id: uid })) } : undefined,
@@ -154,7 +198,37 @@ export async function reorderTabs(orderedIds: string[]) {
 }
 
 export async function deleteTab(id: string) {
+  const tab = await prisma.tab.findUnique({ 
+    where: { id },
+    include: { tabSections: true }
+  });
+  
+  if (!tab) return;
+  
+  const sectionIds = tab.tabSections.map((ts: any) => ts.sectionId);
+  const themeId = tab.themeId;
+
+  // Delete the tab first (cascades to TabSection)
   await prisma.tab.delete({ where: { id } });
+
+  // Clean up orphaned read-only imported sections
+  if (tab.isReadOnlySync && sectionIds.length > 0) {
+    for (const sId of sectionIds) {
+      const remainingLinks = await prisma.tabSection.count({ where: { sectionId: sId } });
+      if (remainingLinks === 0) {
+        await prisma.section.deleteMany({ where: { id: sId, isReadOnlySync: true } });
+      }
+    }
+  }
+
+  // Clean up orphaned read-only theme
+  if (tab.isReadOnlySync && themeId) {
+    const remainingTabs = await prisma.tab.count({ where: { themeId } });
+    if (remainingTabs === 0) {
+      await prisma.theme.deleteMany({ where: { id: themeId, isReadOnlySync: true } });
+    }
+  }
+
   revalidatePath("/");
   revalidatePath("/admin/tabs");
 }
@@ -188,6 +262,23 @@ export async function createSection(data: any) {
 }
 
 export async function addSectionToTab(sectionId: string, tabId: string, column: number = 0) {
+  // Permission check: only tab owners, editors, or admins can add sections
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (userId) {
+    const isAdmin = (session?.user as any)?.isAdmin;
+    if (!isAdmin) {
+      const tab = await prisma.tab.findUnique({
+        where: { id: tabId },
+        include: { editors: { select: { id: true } }, owners: { select: { id: true } } }
+      });
+      const hasEditAccess = tab?.editors?.some(e => e.id === userId) || tab?.owners?.some(o => o.id === userId);
+      if (!hasEditAccess) {
+        throw new Error("You don't have edit access to this workspace");
+      }
+    }
+  }
+
   const lastEntry = await (prisma as any).tabSection.findFirst({
     where: { tabId, column },
     orderBy: { order: "desc" },
@@ -695,6 +786,296 @@ export async function removeTabFromUser(tabId: string) {
   revalidatePath("/");
 }
 
+// --- CROSS-SERVER SYNC ORCHESTRATION ---
+export async function generateTabSyncToken(tabId: string) {
+  const session = await auth();
+  if (!(session?.user as any)?.isAdmin) throw new Error("Unauthorized");
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(32).toString('hex');
+  await (prisma as any).tab.update({ where: { id: tabId }, data: { syncToken: token } });
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
+  return token;
+}
+
+export async function importWorkspaceFromSyncUrl(syncUrl: string) {
+  try {
+     console.log("importWorkspaceFromSyncUrl: Starting import for", syncUrl);
+     const session = await auth();
+     const userId = session?.user?.id;
+     if (!userId) throw new Error("Unauthorized");
+  
+     console.log("importWorkspaceFromSyncUrl: Fetching payload...");
+     const resp = await fetch(syncUrl, { cache: 'no-store' });
+     if (!resp.ok) {
+         console.error("importWorkspaceFromSyncUrl: fetch failed with status", resp.status);
+         throw new Error("Failed to fetch sync payload");
+     }
+     const payload = await resp.json();
+     console.log("importWorkspaceFromSyncUrl: Fetched payload successfully");
+  
+     if (!payload.tab) throw new Error("Invalid sync payload: missing tab");
+  
+     let themeId = null;
+     if (payload.tab.theme) {
+        console.log("importWorkspaceFromSyncUrl: Processing theme...");
+        let bgUrl = payload.tab.theme.backgroundColor;
+        if (bgUrl && bgUrl.startsWith('/')) {
+            try {
+                const urlObj = new URL(syncUrl);
+                bgUrl = `${urlObj.origin}${bgUrl}`;
+            } catch (e) {}
+        }
+        bgUrl = await processMediaField(bgUrl);
+  
+        let logoIcon = payload.tab.theme.logoIcon;
+        if (logoIcon && logoIcon.startsWith('/')) {
+            try {
+                const urlObj = new URL(syncUrl);
+                logoIcon = `${urlObj.origin}${logoIcon}`;
+            } catch (e) {}
+        }
+        logoIcon = await processMediaField(logoIcon);
+  
+        const t = await prisma.theme.create({
+           data: {
+              ...payload.tab.theme,
+              backgroundColor: bgUrl,
+              logoIcon: logoIcon,
+              name: `Synced Theme - ${payload.tab.theme.name} - ${Date.now()}`,
+              isLibraryItem: true,
+              isReadOnlySync: true,
+              owners: { connect: { id: userId } }
+           }
+        });
+        themeId = t.id;
+        console.log("importWorkspaceFromSyncUrl: Created theme", t.id);
+     }
+  
+     console.log("importWorkspaceFromSyncUrl: Processing tab icon...");
+     let tabIcon = payload.tab.icon;
+     if (tabIcon && tabIcon.startsWith('/')) {
+         try {
+             const urlObj = new URL(syncUrl);
+             tabIcon = `${urlObj.origin}${tabIcon}`;
+         } catch (e) {}
+     }
+     tabIcon = await processMediaField(tabIcon);
+  
+     console.log("importWorkspaceFromSyncUrl: Creating tab in DB...");
+     const newTab = await (prisma as any).tab.create({
+        data: {
+           title: payload.tab.title,
+           icon: tabIcon,
+           columns: payload.tab.columns,
+           description: payload.tab.description,
+           themeId,
+           isLibraryItem: true,
+           syncSourceUrl: syncUrl,
+           isReadOnlySync: true,
+           owners: { connect: { id: userId } },
+           allowedUsers: { connect: { id: userId } }
+        }
+     });
+     console.log("importWorkspaceFromSyncUrl: Created tab", newTab.id);
+
+     console.log(`importWorkspaceFromSyncUrl: Processing ${payload.tab.sections?.length || 0} sections...`);
+     for (const s of payload.tab.sections) {
+        console.log("importWorkspaceFromSyncUrl: Creating section:", s.title);
+        let secIcon = s.icon;
+        if (secIcon && secIcon.startsWith('/')) {
+            try {
+                const urlObj = new URL(syncUrl);
+                secIcon = `${urlObj.origin}${secIcon}`;
+            } catch (e) {}
+        }
+        secIcon = await processMediaField(secIcon);
+  
+        const newSec = await prisma.section.create({
+           data: {
+              title: s.title,
+              icon: secIcon,
+              description: s.description,
+              isGlobal: false,
+              isLibraryItem: true,
+              isReadOnlySync: true,
+              owners: { connect: { id: userId } }
+           }
+        });
+        await (prisma as any).tabSection.create({
+           data: {
+              tabId: newTab.id,
+              sectionId: newSec.id,
+              order: s.order,
+              column: s.column,
+              height: s.height,
+              defaultCollapsed: s.defaultCollapsed
+           }
+        });
+        
+        console.log(`importWorkspaceFromSyncUrl: Processing ${s.bookmarks?.length || 0} bookmarks for section ${s.title}...`);
+        for (const b of s.bookmarks) {
+           let bIcon = b.icon;
+           if (bIcon && bIcon.startsWith('/')) {
+               try {
+                   const urlObj = new URL(syncUrl);
+                   bIcon = `${urlObj.origin}${bIcon}`;
+               } catch (e) {}
+           }
+           bIcon = await processMediaField(bIcon);
+  
+           await prisma.bookmark.create({
+              data: {
+                 title: b.title,
+                 url: b.url,
+                 description: b.description,
+                 icon: bIcon,
+                 longDescription: b.longDescription,
+                 openInNewTab: b.openInNewTab,
+                 order: b.order,
+                 sectionId: newSec.id
+              }
+           });
+        }
+     }
+  
+     console.log("importWorkspaceFromSyncUrl: Import completed successfully.");
+     revalidatePath("/");
+     return newTab.id;
+  } catch (err: any) {
+     console.error("importWorkspaceFromSyncUrl CRITICAL ERROR:", err);
+     throw err;
+  }
+}
+
+export async function refreshSyncedWorkspace(tabId: string) {
+  const tab = await (prisma as any).tab.findUnique({ 
+    where: { id: tabId }, 
+    include: { tabSections: true, owners: { select: { id: true } } } 
+  });
+  if (!tab || !tab.syncSourceUrl || !tab.isReadOnlySync) return;
+
+  try {
+     const resp = await fetch(tab.syncSourceUrl, { cache: 'no-store' });
+     if (!resp.ok) return;
+     const payload = await resp.json();
+     if (!payload.tab) return;
+
+     let tabIcon = payload.tab.icon;
+     if (tabIcon && tabIcon.startsWith('/')) {
+         try {
+             const urlObj = new URL(tab.syncSourceUrl);
+             tabIcon = `${urlObj.origin}${tabIcon}`;
+         } catch (e) {}
+     }
+     tabIcon = await processMediaField(tabIcon);
+
+     await (prisma as any).tab.update({
+        where: { id: tab.id },
+        data: {
+           title: payload.tab.title,
+           icon: tabIcon,
+           columns: payload.tab.columns,
+           description: payload.tab.description,
+        }
+     });
+
+     if (payload.tab.theme && tab.themeId) {
+         let bgUrl = payload.tab.theme.backgroundColor;
+         if (bgUrl && bgUrl.startsWith('/')) {
+             try {
+                 const urlObj = new URL(tab.syncSourceUrl);
+                 bgUrl = `${urlObj.origin}${bgUrl}`;
+             } catch (e) {}
+         }
+         bgUrl = await processMediaField(bgUrl);
+
+         let logoIcon = payload.tab.theme.logoIcon;
+         if (logoIcon && logoIcon.startsWith('/')) {
+             try {
+                 const urlObj = new URL(tab.syncSourceUrl);
+                 logoIcon = `${urlObj.origin}${logoIcon}`;
+             } catch (e) {}
+         }
+         logoIcon = await processMediaField(logoIcon);
+
+        await prisma.theme.update({
+           where: { id: tab.themeId },
+           data: {
+               ...payload.tab.theme,
+               backgroundColor: bgUrl,
+               logoIcon: logoIcon
+           }
+        });
+     }
+
+     for (const ts of tab.tabSections) {
+        await prisma.section.delete({ where: { id: ts.sectionId } });
+     }
+     
+     const ownerId = tab.owners?.[0]?.id;
+     
+     for (const s of payload.tab.sections) {
+        let secIcon = s.icon;
+        if (secIcon && secIcon.startsWith('/')) {
+            try {
+                const urlObj = new URL(tab.syncSourceUrl);
+                secIcon = `${urlObj.origin}${secIcon}`;
+            } catch (e) {}
+        }
+        secIcon = await processMediaField(secIcon);
+
+        const newSec = await prisma.section.create({
+           data: {
+              title: s.title,
+              icon: secIcon,
+              description: s.description,
+              isGlobal: false,
+              isLibraryItem: true,
+              isReadOnlySync: true,
+              ...(ownerId ? { owners: { connect: { id: ownerId } } } : {})
+           }
+        });
+        await (prisma as any).tabSection.create({
+           data: {
+              tabId: tab.id,
+              sectionId: newSec.id,
+              order: s.order,
+              column: s.column,
+              height: s.height,
+              defaultCollapsed: s.defaultCollapsed
+           }
+        });
+        for (const b of s.bookmarks) {
+           let bIcon = b.icon;
+           if (bIcon && bIcon.startsWith('/')) {
+               try {
+                   const urlObj = new URL(tab.syncSourceUrl);
+                   bIcon = `${urlObj.origin}${bIcon}`;
+               } catch (e) {}
+           }
+           bIcon = await processMediaField(bIcon);
+
+           await prisma.bookmark.create({
+              data: {
+                 title: b.title,
+                 url: b.url,
+                 description: b.description,
+                 icon: bIcon,
+                 longDescription: b.longDescription,
+                 openInNewTab: b.openInNewTab,
+                 order: b.order,
+                 sectionId: newSec.id
+              }
+           });
+        }
+     }
+     revalidatePath("/");
+  } catch(e) {
+     console.error("Failed to sync workspace", e);
+  }
+}
+
 // --- UTILITY & IMPORT ---
 export async function scanBookmarksFile(formData: FormData) {
   const file = formData.get("file") as File;
@@ -920,4 +1301,122 @@ export async function updateGlobalLayoutBatch(tabId: string, updates: { sectionI
     )
   );
   revalidatePath("/");
+}
+
+// Group management
+export async function renameGroup(oldName: string, newName: string) {
+  "use server";
+  if (!oldName || !newName || oldName === "General") return;
+  await prisma.user.updateMany({
+    where: { dashboardGroup: oldName },
+    data: { dashboardGroup: newName.trim() }
+  });
+}
+
+export async function deleteGroup(groupName: string) {
+  "use server";
+  if (!groupName || groupName === "General") return;
+  await prisma.user.updateMany({
+    where: { dashboardGroup: groupName },
+    data: { dashboardGroup: "General" }
+  });
+}
+
+// Clean "Entire Organization" entries from specific tabs
+export async function removeEntireOrgAccess(tabId: string) {
+  "use server";
+  await (prisma as any).tabDepartmentAccess.deleteMany({
+    where: { tabId, department: "Entire Organization" }
+  });
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
+}
+
+// List all department access entries (for debugging)
+export async function listDeptAccess() {
+  "use server";
+  return (prisma as any).tabDepartmentAccess.findMany({
+    include: { tab: { select: { id: true, title: true } } }
+  });
+}
+
+// --- TAB PUSH RULES ---
+export async function togglePushRule(tabId: string, targetType: string, targetId: string | null, enabled: boolean) {
+  if (enabled) {
+    await (prisma as any).tabPushRule.upsert({
+      where: { tabId_targetType_targetId: { tabId, targetType, targetId: targetId || "" } },
+      update: {},
+      create: { tabId, targetType, targetId: targetId || "" }
+    });
+
+    // Auto-enable sections for catalog when workspace is pushed
+    const tabSections = await prisma.tabSection.findMany({
+      where: { tabId },
+      select: { sectionId: true }
+    });
+    if (tabSections.length > 0) {
+      const sectionIds = tabSections.map(ts => ts.sectionId);
+      await prisma.section.updateMany({
+        where: { id: { in: sectionIds } },
+        data: { isLibraryItem: true }
+      });
+    }
+
+    // Auto-reconcile permissions: pushed targets must have at least viewer access
+    if (targetType === "global") {
+      // For global push, ensure every department has at least viewer access
+      const allDepts = await prisma.user.findMany({ select: { dashboardGroup: true } });
+      const uniqueDepts = Array.from(new Set(allDepts.map(u => u.dashboardGroup || "General")));
+      for (const dept of uniqueDepts) {
+        const existing = await (prisma as any).tabDepartmentAccess.findUnique({
+          where: { tabId_department: { tabId, department: dept } }
+        });
+        if (!existing) {
+          await (prisma as any).tabDepartmentAccess.create({
+            data: { tabId, department: dept, role: "viewer" }
+          });
+        }
+      }
+    } else if (targetType === "department" && targetId) {
+      // For department push, ensure department has at least viewer access
+      const existing = await (prisma as any).tabDepartmentAccess.findUnique({
+        where: { tabId_department: { tabId, department: targetId } }
+      });
+      if (!existing) {
+        await (prisma as any).tabDepartmentAccess.create({
+          data: { tabId, department: targetId, role: "viewer" }
+        });
+      }
+    } else if (targetType === "user" && targetId) {
+      // For user push, ensure user has at least viewer access
+      const tab = await prisma.tab.findUnique({
+        where: { id: tabId },
+        include: { allowedUsers: { select: { id: true } }, editors: { select: { id: true } }, owners: { select: { id: true } } }
+      });
+      const alreadyHasAccess = tab?.owners?.some((o: any) => o.id === targetId) ||
+                                tab?.editors?.some((e: any) => e.id === targetId) ||
+                                tab?.allowedUsers?.some((a: any) => a.id === targetId);
+      if (!alreadyHasAccess) {
+        await prisma.tab.update({
+          where: { id: tabId },
+          data: { allowedUsers: { connect: { id: targetId } } }
+        });
+      }
+    }
+  } else {
+    await (prisma as any).tabPushRule.deleteMany({
+      where: { tabId, targetType, targetId: targetId || "" }
+    });
+  }
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
+}
+
+export async function togglePushRuleLock(tabId: string, targetType: string, targetId: string | null, locked: boolean) {
+  await (prisma as any).tabPushRule.updateMany({
+    where: { tabId, targetType, targetId: targetId || "" },
+    data: { locked }
+  });
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
 }

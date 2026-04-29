@@ -101,6 +101,8 @@ export interface DashboardProps {
    allDepartments?: string[];
    userDefaultTabId?: string | null;
    globalDefaultTabId?: string | null;
+   impersonating?: { userId: string; userName: string } | null;
+   adminUsers?: any[];
 }
 
 // Global hook to resolve hydrated state
@@ -111,7 +113,7 @@ function useMounted() {
 }
 
 export function Dashboard({
-   tabs: initialTabs, activeTheme: baseActiveTheme, globalSettings, userDepartment, isAdmin, currentUserId, canEditContent, iconSize = 36, libraryTabs, librarySections, allThemes = [], allDepartments = [], userName, avatarColor, userDefaultTabId, globalDefaultTabId
+   tabs: initialTabs, activeTheme: baseActiveTheme, globalSettings, userDepartment, isAdmin, currentUserId, canEditContent, iconSize = 36, libraryTabs, librarySections, allThemes = [], allDepartments = [], userName, avatarColor, userDefaultTabId, globalDefaultTabId, impersonating = null, adminUsers = []
 }: DashboardProps) {
    const router = useRouter();
    const [tabs, setTabs] = useState<Tab[]>(initialTabs);
@@ -130,9 +132,35 @@ export function Dashboard({
       const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
       return (yiq >= 128) ? '#000000' : '#ffffff';
    };
-const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0].id : "");
+   const [activeTabId, setActiveTabId] = useState<string>("");
+
+   useEffect(() => {
+      if (typeof window !== "undefined") {
+         const urlParams = new URLSearchParams(window.location.search);
+         const tabParam = urlParams.get('tab');
+         if (tabParam && tabs.some((t: any) => t.id === tabParam)) {
+            setActiveTabId(tabParam);
+         } else if (tabs.length > 0) {
+            setActiveTabId(tabs[0].id);
+         }
+      }
+   }, [tabs]);
+
+   useEffect(() => {
+      if (typeof window !== "undefined" && activeTabId) {
+         const url = new URL(window.location.href);
+         if (url.searchParams.get('tab') !== activeTabId) {
+            url.searchParams.set('tab', activeTabId);
+            window.history.replaceState({}, '', url.toString());
+         }
+      }
+   }, [activeTabId]);
+
+   const activeTabObj = tabs.find((t: any) => t.id === activeTabId);
    const [searchQuery, setSearchQuery] = useState("");
    const [showEditControls, setShowEditControls] = useState(false);
+   const [lockInfoTarget, setLockInfoTarget] = useState<{ type: string; title: string; owners: any[]; editors: any[] } | null>(null);
+   const adminBypass = isAdmin && !impersonating;
    const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -176,17 +204,30 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
 
    const [catalogTab, setCatalogTab] = useState<"workspaces" | "sections">("workspaces");
 
-   const hasTabEditAccess = (tab: Tab) => {
+   const hasTabAdminAccess = (tab?: Tab) => {
+      if (!tab) return false;
+      if (tab.isReadOnlySync) return false;
       if (!currentUserId) return false;
       if (isAdmin) return true;
+      if (tab.owners?.some(u => u.id === currentUserId)) return true;
+      return false;
+   };
+
+   const hasTabEditAccess = (tab?: Tab) => {
+      if (!tab) return false;
+      if (tab.isReadOnlySync) return false;
+      if (!currentUserId) return false;
+      if (adminBypass) return true;
       if (tab.editors?.some(u => u.id === currentUserId)) return true;
       if (tab.owners?.some(u => u.id === currentUserId)) return true;
       return false;
    };
 
-   const hasSectionEditAccess = (section: Section, tab: Tab) => {
+   const hasSectionEditAccess = (section?: Section, tab?: Tab) => {
+      if (!section || !tab) return false;
+      if (section.isReadOnlySync || tab.isReadOnlySync) return false;
       if (!currentUserId) return false;
-      if (isAdmin) return true;
+      if (adminBypass) return true;
       if (section.editors?.some(u => u.id === currentUserId)) return true;
       if (section.owners?.some(u => u.id === currentUserId)) return true;
       if (hasTabEditAccess(tab)) return true;
@@ -204,13 +245,22 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
       newTabs.splice(dst, 0, moved);
       setTabs(newTabs);
 
-      if (isAdmin) {
-         await actions.reorderTabs(newTabs.map(t => t.id));
-      } else {
-         await actions.updatePersonalLayout({ tabOrder: newTabs.map(t => t.id) });
-      }
+      await actions.updatePersonalLayout({ tabOrder: newTabs.map(t => t.id) });
       setDraggedTabId(null);
    };
+
+   const hasSyncedRef = useRef<Record<string, boolean>>({});
+
+   useEffect(() => {
+      if (activeTabObj?.isReadOnlySync && activeTabObj?.id && !hasSyncedRef.current[activeTabObj.id]) {
+         hasSyncedRef.current[activeTabObj.id] = true;
+         actions.refreshSyncedWorkspace(activeTabObj.id).then(() => {
+            router.refresh();
+         });
+      }
+   }, [activeTabObj?.id, activeTabObj?.isReadOnlySync]);
+
+
 
    const handleSectionDrop = async (e: React.DragEvent, targetId: string | undefined, currentTabId: string, colIdx: number) => {
       e.preventDefault();
@@ -384,23 +434,26 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
    const glsOpac = activeTheme.glassOpacity ?? 0.12;
 
    // Use the active TAB's primary color if it has its own theme, else fall back to global theme
-   const activeTabObj = tabs.find((t: any) => t.id === activeTabId);
    const effectivePrimaryColor = (activeTabObj?.theme?.primaryColor && activeTabObj.theme.primaryColor !== '') 
       ? activeTabObj.theme.primaryColor 
       : activeTheme.primaryColor;
    // Debug: console.log('Active tab:', activeTabObj?.title, 'theme:', activeTabObj?.theme?.primaryColor, 'effective:', effectivePrimaryColor);
 
-   // PROPERLY tie glass wash to glassOpacity!
-   const glassOverlayAlpha = isLight ? (glsOpac * 0.9) : (glsOpac * 0.4);
+   // Card Color: interpolate from pure primary → 90% black/white (sectionOpacity 0→1)
+   // Use regex so it works whether hexToRgb returns "r, g, b" or "rgb(r, g, b)"
+   const primRgbStr = hexToRgb(effectivePrimaryColor);
+   const rgbNums = (primRgbStr.match(/\d+/g) || ['99', '102', '241']).slice(0, 3).map(Number);
+   const [pr, pg, pb] = rgbNums;
+   const targetRGB = isLight ? [230, 230, 230] : [25, 25, 25];
+   const mixR = Math.round(pr + (targetRGB[0] - pr) * secOpac);
+   const mixG = Math.round(pg + (targetRGB[1] - pg) * secOpac);
+   const mixB = Math.round(pb + (targetRGB[2] - pb) * secOpac);
 
-   // Tie background density to sectionOpacity
-   const colorTintAlpha = isLight ? (secOpac * 0.8) : (secOpac * 0.45);
+   // Card Opacity: 40% to 90% based on glassOpacity slider
+   const cardAlpha = 0.4 + glsOpac * 0.5;
 
-   const glassBg = activeTheme.glassEffect === false ? `rgba(${hexToRgb(effectivePrimaryColor)}, ${colorTintAlpha})` :
-      `linear-gradient(rgba(255, 255, 255, ${glassOverlayAlpha}), rgba(255, 255, 255, ${glassOverlayAlpha})), rgba(${hexToRgb(effectivePrimaryColor)}, ${colorTintAlpha})`;
-
-   const glassBorder = activeTheme.glassEffect === false ? `rgba(${hexToRgb(effectivePrimaryColor)}, 0.2)` :
-      `rgba(${hexToRgb(effectivePrimaryColor)}, ${isLight ? 0.2 : 0.25})`;
+   const glassBg = `rgba(${mixR}, ${mixG}, ${mixB}, ${cardAlpha})`;
+   const glassBorder = `rgba(${mixR}, ${mixG}, ${mixB}, ${Math.min(1, cardAlpha + 0.15)})`;
 
    const dynamicCSS = `
     :root, [data-theme='dark'], [data-theme='light'] {
@@ -409,6 +462,12 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
       --primary-glow: rgba(${hexToRgb(effectivePrimaryColor)}, 0.5);
       --glass-bg: ${glassBg};
       --glass-border: ${glassBorder};
+      --glass-blur: 0px;
+      --glass-saturate: 100%;
+      --bg-color: color-mix(in srgb, ${effectivePrimaryColor} ${isLight ? '8%' : '15%'}, ${isLight ? '#ffffff' : '#000000'});
+      --modal-bg: ${isLight 
+         ? `linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), rgba(${hexToRgb(effectivePrimaryColor)}, 0.1)` 
+         : `linear-gradient(rgba(10, 10, 10, 0.75), rgba(10, 10, 10, 0.75)), rgba(${hexToRgb(effectivePrimaryColor)}, 0.2)`};
     }
     .navbar {
       position: sticky;
@@ -462,6 +521,19 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
          <style dangerouslySetInnerHTML={{ __html: dynamicCSS }} />
          <AmbientBackground theme={activeTheme} />
 
+         {/* Impersonation Banner */}
+         {impersonating && (
+           <div style={{ position: 'sticky', top: 0, zIndex: 9998, background: 'linear-gradient(90deg, #f59e0b, #ef4444)', color: '#fff', padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', fontSize: '0.85rem', fontWeight: 700, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+             <span>👁 Viewing dashboard as: <strong>{impersonating.userName}</strong> — edit controls disabled</span>
+             <button
+               onClick={async () => { await fetch('/api/admin/impersonate', { method: 'DELETE' }); window.close(); }}
+               style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '8px', padding: '0.3rem 1rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}
+             >
+               ✕ Exit Preview
+             </button>
+           </div>
+         )}
+
          {/* Global Nav Bar - Updated for Mobile / Multi-row */}
          <nav className="navbar glass" style={{ paddingTop: '0.5rem', background: 'var(--glass-bg)', display: 'flex', flexDirection: 'column', gap: '0.5rem', height: 'auto', minHeight: 'var(--nav-height)' }}>
             {/* Top Row: Workspace + Mobile Menu/Right Buttons */}
@@ -474,6 +546,11 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                   <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                      {activeTab?.title ? `${activeTab.title} Dashboard` : (activeTheme.dashboardTitle || "Dashboard")}
                   </h1>
+                  {activeTab?.isReadOnlySync && (
+                     <div style={{ padding: '0.2rem 0.5rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}>
+                        Imported
+                     </div>
+                  )}
                </div>
 
                {/* Mobile Menu Toggle */}
@@ -509,12 +586,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                      </button>
                   )}
 
-                  {/* Theme Settings (always visible when user can edit, not just in edit mode) */}
-                  {canEditContent && (
-                     <button className="nav-menu-btn" title="Theme Settings (Current Workspace)" onClick={() => setIsThemeModalOpen(true)} style={{ background: 'transparent', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', color: 'var(--text)' }}>
-                        <Palette size={18} /> <span className="mobile-menu-text">Workspace Theme</span>
-                     </button>
-                  )}
+                  {/* Theme Settings moved down to Catalog button area */}
 
                   {/* Edit Toggle (Available to all logged-in users) */}
                   {currentUserId && (
@@ -537,24 +609,58 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                </div>
             </div>
 
-            {/* 2. Search Bar Row (Moved Below Header) */}
-            <div style={{ width: '100%', position: 'relative', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
-               <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
-                  <Search size={18} />
+            {/* 2. Search Bar Row with inline Theme/Catalog buttons */}
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
+               <div style={{ flex: 1, position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
+                     <Search size={18} />
+                  </div>
+                  <input
+                     type="text"
+                     className="search-input"
+                     placeholder="Search all apps & tools..."
+                     value={searchQuery}
+                     onChange={e => setSearchQuery(e.target.value)}
+                     style={{
+                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '1rem', paddingLeft: '2.8rem',
+                        background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '999px',
+                        color: 'var(--text)', outline: 'none', boxSizing: 'border-box',
+                        transition: 'all 0.2s ease', backdropFilter: 'blur(10px)'
+                     }}
+                  />
                </div>
-               <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Search all apps & tools..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  style={{
-                     width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '1rem', paddingLeft: '2.8rem',
-                     background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '999px',
-                     color: 'var(--text)', outline: 'none', boxSizing: 'border-box',
-                     transition: 'all 0.2s ease', backdropFilter: 'blur(10px)'
-                  }}
-               />
+               {showEditControls && canEditContent && hasTabEditAccess(activeTabObj) && (
+                  <button
+                     onClick={() => setIsThemeModalOpen(true)}
+                     style={{
+                        padding: '0.6rem 0.85rem',
+                        background: effectivePrimaryColor,
+                        border: '1px solid ' + effectivePrimaryColor,
+                        borderRadius: '12px', cursor: 'pointer', color: '#fff', fontWeight: 700,
+                        fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                        boxShadow: '0 2px 10px ' + effectivePrimaryColor + '44',
+                        transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0
+                     }}
+                  >
+                     <Palette size={14} /> Theme
+                  </button>
+               )}
+               {showEditControls && (
+                  <button
+                     onClick={() => setIsCatalogOpen(!isCatalogOpen)}
+                     style={{
+                        padding: '0.6rem 0.85rem',
+                        background: catBtnBg,
+                        border: '1px solid ' + effectivePrimaryColor,
+                        borderRadius: '12px', cursor: 'pointer', color: '#fff', fontWeight: 700,
+                        fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                        boxShadow: '0 2px 10px ' + effectivePrimaryColor + '44',
+                        transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0
+                     }}
+                  >
+                     <Library size={14} /> Catalog
+                  </button>
+               )}
             </div>
          </nav>
 
@@ -571,8 +677,8 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                            key={tab.id}
                            className="workspace-tab-btn"
                            onClick={() => setActiveTabId(tab.id)}
-                           draggable={showEditControls && hasTabEditAccess(tab)}
-                           onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedTabId(tab.id); e.dataTransfer.effectAllowed = "move"; } }}
+                           draggable={showEditControls}
+                           onDragStart={(e) => { if (showEditControls) { setDraggedTabId(tab.id); e.dataTransfer.effectAllowed = "move"; } }}
                            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverTabId(tab.id); }}
                            onDragLeave={() => setDragOverTabId(null)}
                            onDrop={(e) => { handleTabDrop(e, tab.id); setDragOverTabId(null); }}
@@ -596,7 +702,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                            {tab.icon && <IconComponent name={tab.icon} size={18} />}
                            {tab.title}
                            {showEditControls && !hasTabEditAccess(tab) && (
-                              <div style={{ marginLeft: '0.25rem', display: 'flex', opacity: 0.3 }} title="Locked: You do not have Editor or Owner permissions for this workspace.">
+                              <div style={{ marginLeft: '0.25rem', display: 'flex', opacity: 0.5, cursor: 'pointer' }} title="Click to see who can edit this workspace" onClick={(e) => { e.stopPropagation(); setLockInfoTarget({ type: 'Workspace', title: tab.title, owners: tab.owners || [], editors: tab.editors || [] }); }}>
                                  <Lock size={12} />
                               </div>
                            )}
@@ -623,8 +729,9 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                         <button
                            onClick={() => { setTargetTabToEdit(null); setIsTabModalOpen(true); }}
                            style={{
-                              padding: '0.75rem 1.25rem', background: 'transparent', border: '1px dashed var(--glass-border)', borderBottom: 'none',
-                              cursor: 'pointer', borderRadius: '12px 12px 0 0', color: 'var(--text)', opacity: 0.7, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem'
+                              padding: '0.75rem 1.25rem', background: 'rgba(var(--primary-rgb), 0.15)', border: '1px dashed var(--glass-border)', borderBottom: 'none',
+                              cursor: 'pointer', borderRadius: '12px 12px 0 0', color: 'var(--text)', opacity: 0.7, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem',
+                              backdropFilter: 'blur(10px)'
                            }}
                         >
                            <Plus size={18} /> New Workspace
@@ -633,46 +740,28 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                   )}
                </div>
                {/* Catalog button / Cancel Drop Zone */}
-               {showEditControls && (
-                  draggedSectionId?.startsWith('catalogSection:') ? (
-                     <div
-                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        onDrop={(e) => {
-                           e.preventDefault();
-                           e.stopPropagation();
-                           // Add a slight delay before hiding the drop zone so the browser native drag ghost lands smoothly
-                           setTimeout(() => setDraggedSectionId(null), 10);
-                        }}
-                        style={{
-                           position: 'absolute', right: '1.5rem', bottom: '0.6rem',
-                           padding: '0.55rem 1.5rem',
-                           background: 'rgba(231, 76, 60, 0.95)',
-                           border: '2px dashed #fff',
-                           borderRadius: '10px', cursor: 'pointer', color: '#fff', fontWeight: 700,
-                           fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                           boxShadow: '0 4px 16px rgba(231, 76, 60, 0.5)',
-                           transition: 'all 0.2s ease', zIndex: 3,
-                        }}
-                     >
-                        <X size={18} /> Cancel Drop
-                     </div>
-                  ) : (
-                     <button
-                        onClick={() => setIsCatalogOpen(!isCatalogOpen)}
+               {showEditControls && draggedSectionId?.startsWith('catalogSection:') && (
+                  <div
+                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                     onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Add a slight delay before hiding the drop zone so the browser native drag ghost lands smoothly
+                        setTimeout(() => setDraggedSectionId(null), 10);
+                     }}
                      style={{
                         position: 'absolute', right: '1.5rem', bottom: '0.6rem',
-                        padding: '0.55rem 1rem',
-                        background: catBtnBg,
-                        border: '1px solid ' + effectivePrimaryColor,
+                        padding: '0.55rem 1.5rem',
+                        background: 'rgba(231, 76, 60, 0.95)',
+                        border: '2px dashed #fff',
                         borderRadius: '10px', cursor: 'pointer', color: '#fff', fontWeight: 700,
-                        fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem',
-                        boxShadow: '0 2px 12px ' + effectivePrimaryColor + '55',
+                        fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                        boxShadow: '0 4px 16px rgba(231, 76, 60, 0.5)',
                         transition: 'all 0.2s ease', zIndex: 3,
                      }}
                   >
-                     <Library size={15} /> Catalog
-                  </button>
-                  )
+                     <X size={18} /> Cancel Drop
+                  </div>
                )}
             </div>
          )}
@@ -764,15 +853,22 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                                              </div>
                                              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: '1 1 auto', minWidth: 0 }}>{section.title}</h3>
                                              {showEditControls && !hasSectionEditAccess(section, tab) && (
-                                                <div style={{ display: 'flex', opacity: 0.3, flexShrink: 0, marginLeft: '0.5rem' }} title="Locked: You do not have Editor or Owner permissions for this section.">
+                                                <div style={{ display: 'flex', opacity: 0.5, flexShrink: 0, marginLeft: '0.5rem', cursor: 'pointer' }} title="Click to see who can edit" onClick={(e) => { e.stopPropagation(); setLockInfoTarget({ type: 'Section', title: section.title, owners: section.owners || [], editors: section.editors || [] }); }}>
                                                    <Lock size={14} />
                                                 </div>
                                              )}
                                           </div>
-                                          {showEditControls && hasSectionEditAccess(section, tab) && (
+                                          {showEditControls && (hasSectionEditAccess(section, tab) || hasTabEditAccess(tab)) && (
                                              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                                <button onClick={() => { setEditingBookmark({} as any); setTargetSectionIdForBookmark(section.id); setModalMode("add"); setIsBookmarkModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Plus size={20} /></button>
-                                                <button onClick={() => { setEditingSection(section); setIsSectionModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Settings size={20} /></button>
+                                                {hasSectionEditAccess(section, tab) && (
+                                                   <>
+                                                      <button onClick={() => { setEditingBookmark({} as any); setTargetSectionIdForBookmark(section.id); setModalMode("add"); setIsBookmarkModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Plus size={20} /></button>
+                                                      <button onClick={() => { setEditingSection(section); setIsSectionModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Settings size={20} /></button>
+                                                   </>
+                                                )}
+                                                {!hasSectionEditAccess(section, tab) && hasTabEditAccess(tab) && (
+                                                   <button onClick={async () => { if (confirm('Remove this section from your workspace?')) { await actions.removeSectionFromTab(section.id, tab.id); window.location.reload(); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }} title="Remove Section"><Trash2 size={20} /></button>
+                                                )}
                                              </div>
                                           )}
                                        </div>
@@ -797,6 +893,7 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                                                    }}
                                                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(150,150,150,0.1)'}
                                                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                      onClick={() => { if (!showEditControls) fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: bookmark.id, bookmarkTitle: bookmark.title, bookmarkUrl: bookmark.url }) }).catch(() => {}); }}
                                                    >
                                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', flexShrink: 0 }}>
                                                          <IconComponent name={bookmark.icon} size={28} />
@@ -826,14 +923,25 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                               )}
 
                               {/* Add Section inside column */}
-                              {showEditControls && (
+                              {showEditControls && hasTabAdminAccess(tab) && (
                                  <div
                                     onClick={() => { setEditingSection(null); setIsSectionModalOpen(true); }}
-                                    style={{ background: 'transparent', borderRadius: '16px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.2s', color: 'var(--text)', marginTop: '0.5rem' }}
-                                    onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                                    onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}
+                                    style={{ 
+                                       background: isLight 
+                                          ? `rgba(${hexToRgb(effectivePrimaryColor)}, 0.08)` 
+                                          : `rgba(${hexToRgb(effectivePrimaryColor)}, 0.12)`, 
+                                       borderRadius: '16px', 
+                                       border: isLight 
+                                          ? `2px dashed rgba(${hexToRgb(effectivePrimaryColor)}, 0.55)` 
+                                          : '2px dashed rgba(255, 255, 255, 0.3)', 
+                                       display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', justifyContent: 'center', 
+                                       padding: '1.5rem', cursor: 'pointer', opacity: 0.85, transition: 'opacity 0.2s, transform 0.2s, background 0.2s', 
+                                       color: 'var(--text)', marginTop: '0.5rem', boxShadow: isLight ? `0 2px 8px rgba(${hexToRgb(effectivePrimaryColor)}, 0.15)` : '0 4px 12px rgba(0,0,0,0.1)'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'scale(1)'; }}
                                  >
-                                    <Plus size={16} />
+                                    <Plus size={20} style={{ color: 'var(--primary)' }} />
                                     <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Add Section</span>
                                  </div>
                               )}
@@ -876,10 +984,11 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                            libraryTabs.map(libTab => {
                               const isAdded = tabs.some(t => t.id === libTab.id);
                               return (
-                              <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', opacity: isAdded ? 0.5 : 1 }}>
+                              <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', opacity: isAdded ? 0.5 : 1, background: 'rgba(var(--primary-rgb), 0.06)' }}>
                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>
                                     {libTab.icon && <IconComponent name={libTab.icon} size={18} />}
                                     {libTab.title}
+                                    {libTab.isReadOnlySync && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', border: 'none', borderRadius: '4px', marginLeft: 'auto', textTransform: 'uppercase', fontWeight: 800 }}>Imported</span>}
                                  </div>
                                  {libTab.description && <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{libTab.description}</div>}
                                  {isAdded ? (
@@ -903,28 +1012,30 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
                            librarySections.map(libSec => {
                               const activeTabObj = tabs.find(t => t.id === activeTabId);
                               const isAdded = activeTabObj?.sections?.some(s => s.id === libSec.id);
+                              const canDrag = !isAdded && hasTabEditAccess(activeTabObj);
                               return (
                               <div
                                  key={libSec.id}
                                  className="glass-card"
-                                 draggable={!isAdded}
+                                 draggable={canDrag}
                                  onDragStart={(e) => {
-                                    if(isAdded) { e.preventDefault(); return; }
+                                    if(!canDrag) { e.preventDefault(); return; }
                                     e.dataTransfer.effectAllowed = "all";
                                     e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
                                     setDraggedSectionId(`catalogSection:${libSec.id}`);
-                                    setTimeout(() => setIsCatalogOpen(false), 50); // Defer closing so drag isn't interrupted
+                                    setTimeout(() => setIsCatalogOpen(false), 50);
                                  }}
                                   onDragEnd={() => setDraggedSectionId(null)}
-                                 style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: isAdded ? 'default' : 'grab', opacity: isAdded ? 0.5 : 1 }}
+                                 style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: canDrag ? 'grab' : 'default', opacity: isAdded ? 0.5 : (canDrag ? 1 : 0.7), background: canDrag ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(var(--primary-rgb), 0.04)' }}
                               >
                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--primary)' }}>
-                                    {!isAdded && <GripVertical size={16} style={{ opacity: 0.5 }} />}
+                                    {canDrag && <GripVertical size={16} style={{ opacity: 0.5 }} />}
                                     {libSec.icon && <IconComponent name={libSec.icon} size={16} />}
                                     {libSec.title}
+                                    {libSec.isReadOnlySync && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', border: 'none', borderRadius: '4px', marginLeft: 'auto', textTransform: 'uppercase', fontWeight: 800 }}>Imported</span>}
                                  </div>
-                                 <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: isAdded ? '0' : '1.5rem' }}>
-                                    {isAdded ? "Already added to this workspace." : (libSec.description || "Drag this card onto any column in your dashboard to insert it.")}
+                                 <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: canDrag ? '1.5rem' : '0' }}>
+                                    {isAdded ? "Already added to this workspace." : (!hasTabEditAccess(activeTabObj) ? "You need edit access to add sections to this workspace." : (libSec.description || "Drag this card onto any column in your dashboard to insert it."))}
                                  </div>
                               </div>
                            )})
@@ -987,16 +1098,74 @@ const [activeTabId, setActiveTabId] = useState<string>(tabs.length > 0 ? tabs[0]
             />
          )}
 
+         {/* Lock Info Popup */}
+         {lockInfoTarget && (
+            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(12px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }} onClick={() => setLockInfoTarget(null)}>
+               <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '420px', borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                     <Lock size={18} style={{ opacity: 0.5 }} />
+                     <div>
+                        <div style={{ fontSize: '1rem', fontWeight: 700 }}>{lockInfoTarget.title}</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>Who can edit this {lockInfoTarget.type.toLowerCase()}</div>
+                     </div>
+                  </div>
+                  <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     {(() => {
+                        const ownerIds = new Set(lockInfoTarget.owners.map((u: any) => u.id));
+                        const editorIds = new Set(lockInfoTarget.editors.map((u: any) => u.id));
+                        const extraAdmins = adminUsers.filter((u: any) => !ownerIds.has(u.id) && !editorIds.has(u.id));
+                        const renderUser = (u: any, badge?: string) => (
+                           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0' }}>
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: u.avatarColor || 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.6rem', fontWeight: 800 }}>
+                                 {(u.name || u.email || "U").trim().split(/\s+/).map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </div>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{u.name || u.email}</span>
+                              {badge && <span style={{ fontSize: '0.55rem', fontWeight: 800, background: 'rgba(59,130,246,0.1)', color: '#3b82f6', padding: '0.1rem 0.35rem', borderRadius: '4px', textTransform: 'uppercase' }}>{badge}</span>}
+                           </div>
+                        );
+                        return (
+                           <>
+                              {lockInfoTarget.owners.length > 0 && (
+                                 <div>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.4, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Owners</div>
+                                    {lockInfoTarget.owners.map((u: any) => renderUser(u))}
+                                 </div>
+                              )}
+                              {lockInfoTarget.editors.length > 0 && (
+                                 <div>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.4, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Editors</div>
+                                    {lockInfoTarget.editors.map((u: any) => renderUser(u))}
+                                 </div>
+                              )}
+                              {extraAdmins.length > 0 && (
+                                 <div>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.4, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Global Admins</div>
+                                    {extraAdmins.map((u: any) => renderUser(u, 'Admin'))}
+                                 </div>
+                              )}
+                              {lockInfoTarget.owners.length === 0 && lockInfoTarget.editors.length === 0 && extraAdmins.length === 0 && (
+                                 <div style={{ opacity: 0.5, fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>No specific users assigned. Contact an admin.</div>
+                              )}
+                           </>
+                        );
+                     })()}
+                  </div>
+                  <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end' }}>
+                     <button onClick={() => setLockInfoTarget(null)} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem', borderRadius: '10px', fontWeight: 600 }}>Close</button>
+                  </div>
+               </div>
+            </div>
+         )}
          {/* Version Footer */}
          <div style={{ textAlign: 'center', padding: 'max(1rem, env(safe-area-inset-bottom))', opacity: 0.5, fontSize: '0.8rem', color: 'var(--text)', marginTop: 'auto' }}>
-            v1.2.3
+            v1.3.24
          </div>
       </main>
    );
 }
 
 // --- AMBIENT BACKGROUND SYSTEM ---
-const AmbientBackground = ({ theme }: { theme?: Theme | null }) => {
+function AmbientBackground({ theme }: { theme?: Theme | null }) {
    if (!theme) return null;
    const bgImg = (theme.backgroundColor && (theme.backgroundColor.startsWith('http') || theme.backgroundColor.startsWith('/') || theme.backgroundColor.startsWith('api') || theme.backgroundColor.startsWith('data:'))) ? theme.backgroundColor : null;
 
@@ -1005,7 +1174,7 @@ const AmbientBackground = ({ theme }: { theme?: Theme | null }) => {
       <div style={{ position: 'fixed', top: '-100px', bottom: '-100px', left: 0, right: 0, zIndex: -1, overflow: 'hidden', background: 'var(--bg-base)', pointerEvents: 'none' }}>
          <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '80%', height: '80%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(100px)', opacity: 0.8, animation: 'float 20s infinite alternate linear' }} />
          <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '70%', height: '70%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(120px)', opacity: 0.6, animation: 'float 25s infinite alternate-reverse linear' }} />
-         {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 20}px) brightness(0.7)`, transform: 'scale(1.05)', opacity: 0.8 }} />}
+         {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 0}px) brightness(0.85)`, transform: 'scale(1.05)', opacity: 0.9 }} />}
          <div style={{ position: 'absolute', inset: 0, background: 'var(--primary)', opacity: bgImg ? (theme.backgroundTint ?? 0.6) : 0.08, mixBlendMode: theme.darkMode ? 'soft-light' : 'overlay' }} />
          <div style={{ position: 'absolute', inset: 0, opacity: 0.03, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, pointerEvents: 'none' }} />
       </div>

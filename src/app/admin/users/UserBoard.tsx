@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home } from "lucide-react";
-import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab } from "../actions";
+import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X } from "lucide-react";
+import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup } from "../actions";
 
 export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers: any[]; allTabs?: { id: string; title: string }[] }) {
   const [users, setUsers] = useState(initialUsers);
@@ -27,6 +27,15 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
     await updateUserDefaultTab(userId, val);
   };
 
+  const handleImpersonate = async (userId: string) => {
+    await fetch('/api/admin/impersonate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    window.open('/', '_blank');
+  };
+
   const handleCreateGroup = () => {
     const name = window.prompt("Enter a name for the new group:");
     if (name && name.trim()) {
@@ -37,6 +46,8 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
   };
 
   const [customGroups, setCustomGroups] = useState<string[]>([]);
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState("");
 
   const toggleCollapse = (group: string) => {
     setCollapsedGroups(prev =>
@@ -185,6 +196,7 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'left' }}>Department (Entra)</th>
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'center' }}>Role</th>
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'left' }}>Default Tab</th>
+              <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -210,16 +222,31 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, group.name)}
                   >
-                    <td colSpan={6} style={{ padding: '0.7rem 1rem' }}>
+                    <td colSpan={7} style={{ padding: '0.7rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         {isCollapsed
-                          ? <ChevronRight size={16} style={{ color: 'var(--primary)', opacity: 0.7 }} />
-                          : <ChevronDown size={16} style={{ color: 'var(--primary)', opacity: 0.7 }} />
+                          ? <ChevronRight size={16} style={{ color: 'var(--primary)', opacity: 0.7, cursor: 'pointer' }} onClick={() => toggleCollapse(group.name)} />
+                          : <ChevronDown size={16} style={{ color: 'var(--primary)', opacity: 0.7, cursor: 'pointer' }} onClick={() => toggleCollapse(group.name)} />
                         }
                         <FolderOpen size={16} style={{ color: 'var(--primary)' }} />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)' }}>
-                          {group.name}
-                        </span>
+                        {editingGroup === group.name ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <input
+                              autoFocus
+                              value={editGroupName}
+                              onChange={(e) => setEditGroupName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { if (editGroupName.trim() && editGroupName.trim() !== group.name) { renameGroup(group.name, editGroupName.trim()); setUsers(u => u.map(x => x.dashboardGroup === group.name ? { ...x, dashboardGroup: editGroupName.trim() } : x)); } setEditingGroup(null); } if (e.key === 'Escape') setEditingGroup(null); }}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid var(--primary)', background: 'transparent', color: 'var(--text)', fontSize: '0.85rem', fontWeight: 800, width: '160px' }}
+                            />
+                            <button onClick={(e) => { e.stopPropagation(); if (editGroupName.trim() && editGroupName.trim() !== group.name) { renameGroup(group.name, editGroupName.trim()); setUsers(u => u.map(x => x.dashboardGroup === group.name ? { ...x, dashboardGroup: editGroupName.trim() } : x)); } setEditingGroup(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10b981', display: 'flex' }}><Check size={14} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingGroup(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex' }}><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', cursor: 'pointer' }} onClick={() => toggleCollapse(group.name)}>
+                            {group.name}
+                          </span>
+                        )}
                         <span style={{
                           fontSize: '0.65rem', fontWeight: 700, opacity: 0.5,
                           background: 'rgba(var(--primary-rgb), 0.1)',
@@ -227,8 +254,14 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
                         }}>
                           {group.users.length} {group.users.length === 1 ? 'user' : 'users'}
                         </span>
+                        {group.name !== 'General' && editingGroup !== group.name && (
+                          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.3rem' }}>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingGroup(group.name); setEditGroupName(group.name); }} title="Rename Group" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', opacity: 0.5, display: 'flex', padding: '0.2rem' }}><Edit3 size={13} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete group "${group.name}"? All ${group.users.length} user(s) will be moved to the General group.`)) { deleteGroup(group.name); setUsers(u => u.map(x => x.dashboardGroup === group.name ? { ...x, dashboardGroup: 'General' } : x)); setCustomGroups(prev => prev.filter(g => g !== group.name)); } }} title="Delete Group" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', opacity: 0.5, display: 'flex', padding: '0.2rem' }}><Trash2 size={13} /></button>
+                          </div>
+                        )}
                         {isDragTarget && (
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--primary)', marginLeft: 'auto' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--primary)', marginLeft: isDragTarget && group.name !== 'General' ? '0' : 'auto' }}>
                             Drop here to move user
                           </span>
                         )}
@@ -322,6 +355,26 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
                           <option value="">Auto</option>
                           {allTabs.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                         </select>
+                      </td>
+
+                      {/* Impersonate */}
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleImpersonate(user.id)}
+                          title={`View dashboard as ${user.name || user.email}`}
+                          style={{
+                            background: 'rgba(var(--primary-rgb), 0.08)',
+                            color: 'var(--primary)',
+                            border: '1px solid rgba(var(--primary-rgb), 0.2)',
+                            borderRadius: '8px', padding: '0.35rem 0.6rem',
+                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+                            gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(var(--primary-rgb), 0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                        >
+                          <Eye size={13} /> Preview
+                        </button>
                       </td>
                     </tr>
                   ))}

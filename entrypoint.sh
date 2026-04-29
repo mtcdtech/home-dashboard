@@ -3,7 +3,7 @@ set -e
 
 echo "Starting Database Sync..."
 # We skip generate because it's already done in the Docker build
-./node_modules/.bin/prisma db push --schema=prisma/schema.prisma --accept-data-loss
+npx prisma db push --accept-data-loss
 
 # Use "$@" to preserve arguments, fallback to node server.js if none
 if [ $# -eq 0 ]; then

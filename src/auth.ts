@@ -91,6 +91,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             (user as any).isAdmin = dbUser.isAdmin;
             (user as any).iconSize = dbUser.iconSize;
             (user as any).canEditContent = dbUser.canEditContent;
+
+            // Auto-assign workspaces flagged as "push to new users" (only for brand-new accounts)
+            if (!existingUser) {
+              try {
+                const pushTabs = await prisma.tab.findMany({ where: { pushToNewUsers: true }, select: { id: true } });
+                if (pushTabs.length > 0) {
+                  await prisma.user.update({
+                    where: { id: dbUser.id },
+                    data: { allowedTabs: { connect: pushTabs.map(t => ({ id: t.id })) } }
+                  });
+                  console.log(`Auto-assigned ${pushTabs.length} workspace(s) to new user ${dbUser.id}`);
+                }
+              } catch (e) { console.error("pushToNewUsers failed:", e); }
+            }
+
+            // Log login activity (fire-and-forget)
+            (prisma as any).activityLog.create({
+              data: { userId: dbUser.id, userName: user.name || user.email, type: "login", detail: `via ${account?.provider || "SSO"}` }
+            }).catch(() => {});
         }
         return true;
       } catch (err) {
