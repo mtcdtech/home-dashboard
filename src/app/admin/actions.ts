@@ -171,6 +171,11 @@ export async function createTab(data: { title: string; icon?: string; order?: nu
 }
 
 export async function updateTab(id: string, data: { title: string; icon?: string | null; order?: number; themeId?: string | null; organization?: string | null; allowedUserIds?: string[]; columns?: number }) {
+  // Imported (read-only sync) workspaces are never catalog items per access-matrix spec.
+  const existing = await (prisma as any).tab.findUnique({ where: { id }, select: { isReadOnlySync: true } });
+  const requestedLibrary = (data as any).isLibraryItem ?? false;
+  const isLibraryItem = existing?.isReadOnlySync ? false : requestedLibrary;
+
   await (prisma as any).tab.update({
     where: { id },
     data: {
@@ -180,7 +185,7 @@ export async function updateTab(id: string, data: { title: string; icon?: string
       themeId: data.themeId,
       organization: data.organization || null,
       columns: data.columns ?? 3,
-      isLibraryItem: (data as any).isLibraryItem ?? false,
+      isLibraryItem,
       pushToNewUsers: (data as any).pushToNewUsers ?? false,
       description: (data as any).description || null,
       allowedUsers: data.allowedUserIds ? { set: data.allowedUserIds.map(uid => ({ id: uid })) } : undefined,
@@ -306,11 +311,16 @@ export async function toggleSectionInTab(tabId: string, sectionId: string, isAss
 }
 
 export async function updateSection(id: string, data: any) {
+  // Imported (read-only sync) sections are never catalog items per access-matrix spec.
+  const existing = await prisma.section.findUnique({ where: { id }, select: { isReadOnlySync: true } });
+  const requestedLibrary = data.isLibraryItem ?? false;
+  const isLibraryItem = existing?.isReadOnlySync ? false : requestedLibrary;
+
   await prisma.section.update({
     where: { id },
     data: {
       ...data,
-      isLibraryItem: data.isLibraryItem ?? false,
+      isLibraryItem,
       description: data.description || null
     }
   });
@@ -774,8 +784,34 @@ export async function removeTabFromUser(tabId: string) {
   const session = await auth();
   if (!session?.user?.email) throw new Error("Unauthorized");
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true, dashboardGroup: true }
+  });
   if (!user) throw new Error("User not found");
+
+  // Refuse if a LOCKED push rule covers this user (global, their dept, or them directly).
+  const dept = (user.dashboardGroup || "General").toLowerCase().trim();
+  const lockedRule = await (prisma as any).tabPushRule.findFirst({
+    where: {
+      tabId,
+      locked: true,
+      OR: [
+        { targetType: "global" },
+        { targetType: "user", targetId: user.id },
+        { targetType: "department" }, // department match is case-insensitive; filter below
+      ],
+    }
+  });
+  if (lockedRule) {
+    if (
+      lockedRule.targetType === "global" ||
+      (lockedRule.targetType === "user" && lockedRule.targetId === user.id) ||
+      (lockedRule.targetType === "department" && (lockedRule.targetId || "").toLowerCase().trim() === dept)
+    ) {
+      throw new Error("This workspace is locked by an administrator and cannot be removed.");
+    }
+  }
 
   await (prisma as any).tab.update({
     where: { id: tabId },
@@ -870,7 +906,8 @@ export async function importWorkspaceFromSyncUrl(syncUrl: string) {
            columns: payload.tab.columns,
            description: payload.tab.description,
            themeId,
-           isLibraryItem: true,
+           // Imported workspaces are never added to the catalog (access-matrix spec).
+           isLibraryItem: false,
            syncSourceUrl: syncUrl,
            isReadOnlySync: true,
            owners: { connect: { id: userId } },
@@ -897,7 +934,8 @@ export async function importWorkspaceFromSyncUrl(syncUrl: string) {
               icon: secIcon,
               description: s.description,
               isGlobal: false,
-              isLibraryItem: true,
+              // Imported sections are never added to the catalog (access-matrix spec).
+              isLibraryItem: false,
               isReadOnlySync: true,
               owners: { connect: { id: userId } }
            }
@@ -1031,7 +1069,8 @@ export async function refreshSyncedWorkspace(tabId: string) {
               icon: secIcon,
               description: s.description,
               isGlobal: false,
-              isLibraryItem: true,
+              // Imported sections are never added to the catalog (access-matrix spec).
+              isLibraryItem: false,
               isReadOnlySync: true,
               ...(ownerId ? { owners: { connect: { id: ownerId } } } : {})
            }
@@ -1349,7 +1388,8 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
       create: { tabId, targetType, targetId: targetId || "" }
     });
 
-    // Auto-enable sections for catalog when workspace is pushed
+    // Auto-enable sections for catalog when workspace is pushed.
+    // Imported (read-only sync) sections are never added to the catalog per access-matrix spec.
     const tabSections = await prisma.tabSection.findMany({
       where: { tabId },
       select: { sectionId: true }
@@ -1357,7 +1397,7 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
     if (tabSections.length > 0) {
       const sectionIds = tabSections.map(ts => ts.sectionId);
       await prisma.section.updateMany({
-        where: { id: { in: sectionIds } },
+        where: { id: { in: sectionIds }, isReadOnlySync: false },
         data: { isLibraryItem: true }
       });
     }

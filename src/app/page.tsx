@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Dashboard } from "@/components/Dashboard";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { buildUserContext, resolveTabAccess, resolveSectionAccess } from "@/lib/permissions";
 
 export const dynamic = 'force-dynamic';
 
@@ -132,149 +133,43 @@ export default async function Home() {
   // Filter out "Local Admin" — admins who aren't the local system admin
   const adminUsers = allUsers.filter((u: any) => u.isAdmin && u.name !== 'Local Admin' && u.email !== 'admin@local');
 
+  const userCtx = buildUserContext({ userId, dashboardGroup: userDashboardGroup, isAdminView });
+
   // Filter catalog tabs by user access when not in admin view
-  const filteredLibraryTabs = isAdminView ? libraryTabs : libraryTabs.filter((lt: any) => {
-    // 1. Entire Organization (Overrides all blocks)
-    if (lt.isGlobal) return true;
+  const filteredLibraryTabs = isAdminView
+    ? libraryTabs
+    : libraryTabs.filter((lt: any) => resolveTabAccess(lt, userCtx).role !== "none");
 
-    // 2. Explicit User Deny (Overrides everything else)
-    if (lt.blockedUsers?.some((u: any) => u.id === userId)) return false;
-
-    // 3. Push Rules
-    if (lt.pushRules?.some((r: any) => r.targetType === "global")) return true;
-    if (lt.pushRules?.some((r: any) => r.targetType === "department" && (r.targetId || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim())) return true;
-    if (lt.pushRules?.some((r: any) => r.targetType === "user" && r.targetId === userId)) return true;
-
-    // 4. Explicit User Allow
-    if (lt.allowedUsers?.some((u: any) => u.id === userId)) return true;
-    if (lt.editors?.some((u: any) => u.id === userId)) return true;
-    if (lt.owners?.some((u: any) => u.id === userId)) return true;
-
-    // 5. Department Allow/Deny
-    const deptRecord = lt.departmentAccess?.find((da: any) => (da.department || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim());
-    if (deptRecord && deptRecord.role === "none") return false;
-    if (deptRecord && deptRecord.role !== "none") return true;
-    
-    return false;
-  });
-
-  // Filter catalog sections by user access when not in admin view
-  const filteredLibrarySections = isAdminView ? librarySections : librarySections.filter((ls: any) => {
-    // 1. Entire Organization (Overrides all blocks)
-    if (ls.isGlobal) return true;
-
-    // 2. Explicit User Deny (Overrides everything else)
-    if (ls.blockedUsers?.some((u: any) => u.id === userId)) return false;
-
-    // 3. Push Rules (not present on sections explicitly, but if they were)
-    
-    // 4. Explicit User Allow
-    if (ls.allowedUsers?.some((u: any) => u.id === userId)) return true;
-    if (ls.editors?.some((u: any) => u.id === userId)) return true;
-    if (ls.owners?.some((u: any) => u.id === userId)) return true;
-
-    // 5. Department Allow/Deny
-    const deptRecord = ls.departmentAccess?.find((da: any) => (da.department || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim());
-    if (deptRecord && deptRecord.role === "none") return false;
-    if (deptRecord && deptRecord.role !== "none") return true;
-    
-    return false;
-  });
-
-  // Helper: check if user has tab-level access (permissions OR push rules)
-  function hasTabAccess(tab: any) {
-    if (isAdminView) return true;
-    
-    // 1. Entire Organization (Overrides all blocks)
-    if (tab.isGlobal) return true;
-
-    // 2. Explicit User Deny (Overrides everything else)
-    if (tab.blockedUsers?.some((u: any) => u.id === userId)) return false;
-
-    // A workspace/tab that is not set to "Add to the Catalog" will be visible only for that user who created it
-    if (!tab.isLibraryItem) {
-      return tab.owners?.some((u: any) => u.id === userId) || false;
-    }
-
-    // 3. Push Rules (Always override inherit rules)
-    if (tab.pushRules?.some((r: any) => r.targetType === "global")) return true;
-    if (tab.pushRules?.some((r: any) => r.targetType === "department" && (r.targetId || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim())) return true;
-    if (tab.pushRules?.some((r: any) => r.targetType === "user" && r.targetId === userId)) return true;
-
-    // 4. Explicit User Allow
-    if (tab.allowedUsers?.some((u: any) => u.id === userId)) return true;
-    if (tab.editors?.some((u: any) => u.id === userId)) return true;
-    if (tab.owners?.some((u: any) => u.id === userId)) return true;
-
-    // 5. Check explicit department deny
-    const deptRecord = tab.departmentAccess?.find((da: any) => (da.department || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim());
-    if (deptRecord && deptRecord.role === "none") return false;
-    if (deptRecord && deptRecord.role !== "none") return true;
-
-    return false;
-  }
+  // Filter catalog sections by user access when not in admin view.
+  // Catalog sections are filtered standalone (no tab context), so we evaluate
+  // them as if the tab gate already passed.
+  const filteredLibrarySections = isAdminView
+    ? librarySections
+    : librarySections.filter((ls: any) => {
+        const fakeTabAccess = { role: "viewer", source: "global", pushed: false, locked: false, inherited: true } as const;
+        return resolveSectionAccess(ls, {} as any, fakeTabAccess, userCtx).role !== "none";
+      });
 
   // Filter sections based on visibility for non-admins and reshape to the expected prop shape
   const shapedTabs = tabs
-    .filter((tab: any) => hasTabAccess(tab)) // Gate: user must have TAB access first
-    .map((tab: any) => {
-    const visibleSections = tab.tabSections
-      .filter((ts: any) => {
-        const section = ts.section;
-        if (isAdminView) return true;
-        
-        // 1. Entire Organization (Overrides all blocks)
-        if (section.isGlobal) return true;
+    .map((tab: any) => ({ tab, access: resolveTabAccess(tab, userCtx) }))
+    .filter(({ access }: any) => access.role !== "none")
+    .map(({ tab, access }: any) => {
+      const visibleSections = tab.tabSections
+        .filter((ts: any) => resolveSectionAccess(ts.section, tab, access, userCtx).role !== "none")
+        .map((ts: any) => ({
+          ...ts.section,
+          column: ts.column,
+          height: ts.height,
+          defaultCollapsed: ts.defaultCollapsed || false,
+          tabId: tab.id,
+        }));
 
-        // 2. Explicit User Deny for Section
-        if (section.blockedUsers?.some((u: any) => u.id === userId)) return false;
-
-        // If a section is not in the library, ONLY the owners can see it!
-        if (!section.isLibraryItem) {
-           return section.owners?.some((u: any) => u.id === userId) || false;
-        }
-
-        // User already has tab access (checked above)
-        // Show ALL sections to tab owners/editors — they manage the workspace
-        if (tab.owners?.some((u: any) => u.id === userId)) return true;
-        if (tab.editors?.some((u: any) => u.id === userId)) return true;
-        
-        // 4. Explicit User Allow
-        if (section.allowedUsers?.some((u: any) => u.id === userId)) return true;
-        if (section.editors?.some((u: any) => u.id === userId)) return true;
-        if (section.organization && section.organization === userDepartment) return true;
-
-        // 5. Explicit Department Deny for section
-        const deptRecord = section.departmentAccess?.find((da: any) => (da.department || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim());
-        if (deptRecord && deptRecord.role === "none") return false;
-        if (deptRecord && deptRecord.role !== "none") return true;
-        
-        // If user has tab access via push rules or allowedUsers (not owner/editor), 
-        // still show all sections — having tab access means you can see its content
-        if (tab.allowedUsers?.some((u: any) => u.id === userId)) return true;
-        
-        const tabDeptRecord = tab.departmentAccess?.find((da: any) => (da.department || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim());
-        if (tabDeptRecord && tabDeptRecord.role !== "none") return true;
-
-        if (tab.pushRules?.some((r: any) => r.targetType === "global")) return true;
-        if (tab.pushRules?.some((r: any) => r.targetType === "department" && (r.targetId || "").toLowerCase().trim() === userDashboardGroup.toLowerCase().trim())) return true;
-        if (tab.pushRules?.some((r: any) => r.targetType === "user" && r.targetId === userId)) return true;
-        
-        return false;
-      })
-      .map((ts: any) => ({
-        ...ts.section,
-        column: ts.column,
-        height: ts.height,
-        defaultCollapsed: ts.defaultCollapsed || false,
-        tabId: tab.id, // helpful for actions
-      }));
-
-    return {
-      ...tab,
-      sections: visibleSections,
-    };
-  });
+      return {
+        ...tab,
+        sections: visibleSections,
+      };
+    });
 
   const userLayout = (dbUser as any)?.layout || {};
   
