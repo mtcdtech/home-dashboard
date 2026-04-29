@@ -357,6 +357,7 @@ export default function SectionsClient({
                                          const stagingRole = modifiedDepts[`${dept}_${section.id}`];
                                          const savedRole = section.departmentAccess?.find((da: any) => da.department === dept)?.role || "none";
                                          const displayRole = stagingRole !== undefined ? stagingRole : savedRole;
+                                         const isEntireOrg = section.isGlobal;
                                           const pushInfo = isEntireOrg 
                                              ? getSectionPushInfo(section, 'global') 
                                              : getSectionPushInfo(section, 'department', dept);
@@ -493,7 +494,7 @@ export default function SectionsClient({
                                       })}
                                    </tr>
 
-                                    {!isEntireOrg && !collapsedDepts.includes(dept) && deptUsers.map((user: any) => (
+                                    {!collapsedDepts.includes(dept) && deptUsers.map((user: any) => (
                                       <tr key={user.id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.2s' }} className="hover-row">
                                          <td style={{ width: '1%', whiteSpace: 'nowrap', padding: '1rem 1.25rem 1rem 2.5rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
