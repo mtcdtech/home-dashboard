@@ -473,33 +473,7 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
                                                   {user.isAdmin && (
                                                      <span style={{ fontSize: '0.6rem', color: '#3b82f6', background: 'rgba(59,130,246,0.1)', padding: '0.1rem 0.3rem', borderRadius: '4px', fontWeight: 800 }}>Admin</span>
                                                   )}
-                                                  {isPushedUser && (
-                                                     <div className="tooltip-container" style={{ position: 'relative', display: 'flex' }}>
-                                                        <a 
-                                                           href="#" 
-                                                           onClick={(e) => { e.preventDefault(); setViewMode("push"); }}
-                                                           style={{
-                                                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                              width: '24px', height: '24px', flexShrink: 0,
-                                                              color: '#22c55e', background: 'rgba(34, 197, 94, 0.1)',
-                                                              borderRadius: '6px',
-                                                              border: '1px solid rgba(34, 197, 94, 0.25)',
-                                                              cursor: 'pointer', textDecoration: 'none'
-                                                           }}
-                                                        >
-                                                           <Send size={10} />
-                                                        </a>
-                                                        <div className="tooltip-bubble" style={{ 
-                                                           position: 'absolute', bottom: '100%', right: 0, transform: 'translateY(-8px)', 
-                                                           background: 'rgba(0,0,0,0.9)', color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '8px', 
-                                                           fontSize: '0.65rem', width: 'max-content', zIndex: 10, visibility: 'hidden', opacity: 0, 
-                                                           transition: '0.2s all', border: '1px solid var(--glass-border)', textAlign: 'left', whiteSpace: 'normal', maxWidth: '200px'
-                                                        }}>
-                                                           Pushed to this user/department &mdash; click to manage in Push Matrix
-                                                        </div>
-                                                     </div>
-                                                  )}
-                                               </div>
+                                                </div>
                                                <span style={{ fontSize: '0.7rem', opacity: 0.4 }}>{user.email}</span>
                                             </div>
                                          </div>
