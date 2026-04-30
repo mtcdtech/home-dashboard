@@ -1213,7 +1213,7 @@ export function Dashboard({
          )}
          {/* Version Footer */}
          <div style={{ textAlign: 'center', padding: 'max(1rem, env(safe-area-inset-bottom))', opacity: 0.5, fontSize: '0.8rem', color: 'var(--text)', marginTop: 'auto' }}>
-            v1.3.26
+            v{require('../../package.json').version}
          </div>
       </main>
    );
