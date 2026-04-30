@@ -276,8 +276,12 @@ export function Dashboard({
 
       if (srcId.startsWith("catalogSection:")) {
          const catalogSectionId = srcId.replace("catalogSection:", "");
-         await actions.addSectionToTab(catalogSectionId, currentTabId, colIdx);
-         router.refresh();
+         try {
+            await actions.addSectionToTab(catalogSectionId, currentTabId, colIdx);
+            router.refresh();
+         } catch (err: any) {
+            alert(err.message);
+         }
          return;
       }
 
@@ -718,9 +722,27 @@ export function Dashboard({
                                        {userDefaultTabId === tab.id ? <Star size={14} fill="#F7DC6F" stroke="#F7DC6F" /> : <Star size={14} />}
                                     </span>
                                  )}
-                                 {currentUserId && !(tab as any).isLocked && !adminBypass && (
-                                    <span onClick={async (e) => { e.stopPropagation(); if (confirm(`Remove "${tab.title}" from your dashboard?`)) { try { await actions.removeTabFromUser(tab.id); router.refresh(); } catch (err: any) { alert(err.message); } } }} style={{ opacity: 0.8, cursor: 'pointer', display: 'flex', color: '#ef4444' }} title="Remove Workspace from Dashboard">
-                                       <X size={14} />
+                                 {currentUserId && !adminBypass && (
+                                    <span 
+                                       onClick={async (e) => { 
+                                          e.stopPropagation(); 
+                                          if ((tab as any).isLocked) {
+                                             alert("This workspace is locked by an administrator and cannot be removed.");
+                                             return;
+                                          }
+                                          if (confirm(`Remove "${tab.title}" from your dashboard?`)) { 
+                                             try { 
+                                                await actions.removeTabFromUser(tab.id); 
+                                                router.refresh(); 
+                                             } catch (err: any) { 
+                                                alert(err.message); 
+                                             } 
+                                          } 
+                                       }} 
+                                       style={{ opacity: (tab as any).isLocked ? 0.3 : 0.8, cursor: (tab as any).isLocked ? 'not-allowed' : 'pointer', display: 'flex', color: (tab as any).isLocked ? 'var(--text)' : '#ef4444' }} 
+                                       title={(tab as any).isLocked ? "Workspace Locked" : "Remove Workspace from Dashboard"}
+                                    >
+                                       {(tab as any).isLocked ? <Lock size={14} /> : <X size={14} />}
                                     </span>
                                  )}
                               </div>
@@ -1002,7 +1024,7 @@ export function Dashboard({
                                     </div>
                                  ) : (
                                     <button
-                                       onClick={async () => { await actions.addTabToUser(libTab.id); router.refresh(); }}
+                                       onClick={async () => { await actions.importTabFromLibrary(libTab.id); router.refresh(); }}
                                        style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
                                     >
                                        <Plus size={16} /> Add to Dashboard

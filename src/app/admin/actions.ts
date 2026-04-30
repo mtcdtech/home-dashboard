@@ -778,7 +778,7 @@ export async function importTabFromLibrary(tabId: string) {
   ]);
 
   // Remove from hiddenTabs and add to tabOrder
-  let layout: any = user.layout || {};
+  let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
   if (layout.hiddenTabs) {
     layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
   }
@@ -837,7 +837,7 @@ export async function removeTabFromUser(tabId: string) {
   // Also add to hiddenTabs so pushed or global tabs don't keep reappearing
   const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { layout: true } });
   if (dbUser) {
-    let layout: any = dbUser.layout || {};
+    let layout: any = dbUser.layout && typeof dbUser.layout === 'object' ? JSON.parse(JSON.stringify(dbUser.layout)) : {};
     if (!layout.hiddenTabs) layout.hiddenTabs = [];
     if (!layout.hiddenTabs.includes(tabId)) {
       layout.hiddenTabs.push(tabId);
