@@ -535,7 +535,7 @@ export function Dashboard({
             <div style={{ position: 'sticky', top: 0, zIndex: 9998, background: 'linear-gradient(90deg, #f59e0b, #ef4444)', color: '#fff', padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', fontSize: '0.85rem', fontWeight: 700, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
                <span>👁 Viewing dashboard as: <strong>{impersonating.userName}</strong> — edit controls enabled</span>
                <button
-                  onClick={async () => { await fetch('/api/admin/impersonate', { method: 'DELETE' }); window.close(); }}
+                  onClick={async () => { await fetch('/api/admin/impersonate', { method: 'DELETE' }); window.location.href = '/admin/users'; }}
                   style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '8px', padding: '0.3rem 1rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}
                >
                   ✕ Exit Preview

@@ -143,12 +143,14 @@ export default async function Home() {
   // Filter catalog sections by user access when not in admin view.
   // Catalog sections are filtered standalone (no tab context), so we evaluate
   // them as if the tab gate already passed.
-  const filteredLibrarySections = isAdminView
+  const filteredLibrarySections = (isAdminView
     ? librarySections
     : librarySections.filter((ls: any) => {
         const fakeTabAccess = { role: "viewer", source: "global", pushed: false, locked: false, inherited: true } as const;
         return resolveSectionAccess(ls, {} as any, fakeTabAccess, userCtx).role !== "none";
-      });
+      }))
+    // Deduplicate sections by title to prevent duplicates when a section exists in multiple workspaces
+    .filter((v: any, i: number, a: any[]) => a.findIndex((s: any) => s.title.toLowerCase().trim() === v.title.toLowerCase().trim()) === i);
 
   const userLayout = (dbUser as any)?.layout || {};
 
@@ -158,6 +160,9 @@ export default async function Home() {
     .filter(({ tab, access }: any) => {
       if (access.role === "none") return false;
       if (isAdminView) return true;
+      // During impersonation: show ALL tabs the target user has access to
+      // so the admin can see exactly what that user would see if they logged in
+      if (impersonateUserId) return true;
       if (access.locked) return true;
       if (userLayout.hiddenTabs?.includes(tab.id)) return false;
       if (access.pushed) return true;

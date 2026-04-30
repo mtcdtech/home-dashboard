@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Palette, Search, X, Trash2, Sun, Moon, Upload } from "lucide-react";
+import { useTheme } from "next-themes";
 import * as actions from "@/app/admin/actions"; // Assuming we can use these actions here
 
 export interface ThemeModalProps {
@@ -24,7 +25,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     "Dusk", "Haven", "Ridge", "Storm", "Bloom", "Shore", "Drift", "Crest", "Vale",
     "Meadow", "Reef", "Peak", "Grove", "Bluff", "Delta", "Fjord", "Mesa"];
   const randomName = () => ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)] + " " + NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  
+
   const randomColor = () => {
     const hue = Math.floor(Math.random() * 360);
     const sat = 55 + Math.floor(Math.random() * 35);
@@ -52,7 +53,8 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
   const [backgroundWash, setBackgroundWash] = useState(0.0);
   const [isLibraryItem, setIsLibraryItem] = useState(false);
 
-  const [previewIsDark, setPreviewIsDark] = useState(true);
+  const { resolvedTheme, setTheme } = useTheme();
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Background Search State
@@ -84,34 +86,30 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
         setBackgroundColor(editingTheme.backgroundColor || "");
         setDashboardTitle(editingTheme.dashboardTitle || "Home Dashboard");
         setIsDark(editingTheme.darkMode);
-        setPreviewIsDark(editingTheme.darkMode);
-        setGlassEffect(editingTheme.glassEffect);
-        setBackgroundBlur(editingTheme.backgroundBlur || 20);
+        setGlassEffect(editingTheme.glassEffect ?? true);
+        setBackgroundBlur(editingTheme.backgroundBlur ?? 20);
         setBackgroundTint(editingTheme.backgroundTint ?? 0.5);
         setSectionOpacity(editingTheme.sectionOpacity ?? 0.7);
         setGlassOpacity(editingTheme.glassOpacity ?? 0.12);
         setBackgroundWash(editingTheme.backgroundWash ?? 0.0);
-        setIsLibraryItem(editingTheme.isLibraryItem || false);
+        setIsLibraryItem(editingTheme.isLibraryItem ?? false);
       } else {
         setName(randomName());
-        const initColor = randomColor();
-        setPrimaryColor(initColor);
+        setPrimaryColor(randomColor());
         setBackgroundColor("");
-        setDashboardTitle("Home Dashboard");
-        const dark = Math.random() > 0.3;
-        setIsDark(dark);
-        setPreviewIsDark(dark);
+        setDashboardTitle("Workspace");
+        setIsDark(resolvedTheme === "dark");
         setGlassEffect(true);
-        setBackgroundBlur(15 + Math.floor(Math.random() * 30));
-        setBackgroundTint(0.3 + Math.random() * 0.4);
-        setSectionOpacity(0.5 + Math.random() * 0.4);
-        setGlassOpacity(0.08 + Math.random() * 0.12);
+        setBackgroundBlur(20);
+        setBackgroundTint(0.5);
+        setSectionOpacity(0.7);
+        setGlassOpacity(0.12);
         setBackgroundWash(0.0);
         setIsLibraryItem(false);
       }
       setIsDeleteModalOpen(false);
     }
-  }, [isOpen, editingTheme]);
+  }, [isOpen, editingTheme, resolvedTheme]);
 
   // Keyword → color mapping
   const keywordToHue = (kw: string): number | null => {
@@ -136,15 +134,12 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     return null;
   };
 
-  function getContrastText(hexcolor: string) {
-    if (!hexcolor || hexcolor.length < 7) return '#fff';
-    const r = parseInt(hexcolor.substring(1, 3), 16);
-    const g = parseInt(hexcolor.substring(3, 5), 16);
-    const b = parseInt(hexcolor.substring(5, 7), 16);
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    if (yiq >= 128) return 'var(--text)';
-    return '#fff';
-  }
+  const hexToRgb = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return [r, g, b];
+  };
 
   const searchImages = async (isNew: boolean = true) => {
     if (!bgSearchText) return;
@@ -152,20 +147,20 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     if (isNew) setSearchResults([]);
     const nextPage = isNew ? 1 : searchPage + 1;
     try {
-        const resp = await fetch(`/api/openverse?q=${encodeURIComponent(bgSearchText)}&page=${nextPage}`);
-        const results = await resp.json();
-        const urls = results.map((r: any) => r.url);
-        if (isNew) {
-            setSearchResults(urls);
-            setSearchPage(1);
-        } else {
-            setSearchResults(prev => [...prev, ...urls]);
-            setSearchPage(nextPage);
-        }
+      const resp = await fetch(`/api/openverse?q=${encodeURIComponent(bgSearchText)}&page=${nextPage}`);
+      const results = await resp.json();
+      const urls = results.map((r: any) => r.url);
+      if (isNew) {
+        setSearchResults(urls);
+        setSearchPage(1);
+      } else {
+        setSearchResults(prev => [...prev, ...urls]);
+        setSearchPage(nextPage);
+      }
     } catch (e) {
-        console.error(e);
+      console.error(e);
     } finally {
-        setIsSearching(false);
+      setIsSearching(false);
     }
   };
 
@@ -175,7 +170,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    const seed = (keyword + Date.now()).split('').reduce((a,b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
+    const seed = (keyword + Date.now()).split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
     const rand = (s: number) => { const x = Math.sin(s * 9301 + 49297) * 233280; return x - Math.floor(x); };
     const patternType = (forcedPattern !== undefined && forcedPattern >= 0) ? forcedPattern : Math.abs(seed) % 6;
 
@@ -338,12 +333,12 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
   const handleSaveClick = async () => {
     if (!name) return;
     setIsSaving(true);
-    const data = { 
-      name, 
-      primaryColor, 
-      backgroundColor, 
-      dashboardTitle, 
-      darkMode: isDark, 
+    const data = {
+      name,
+      primaryColor,
+      backgroundColor,
+      dashboardTitle,
+      darkMode: isDark,
       glassEffect,
       backgroundBlur: Number(backgroundBlur),
       backgroundTint: Number(backgroundTint),
@@ -361,285 +356,292 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
 
   if (!isOpen) return null;
 
-  const previewBg = previewIsDark ? '#080810' : '#f8fafc';
-  const previewText = previewIsDark ? '#f8fafc' : '#080810';
-  // Preview: Card Color slider blends from pure primary → 90% white/black
-  // Glass Opacity = card alpha 40%–90%
-  const rgbPrimary = [59, 130, 246]; // proxy for preview
-  const targetRGB = !previewIsDark ? [230, 230, 230] : [25, 25, 25];
-  const mixR = Math.round(rgbPrimary[0] + (targetRGB[0] - rgbPrimary[0]) * sectionOpacity);
-  const mixG = Math.round(rgbPrimary[1] + (targetRGB[1] - rgbPrimary[1]) * sectionOpacity);
-  const mixB = Math.round(rgbPrimary[2] + (targetRGB[2] - rgbPrimary[2]) * sectionOpacity);
-  const cardAlpha = 0.4 + glassOpacity * 0.5; // 40% to 90%
+  // LIVE PREVIEW CALCULATIONS — tied to the actual dashboard light/dark mode
+  const currentIsDark = resolvedTheme === "dark";
 
-  const previewSectionBg = `rgba(${mixR}, ${mixG}, ${mixB}, ${cardAlpha})`;
-  const previewBookmarkBg = previewIsDark ? `rgba(255,255,255,0.05)` : `rgba(255,255,255,0.35)`;
+  // Keep the saved theme's darkMode flag in sync with the live toggle
+  useEffect(() => {
+    setIsDark(currentIsDark);
+  }, [currentIsDark]);
+
+  const previewBg = currentIsDark ? '#080810' : '#f8fafc';
+  const previewText = currentIsDark ? '#f8fafc' : '#080810';
+
+  const targetRGB = !currentIsDark ? [230, 230, 230] : [25, 25, 25];
+  const primaryRGB = hexToRgb(primaryColor);
+  const blendedRGB = [
+    Math.round(primaryRGB[0] * (1 - sectionOpacity) + targetRGB[0] * sectionOpacity),
+    Math.round(primaryRGB[1] * (1 - sectionOpacity) + targetRGB[1] * sectionOpacity),
+    Math.round(primaryRGB[2] * (1 - sectionOpacity) + targetRGB[2] * sectionOpacity)
+  ];
+  const previewSectionBg = `rgba(${blendedRGB.join(',')}, ${0.4 + glassOpacity * 0.5})`;
+  const previewBookmarkBg = currentIsDark ? `rgba(255,255,255,0.05)` : `rgba(255,255,255,0.35)`;
 
   return (
     <>
       <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-         <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '1200px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', borderRadius: '32px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
-            <div style={{ padding: '1.5rem 2.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <Palette size={22} style={{ color: primaryColor }} />
-                  <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>{editingTheme ? `Edit Theme: ${editingTheme.name}` : "Create New Theme"}</span>
-               </div>
-               <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={24} /></button>
+        <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '1200px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', borderRadius: '32px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
+          <div style={{ padding: '1.5rem 2.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <Palette size={22} style={{ color: primaryColor }} />
+              <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>{editingTheme ? `Edit Theme: ${editingTheme.name}` : "Create New Theme"}</span>
             </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={24} /></button>
+          </div>
 
-            <div className="modal-grid" style={{ flex: 1, overflowY: 'auto', padding: '2.5rem', display: 'grid', gridTemplateColumns: 'minmax(450px, 1fr) 420px', gap: '4rem' }}>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                  <section>
-                     <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.5rem' }}>Branding</label>
-                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                         <div className="field">
-                             <span style={{ fontSize: '0.8rem', opacity: 0.6, display: 'block', marginBottom: '0.75rem' }}>Theme Name</span>
-                             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Cobalt Nebula" className="glass" style={{ width: '100%', padding: '0.9rem', borderRadius: '12px' }} />
-                         </div>
-                         <div className="field">
-                             <span style={{ fontSize: '0.8rem', opacity: 0.6, display: 'block', marginBottom: '0.75rem' }}>Dashboard Headline</span>
-                             <input value={dashboardTitle} onChange={(e) => setDashboardTitle(e.target.value)} placeholder="Workspace" className="glass" style={{ width: '100%', padding: '0.9rem', borderRadius: '12px' }} />
-                         </div>
-                         <div className="field" style={{ gridColumn: 'span 2' }}>
-                             <span style={{ fontSize: '0.8rem', opacity: 0.6, display: 'block', marginBottom: '0.75rem' }}>Primary Color</span>
-                             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                 <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} style={{ width: '70px', height: '50px', padding: '0', border: 'none', background: 'transparent', cursor: 'pointer' }} />
-                                 <input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="glass" style={{ flex: 1, padding: '0.8rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 700 }} />
-                             </div>
-                         </div>
-                         {showCatalogToggle && (
-                             <div className="field" style={{ gridColumn: 'span 2' }}>
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: '10px', background: 'rgba(255,255,255,0.03)' }}>
-                                    <input 
-                                       type="checkbox" 
-                                       id="catalog-check"
-                                       checked={isLibraryItem} 
-                                       onChange={(e) => setIsLibraryItem(e.target.checked)}
-                                    />
-                                    <label htmlFor="catalog-check" style={{ fontSize: '0.85rem', cursor: 'pointer', flex: 1 }}>
-                                       Share Theme in Catalog (Make available to others)
-                                    </label>
-                                 </div>
-                             </div>
-                         )}
-                     </div>
-                  </section>
-
-                  <section>
-                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.5rem' }}>Theme Controls</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                            <div className="field">
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Background Blur</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{backgroundBlur}px</span></div>
-                               <input type="range" min="0" max="50" step="1" value={backgroundBlur} onChange={(e) => setBackgroundBlur(parseInt(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
-                            </div>
-                            <div className="field">
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Color Overlay</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundTint * 100)}%</span></div>
-                               <input type="range" min="0" max="1" step="0.05" value={backgroundTint} onChange={(e) => setBackgroundTint(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
-                            </div>
-                         </div>
-                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                            <div className="field">
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>B/W Wash</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundWash * 100)}%</span></div>
-                               <input type="range" min="0" max="1" step="0.05" value={backgroundWash} onChange={(e) => setBackgroundWash(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
-                            </div>
-                            <div className="field">
-                               {/* Empty field for layout balance */}
-                            </div>
-                         </div>
-                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                            <div className="field">
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Card Color</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(sectionOpacity * 100)}%</span></div>
-                               <input type="range" min="0" max="1" step="0.01" value={sectionOpacity} onChange={(e) => setSectionOpacity(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
-                               <p style={{ fontSize: '0.68rem', opacity: 0.4, marginTop: '0.35rem' }}>0% = theme color, 100% = near black/white</p>
-                            </div>
-                            <div className="field">
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Card Opacity</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(40 + glassOpacity * 50)}%</span></div>
-                               <input type="range" min="0" max="1" step="0.01" value={glassOpacity} onChange={(e) => setGlassOpacity(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
-                               <p style={{ fontSize: '0.68rem', opacity: 0.4, marginTop: '0.35rem' }}>Range: 40% to 90% opacity</p>
-                            </div>
-                         </div>
+          <div className="modal-grid" style={{ flex: 1, overflowY: 'auto', padding: '2.5rem', display: 'grid', gridTemplateColumns: 'minmax(450px, 1fr) 420px', gap: '4rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+              <section>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.5rem' }}>Branding</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                  <div className="field">
+                    <span style={{ fontSize: '0.8rem', opacity: 0.6, display: 'block', marginBottom: '0.75rem' }}>Theme Name</span>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Cobalt Nebula" className="glass" style={{ width: '100%', padding: '0.9rem', borderRadius: '12px' }} />
+                  </div>
+                  <div className="field">
+                    <span style={{ fontSize: '0.8rem', opacity: 0.6, display: 'block', marginBottom: '0.75rem' }}>Dashboard Headline</span>
+                    <input value={dashboardTitle} onChange={(e) => setDashboardTitle(e.target.value)} placeholder="Workspace" className="glass" style={{ width: '100%', padding: '0.9rem', borderRadius: '12px' }} />
+                  </div>
+                  <div className="field" style={{ gridColumn: 'span 2' }}>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.6, display: 'block', marginBottom: '0.75rem' }}>Primary Color</span>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} style={{ width: '70px', height: '50px', padding: '0', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+                      <input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="glass" style={{ flex: 1, padding: '0.8rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 700 }} />
+                    </div>
+                  </div>
+                  {showCatalogToggle && (
+                    <div className="field" style={{ gridColumn: 'span 2' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: '10px', background: 'rgba(255,255,255,0.03)' }}>
+                        <input
+                          type="checkbox"
+                          id="catalog-check"
+                          checked={isLibraryItem}
+                          onChange={(e) => setIsLibraryItem(e.target.checked)}
+                        />
+                        <label htmlFor="catalog-check" style={{ fontSize: '0.85rem', cursor: 'pointer', flex: 1 }}>
+                          Share Theme in Catalog (Make available to others)
+                        </label>
                       </div>
-                   </section>
-
-                  <section>
-                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Background Image</label>
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>{(["search", "generate", "upload"] as const).map(src => (<button key={src} onClick={() => setActiveBgSource(src)} className="btn" style={{ fontSize: '0.6rem', padding: '0.3rem 0.6rem', borderRadius: '6px', background: activeBgSource === src ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.08)', color: activeBgSource === src ? '#fff' : 'var(--text)', border: 'none' }}>{src.toUpperCase()}</button>))}</div>
-                     </div>
-                     <div className="glass" style={{ padding: '1.5rem', borderRadius: '20px', background: 'rgba(var(--primary-rgb), 0.03)' }}>
-                         {activeBgSource === "search" && (
-                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                   <div style={{ position: 'relative', flex: 1 }}>
-                                     <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
-                                     <input value={bgSearchText} onChange={(e) => setBgSearchText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchImages(true)} placeholder="Search for backgrounds..." className="glass" style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '10px', fontSize: '0.85rem', boxSizing: 'border-box' }} />
-                                   </div>
-                                   <button onClick={() => searchImages(true)} disabled={isSearching} className="btn btn-primary" style={{ padding: '0 1.2rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                     {isSearching ? 'Searching...' : 'Search'}
-                                   </button>
-                                 </div>
-                                 <div style={{ position: 'relative', minHeight: searchResults.length > 0 || isSearching ? '180px' : '0' }}>
-                                   {isSearching && (
-                                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', opacity: 0.6, zIndex: 2, background: 'rgba(0,0,0,0.3)', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>
-                                       <div className="spin-loader" />
-                                       <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Searching Openverse...</span>
-                                     </div>
-                                   )}
-                                   {searchResults.length > 0 && (
-                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', maxHeight: '260px', overflowY: 'auto', padding: '2px' }}>
-                                       {searchResults.map((url, i) => (
-                                         <div key={url} onClick={async () => {
-                                           const localUrl = await actions.downloadImageFromUrl(url);
-                                           if (localUrl) setBackgroundColor(localUrl);
-                                           else setBackgroundColor(url);
-                                         }} style={{
-                                           aspectRatio: '16/9', cursor: 'pointer', overflow: 'hidden', borderRadius: '8px',
-                                           border: backgroundColor === url ? `2px solid ${primaryColor}` : '1px solid rgba(var(--primary-rgb), 0.12)',
-                                           transition: 'all 0.2s', background: 'rgba(0,0,0,0.2)'
-                                         }}>
-                                           <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
-                                         </div>
-                                       ))}
-                                     </div>
-                                   )}
-                                 </div>
-                                 {!isSearching && searchResults.length > 0 && (
-                                   <button onClick={() => searchImages(false)} className="btn" style={{
-                                     padding: '0.55rem', borderRadius: '10px', fontSize: '0.78rem', width: '100%',
-                                     fontWeight: 700, background: 'rgba(var(--primary-rgb), 0.06)', border: '1px solid var(--glass-border)'
-                                   }}>
-                                     Load More
-                                   </button>
-                                 )}
-                             </div>
-                          )}
-                          {activeBgSource === "generate" && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <input value={genKeyword} onChange={(e) => setGenKeyword(e.target.value)} placeholder="Color or mood (e.g. purple, sunset, ocean)" className="glass" style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', fontSize: '0.85rem' }} onKeyDown={(e) => e.key === 'Enter' && generateAbstract()} />
-                                <button onClick={generateAbstract} disabled={isGenerating} className="btn btn-primary" style={{ padding: '0 1.2rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                  {isGenerating ? 'Generating...' : 'Generate'}
-                                </button>
-                              </div>
-                              <div>
-                                <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>Pattern Style</span>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
-                                  <button onClick={() => setGenPatternType(-1)} style={{
-                                    padding: '0.45rem 0.3rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700,
-                                    background: genPatternType === -1 ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.06)',
-                                    color: genPatternType === -1 ? '#fff' : 'var(--text)',
-                                    border: '1px solid ' + (genPatternType === -1 ? 'var(--primary)' : 'var(--glass-border)'),
-                                    cursor: 'pointer', textAlign: 'center'
-                                  }}>Random</button>
-                                  {PATTERN_NAMES.map(p => (
-                                    <button key={p.id} onClick={() => setGenPatternType(p.id)} title={p.desc} style={{
-                                      padding: '0.45rem 0.3rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700,
-                                      background: genPatternType === p.id ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.06)',
-                                      color: genPatternType === p.id ? '#fff' : 'var(--text)',
-                                      border: '1px solid ' + (genPatternType === p.id ? 'var(--primary)' : 'var(--glass-border)'),
-                                      cursor: 'pointer', textAlign: 'center'
-                                    }}>{p.label}</button>
-                                  ))}
-                                </div>
-                              </div>
-                              {isGenerating && (
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '0.75rem', opacity: 0.5 }}>
-                                  <div className="spin-loader" />
-                                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Generating backdrop...</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                           {activeBgSource === "upload" && (
-                             <div
-                               onDragOver={(e) => { e.preventDefault(); setIsDraggingBg(true); }}
-                               onDragLeave={() => setIsDraggingBg(false)}
-                               onDrop={(e) => {
-                                 e.preventDefault();
-                                 setIsDraggingBg(false);
-                                 const file = e.dataTransfer.files?.[0];
-                                 if (file && file.type.startsWith('image/')) handleBgUpload(file);
-                               }}
-                               style={{
-                                 border: `2px dashed ${isDraggingBg ? 'var(--primary)' : 'var(--glass-border)'}`,
-                                 borderRadius: '16px', padding: '2.5rem 1.5rem',
-                                 display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                 justifyContent: 'center', gap: '1rem', cursor: 'pointer',
-                                 background: isDraggingBg ? 'rgba(var(--primary-rgb), 0.06)' : 'transparent',
-                                 transition: 'all 0.2s', textAlign: 'center',
-                               }}
-                               onClick={() => document.getElementById('bg-upload-input')?.click()}
-                             >
-                               <input id="bg-upload-input" type="file" accept="image/*" hidden
-                                 onChange={(e) => { const file = e.target.files?.[0]; if (file) handleBgUpload(file); }} />
-                               <Upload size={28} style={{ opacity: 0.4 }} />
-                               <div>
-                                 <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: 0 }}>Drop an image here</p>
-                                 <p style={{ fontSize: '0.75rem', opacity: 0.4, margin: '0.25rem 0 0 0' }}>or click to browse your files</p>
-                               </div>
-                               {backgroundColor && (backgroundColor.startsWith('/') || backgroundColor.startsWith('http')) && (
-                                 <div style={{ width: '100%', height: '80px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
-                                   <img src={backgroundColor} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                 </div>
-                               )}
-                             </div>
-                           )}
-                     </div>
-                  </section>
-               </div>
-
-               {/* LIVE PREVIEW AREA */}
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <div className="glass" style={{ 
-                    flex: 1, borderRadius: '32px', overflow: 'hidden', position: 'relative', border: `1px solid ${primaryColor}44`, background: previewBg, minHeight: '400px', boxShadow: `0 20px 80px -20px ${primaryColor}44`
-                  }}>
-                     <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${backgroundBlur}px) brightness(${previewIsDark ? 0.6 : 1.1})`, transform: 'scale(1.1)' }} />
-                     <div style={{ position: 'absolute', inset: 0, background: primaryColor, opacity: backgroundTint, mixBlendMode: previewIsDark ? 'soft-light' : 'overlay' }} />
-                     <div style={{ position: 'absolute', inset: 0, background: previewIsDark ? '#000' : '#fff', opacity: backgroundWash }} />
-                     <div style={{ position: 'relative', zIndex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><div style={{ width: '32px', height: '32px', borderRadius: '8px', background: primaryColor }} /><div style={{ fontSize: '1rem', fontWeight: 800, color: previewText }}>{dashboardTitle}</div></div>
-                        <div className="glass" style={{ padding: '0.8rem 1rem', borderRadius: '12px', background: previewSectionBg, border: `1px solid ${primaryColor}15`, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Search size={14} style={{ opacity: 0.3 }} /><div style={{ height: '7px', width: '40%', background: previewText, opacity: 0.2, borderRadius: '4px' }} /></div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>{[1, 2].map(i => (<div key={i} className="glass" style={{ padding: '1rem', borderRadius: '16px', background: previewSectionBg, border: `1px solid ${primaryColor}15`, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', background: primaryColor }} /><div style={{ height: '8px', width: '30%', background: previewText, opacity: 0.4, borderRadius: '4px' }} /></div><div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{[1, 2].map(j => (<div key={j} className="glass" style={{ padding: '0.5rem', borderRadius: '8px', background: previewBookmarkBg, border: `1px solid ${primaryColor}11`, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '12px', height: '12px', borderRadius: '4px', background: primaryColor }} /><div style={{ height: '6px', width: '50%', background: previewText, opacity: 0.3, borderRadius: '4px' }} /></div>))}</div></div>))}</div>
-                     </div>
-                  </div>
-                  <div className="glass" style={{ display: 'flex', borderRadius: '14px', padding: '0.3rem', background: 'rgba(var(--primary-rgb), 0.05)', alignSelf: 'center' }}>
-                     <button onClick={() => setPreviewIsDark(false)} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: !previewIsDark ? 'var(--primary)' : 'transparent', color: !previewIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Sun size={18} /></button>
-                     <button onClick={() => setPreviewIsDark(true)} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: previewIsDark ? 'var(--primary)' : 'transparent', color: previewIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Moon size={18} /></button>
-                  </div>
-               </div>
-            </div>
-
-            <div style={{ padding: '1.5rem 2.5rem', background: 'rgba(var(--primary-rgb), 0.04)', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {editingTheme && onDelete ? (
-                   <button onClick={() => setIsDeleteModalOpen(true)} className="btn" style={{ color: '#ff4444', background: 'rgba(255,68,68,0.1)', padding: '0.8rem 1.5rem', borderRadius: '14px', display: 'flex', gap: '0.5rem', fontWeight: 700 }}>
-                      <Trash2 size={18} /> Archive Theme
-                   </button>
-                ) : <div />}
-                
-                <div style={{ display: 'flex', gap: '1.25rem' }}>
-                   <button onClick={onClose} className="btn" style={{ padding: '0.8rem 2rem', borderRadius: '14px', fontWeight: 600, opacity: 0.6 }}>Cancel</button>
-                   <button onClick={handleSaveClick} disabled={isSaving} className="btn btn-primary" style={{ padding: '0.8rem 3rem', borderRadius: '14px', fontWeight: 800, fontSize: '1rem' }}>
-                     {isSaving ? "Saving..." : (editingTheme ? "Save Changes" : "Create Theme")}
-                   </button>
+                    </div>
+                  )}
                 </div>
+              </section>
+
+              <section>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1.5rem' }}>Theme Controls</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <div className="field">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Background Blur</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{backgroundBlur}px</span></div>
+                      <input type="range" min="0" max="50" step="1" value={backgroundBlur} onChange={(e) => setBackgroundBlur(parseInt(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                    </div>
+                    <div className="field">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Background Color Overlay</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundTint * 100)}%</span></div>
+                      <input type="range" min="0" max="1" step="0.05" value={backgroundTint} onChange={(e) => setBackgroundTint(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <div className="field">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Background B/W Wash</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundWash * 100)}%</span></div>
+                      <input type="range" min="0" max="1" step="0.05" value={backgroundWash} onChange={(e) => setBackgroundWash(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                    </div>
+                    <div className="field">
+                      {/* Empty field for layout balance */}
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <div className="field">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Card Color</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(sectionOpacity * 100)}%</span></div>
+                      <input type="range" min="0" max="1" step="0.01" value={sectionOpacity} onChange={(e) => setSectionOpacity(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                      <p style={{ fontSize: '0.68rem', opacity: 0.4, marginTop: '0.35rem' }}>0% = theme color, 100% = near black/white</p>
+                    </div>
+                    <div className="field">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Card Opacity</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(40 + glassOpacity * 50)}%</span></div>
+                      <input type="range" min="0" max="1" step="0.01" value={glassOpacity} onChange={(e) => setGlassOpacity(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                      <p style={{ fontSize: '0.68rem', opacity: 0.4, marginTop: '0.35rem' }}>Range: 40% to 90% opacity</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                  <label style={{ fontSize: '0.7rem', fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Background Image</label>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>{(["search", "generate", "upload"] as const).map(src => (<button key={src} onClick={() => setActiveBgSource(src)} className="btn" style={{ fontSize: '0.6rem', padding: '0.3rem 0.6rem', borderRadius: '6px', background: activeBgSource === src ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.08)', color: activeBgSource === src ? '#fff' : 'var(--text)', border: 'none' }}>{src.toUpperCase()}</button>))}</div>
+                </div>
+                <div className="glass" style={{ padding: '1.5rem', borderRadius: '20px', background: 'rgba(var(--primary-rgb), 0.03)' }}>
+                  {activeBgSource === "search" && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                          <input value={bgSearchText} onChange={(e) => setBgSearchText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchImages(true)} placeholder="Search for backgrounds..." className="glass" style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '10px', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                        </div>
+                        <button onClick={() => searchImages(true)} disabled={isSearching} className="btn btn-primary" style={{ padding: '0 1.2rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {isSearching ? 'Searching...' : 'Search'}
+                        </button>
+                      </div>
+                      <div style={{ position: 'relative', minHeight: searchResults.length > 0 || isSearching ? '180px' : '0' }}>
+                        {isSearching && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', opacity: 0.6, zIndex: 2, background: 'rgba(0,0,0,0.3)', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>
+                            <div className="spin-loader" />
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Searching Openverse...</span>
+                          </div>
+                        )}
+                        {searchResults.length > 0 && (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', maxHeight: '260px', overflowY: 'auto', padding: '2px' }}>
+                            {searchResults.map((url, i) => (
+                              <div key={url} onClick={async () => {
+                                const localUrl = await actions.downloadImageFromUrl(url);
+                                if (localUrl) setBackgroundColor(localUrl);
+                                else setBackgroundColor(url);
+                              }} style={{
+                                aspectRatio: '16/9', cursor: 'pointer', overflow: 'hidden', borderRadius: '8px',
+                                border: backgroundColor === url ? `2px solid ${primaryColor}` : '1px solid rgba(var(--primary-rgb), 0.12)',
+                                transition: 'all 0.2s', background: 'rgba(0,0,0,0.2)'
+                              }}>
+                                <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {!isSearching && searchResults.length > 0 && (
+                        <button onClick={() => searchImages(false)} className="btn" style={{
+                          padding: '0.55rem', borderRadius: '10px', fontSize: '0.78rem', width: '100%',
+                          fontWeight: 700, background: 'rgba(var(--primary-rgb), 0.06)', border: '1px solid var(--glass-border)'
+                        }}>
+                          Load More
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {activeBgSource === "generate" && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input value={genKeyword} onChange={(e) => setGenKeyword(e.target.value)} placeholder="Color or mood (e.g. purple, sunset, ocean)" className="glass" style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', fontSize: '0.85rem' }} onKeyDown={(e) => e.key === 'Enter' && generateAbstract()} />
+                        <button onClick={generateAbstract} disabled={isGenerating} className="btn btn-primary" style={{ padding: '0 1.2rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {isGenerating ? 'Generating...' : 'Generate'}
+                        </button>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>Pattern Style</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                          <button onClick={() => setGenPatternType(-1)} style={{
+                            padding: '0.45rem 0.3rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700,
+                            background: genPatternType === -1 ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.06)',
+                            color: genPatternType === -1 ? '#fff' : 'var(--text)',
+                            border: '1px solid ' + (genPatternType === -1 ? 'var(--primary)' : 'var(--glass-border)'),
+                            cursor: 'pointer', textAlign: 'center'
+                          }}>Random</button>
+                          {PATTERN_NAMES.map(p => (
+                            <button key={p.id} onClick={() => setGenPatternType(p.id)} title={p.desc} style={{
+                              padding: '0.45rem 0.3rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700,
+                              background: genPatternType === p.id ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.06)',
+                              color: genPatternType === p.id ? '#fff' : 'var(--text)',
+                              border: '1px solid ' + (genPatternType === p.id ? 'var(--primary)' : 'var(--glass-border)'),
+                              cursor: 'pointer', textAlign: 'center'
+                            }}>{p.label}</button>
+                          ))}
+                        </div>
+                      </div>
+                      {isGenerating && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '0.75rem', opacity: 0.5 }}>
+                          <div className="spin-loader" />
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Generating backdrop...</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {activeBgSource === "upload" && (
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setIsDraggingBg(true); }}
+                      onDragLeave={() => setIsDraggingBg(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingBg(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file && file.type.startsWith('image/')) handleBgUpload(file);
+                      }}
+                      style={{
+                        border: `2px dashed ${isDraggingBg ? 'var(--primary)' : 'var(--glass-border)'}`,
+                        borderRadius: '16px', padding: '2.5rem 1.5rem',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        justifyContent: 'center', gap: '1rem', cursor: 'pointer',
+                        background: isDraggingBg ? 'rgba(var(--primary-rgb), 0.06)' : 'transparent',
+                        transition: 'all 0.2s', textAlign: 'center',
+                      }}
+                      onClick={() => document.getElementById('bg-upload-input')?.click()}
+                    >
+                      <input id="bg-upload-input" type="file" accept="image/*" hidden
+                        onChange={(e) => { const file = e.target.files?.[0]; if (file) handleBgUpload(file); }} />
+                      <Upload size={28} style={{ opacity: 0.4 }} />
+                      <div>
+                        <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: 0 }}>Drop an image here</p>
+                        <p style={{ fontSize: '0.75rem', opacity: 0.4, margin: '0.25rem 0 0 0' }}>or click to browse your files</p>
+                      </div>
+                      {backgroundColor && (backgroundColor.startsWith('/') || backgroundColor.startsWith('http')) && (
+                        <div style={{ width: '100%', height: '80px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+                          <img src={backgroundColor} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
-         </div>
+
+            {/* LIVE PREVIEW AREA */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div className="glass" style={{
+                flex: 1, borderRadius: '32px', overflow: 'hidden', position: 'relative', border: `1px solid ${primaryColor}44`, background: previewBg, minHeight: '400px', boxShadow: `0 20px 80px -20px ${primaryColor}44`
+              }}>
+                <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${backgroundBlur}px) brightness(${currentIsDark ? 0.6 : 1.1})`, transform: 'scale(1.1)' }} />
+                <div style={{ position: 'absolute', inset: 0, background: primaryColor, opacity: backgroundTint, mixBlendMode: currentIsDark ? 'soft-light' : 'overlay' }} />
+                <div style={{ position: 'absolute', inset: 0, background: currentIsDark ? '#000' : '#fff', opacity: backgroundWash }} />
+                <div style={{ position: 'relative', zIndex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><div style={{ width: '32px', height: '32px', borderRadius: '8px', background: primaryColor }} /><div style={{ fontSize: '1rem', fontWeight: 800, color: previewText }}>{dashboardTitle}</div></div>
+                  <div className="glass" style={{ padding: '0.8rem 1rem', borderRadius: '12px', background: previewSectionBg, border: `1px solid ${primaryColor}15`, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Search size={14} style={{ opacity: 0.3 }} /><div style={{ height: '7px', width: '40%', background: previewText, opacity: 0.2, borderRadius: '4px' }} /></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>{[1, 2].map(i => (<div key={i} className="glass" style={{ padding: '1rem', borderRadius: '16px', background: previewSectionBg, border: `1px solid ${primaryColor}15`, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', background: primaryColor }} /><div style={{ height: '8px', width: '30%', background: previewText, opacity: 0.4, borderRadius: '4px' }} /></div><div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{[1, 2].map(j => (<div key={j} className="glass" style={{ padding: '0.5rem', borderRadius: '8px', background: previewBookmarkBg, border: `1px solid ${primaryColor}11`, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '12px', height: '12px', borderRadius: '4px', background: primaryColor }} /><div style={{ height: '6px', width: '50%', background: previewText, opacity: 0.3, borderRadius: '4px' }} /></div>))}</div></div>))}</div>
+                </div>
+              </div>
+              <div className="glass" style={{ display: 'flex', borderRadius: '14px', padding: '0.3rem', background: 'rgba(var(--primary-rgb), 0.05)', alignSelf: 'center' }}>
+                <button onClick={() => setTheme('light')} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: !currentIsDark ? 'var(--primary)' : 'transparent', color: !currentIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Sun size={18} /></button>
+                <button onClick={() => setTheme('dark')} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: currentIsDark ? 'var(--primary)' : 'transparent', color: currentIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Moon size={18} /></button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '1.5rem 2.5rem', background: 'rgba(var(--primary-rgb), 0.04)', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {editingTheme && onDelete ? (
+              <button onClick={() => setIsDeleteModalOpen(true)} className="btn" style={{ color: '#ff4444', background: 'rgba(255,68,68,0.1)', padding: '0.8rem 1.5rem', borderRadius: '14px', display: 'flex', gap: '0.5rem', fontWeight: 700 }}>
+                <Trash2 size={18} /> Archive Theme
+              </button>
+            ) : <div />}
+
+            <div style={{ display: 'flex', gap: '1.25rem' }}>
+              <button onClick={onClose} className="btn" style={{ padding: '0.8rem 2rem', borderRadius: '14px', fontWeight: 600, opacity: 0.6 }}>Cancel</button>
+              <button onClick={handleSaveClick} disabled={isSaving} className="btn btn-primary" style={{ padding: '0.8rem 3rem', borderRadius: '14px', fontWeight: 800, fontSize: '1rem' }}>
+                {isSaving ? "Saving..." : (editingTheme ? "Save Changes" : "Create Theme")}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* DELETE CONFIRMATION MODAL */}
       {isDeleteModalOpen && onDelete && (
-         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)', zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-            <div className="glass" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem', borderRadius: '32px', textAlign: 'center', border: '1px solid rgba(255,68,68,0.2)' }}>
-               <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,68,68,0.1)', color: '#ff4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}><Trash2 size={32} /></div>
-               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.75rem' }}>Archival Confirmation</h2>
-               <p style={{ fontSize: '0.95rem', opacity: 0.6, marginBottom: '2.5rem' }}>This visual identity will be permanently decommissioned. Any workspaces relying on this theme will revert to system defaults.</p>
-               <div style={{ display: 'flex', gap: '1.25rem' }}>
-                  <button onClick={() => setIsDeleteModalOpen(false)} className="btn" style={{ flex: 1, padding: '0.8rem', borderRadius: '12px', fontWeight: 700 }}>Cancel</button>
-                  <button onClick={async () => { await onDelete(); setIsDeleteModalOpen(false); }} className="btn" style={{ flex: 1, padding: '0.8rem', borderRadius: '12px', background: '#ff4444', color: '#fff', fontWeight: 800 }}>Confirm Deletion</button>
-               </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)', zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div className="glass" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem', borderRadius: '32px', textAlign: 'center', border: '1px solid rgba(255,68,68,0.2)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,68,68,0.1)', color: '#ff4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}><Trash2 size={32} /></div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.75rem' }}>Archival Confirmation</h2>
+            <p style={{ fontSize: '0.95rem', opacity: 0.6, marginBottom: '2.5rem' }}>This visual identity will be permanently decommissioned. Any workspaces relying on this theme will revert to system defaults.</p>
+            <div style={{ display: 'flex', gap: '1.25rem' }}>
+              <button onClick={() => setIsDeleteModalOpen(false)} className="btn" style={{ flex: 1, padding: '0.8rem', borderRadius: '12px', fontWeight: 700 }}>Cancel</button>
+              <button onClick={async () => { await onDelete(); setIsDeleteModalOpen(false); }} className="btn" style={{ flex: 1, padding: '0.8rem', borderRadius: '12px', background: '#ff4444', color: '#fff', fontWeight: 800 }}>Confirm Deletion</button>
             </div>
-         </div>
+          </div>
+        </div>
       )}
 
       <style jsx global>{`

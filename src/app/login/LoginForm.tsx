@@ -326,6 +326,9 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
            <ShieldCheck size={14} />
            <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Secure Authentication</span>
         </div>
+        <div style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.5, fontSize: '0.8rem', color: 'var(--text)' }}>
+           v{require('../../../package.json').version}
+        </div>
       </div>
 
 
