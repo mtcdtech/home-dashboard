@@ -8,7 +8,7 @@ This is a Home Dashboard application built with Next.js, used for internal manag
 - **Styling**: Tailwind CSS / Vanilla CSS
 - **Database**: Prisma (SQL)
 - **Deployment**: Docker / Portainer
-
+- **Build CI**: Local changes should be pushed to GitHub, which then triggers a Docker container for build and deployment to Portainer via webhook.
 ## Key Features
 - Admin Dashboard for managing bookmarks and users.
 - Integration with Planning Center Online (PCO).
