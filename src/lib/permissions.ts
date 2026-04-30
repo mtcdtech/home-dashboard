@@ -180,7 +180,10 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
     return { role, source: "department", pushed: false, locked: false, inherited: true };
   }
 
-  return NONE;
+  // 8. Catalog fallback — catalog tabs are visible to everyone by default.
+  // Being "in the catalog" means anyone can discover and add this workspace.
+  // If access needs to be restricted, use department access or block rules above.
+  return { role: "viewer", source: "global", pushed: false, locked: false, inherited: true };
 }
 
 export function resolveSectionAccess(

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Palette, Search, X, Trash2, Sun, Moon, Upload } from "lucide-react";
-import { useTheme } from "next-themes";
 import * as actions from "@/app/admin/actions"; // Assuming we can use these actions here
 
 export interface ThemeModalProps {
@@ -53,8 +52,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
   const [backgroundWash, setBackgroundWash] = useState(0.0);
   const [isLibraryItem, setIsLibraryItem] = useState(false);
 
-  const { resolvedTheme, setTheme } = useTheme();
-
+  const [previewIsDark, setPreviewIsDark] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Background Search State
@@ -68,6 +66,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
   const [genPatternType, setGenPatternType] = useState<number>(-1); // -1 = random
   const [isDraggingBg, setIsDraggingBg] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingBg, setIsUploadingBg] = useState(false);
 
   const PATTERN_NAMES = [
     { id: 0, label: "Mesh", desc: "Soft color blobs" },
@@ -86,6 +85,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
         setBackgroundColor(editingTheme.backgroundColor || "");
         setDashboardTitle(editingTheme.dashboardTitle || "Home Dashboard");
         setIsDark(editingTheme.darkMode);
+        setPreviewIsDark(editingTheme.darkMode);
         setGlassEffect(editingTheme.glassEffect ?? true);
         setBackgroundBlur(editingTheme.backgroundBlur ?? 20);
         setBackgroundTint(editingTheme.backgroundTint ?? 0.5);
@@ -98,7 +98,8 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
         setPrimaryColor(randomColor());
         setBackgroundColor("");
         setDashboardTitle("Workspace");
-        setIsDark(resolvedTheme === "dark");
+        setIsDark(true);
+        setPreviewIsDark(true);
         setGlassEffect(true);
         setBackgroundBlur(20);
         setBackgroundTint(0.5);
@@ -109,7 +110,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
       }
       setIsDeleteModalOpen(false);
     }
-  }, [isOpen, editingTheme, resolvedTheme]);
+  }, [isOpen, editingTheme]);
 
   // Keyword → color mapping
   const keywordToHue = (kw: string): number | null => {
@@ -324,10 +325,22 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
   };
 
   const handleBgUpload = async (file: File) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const url = await actions.uploadImage(fd);
-    if (url) setBackgroundColor(url);
+    try {
+      setIsUploadingBg(true);
+      const fd = new FormData();
+      fd.append("file", file);
+      const url = await actions.uploadImage(fd);
+      if (url) {
+        setBackgroundColor(url);
+      } else {
+        alert("Failed to upload image. It might be too large (max 10MB).");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error uploading image.");
+    } finally {
+      setIsUploadingBg(false);
+    }
   };
 
   const handleSaveClick = async () => {
@@ -354,20 +367,13 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     }
   };
 
-  // LIVE PREVIEW — keep darkMode in sync with the current browser toggle.
-  // (Hooks must be called before any early-return.)
-  const currentIsDark = resolvedTheme === "dark";
-  useEffect(() => {
-    setIsDark(currentIsDark);
-  }, [currentIsDark]);
-
   if (!isOpen) return null;
 
-  // LIVE PREVIEW CALCULATIONS — tied to the actual dashboard light/dark mode
-  const previewBg = currentIsDark ? '#080810' : '#f8fafc';
-  const previewText = currentIsDark ? '#f8fafc' : '#080810';
+  // PREVIEW CALCULATIONS — uses previewIsDark (local toggle only, does NOT change live dashboard)
+  const previewBg = previewIsDark ? '#080810' : '#f8fafc';
+  const previewText = previewIsDark ? '#f8fafc' : '#080810';
 
-  const targetRGB = !currentIsDark ? [230, 230, 230] : [25, 25, 25];
+  const targetRGB = !previewIsDark ? [230, 230, 230] : [25, 25, 25];
   const primaryRGB = hexToRgb(primaryColor);
   const blendedRGB = [
     Math.round(primaryRGB[0] * (1 - sectionOpacity) + targetRGB[0] * sectionOpacity),
@@ -375,7 +381,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     Math.round(primaryRGB[2] * (1 - sectionOpacity) + targetRGB[2] * sectionOpacity)
   ];
   const previewSectionBg = `rgba(${blendedRGB.join(',')}, ${0.4 + glassOpacity * 0.5})`;
-  const previewBookmarkBg = currentIsDark ? `rgba(255,255,255,0.05)` : `rgba(255,255,255,0.35)`;
+  const previewBookmarkBg = previewIsDark ? `rgba(255,255,255,0.05)` : `rgba(255,255,255,0.35)`;
 
   return (
     <>
@@ -571,18 +577,29 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
                         background: isDraggingBg ? 'rgba(var(--primary-rgb), 0.06)' : 'transparent',
                         transition: 'all 0.2s', textAlign: 'center',
                       }}
-                      onClick={() => document.getElementById('bg-upload-input')?.click()}
+                      onClick={() => !isUploadingBg && document.getElementById('bg-upload-input')?.click()}
                     >
-                      <input id="bg-upload-input" type="file" accept="image/*" hidden
-                        onChange={(e) => { const file = e.target.files?.[0]; if (file) handleBgUpload(file); }} />
-                      <Upload size={28} style={{ opacity: 0.4 }} />
-                      <div>
-                        <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: 0 }}>Drop an image here</p>
-                        <p style={{ fontSize: '0.75rem', opacity: 0.4, margin: '0.25rem 0 0 0' }}>or click to browse your files</p>
-                      </div>
+                      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: isUploadingBg ? 'not-allowed' : 'pointer', width: '100%' }}>
+                        <input id="bg-upload-input" type="file" accept="image/*" hidden disabled={isUploadingBg}
+                          onChange={(e) => { const file = e.target.files?.[0]; if (file) handleBgUpload(file); }} />
+                        {isUploadingBg ? (
+                          <>
+                            <div className="spin-loader" style={{ width: 24, height: 24, borderTopColor: 'var(--primary)', opacity: 0.8 }} />
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.7 }}>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={28} style={{ opacity: 0.4 }} />
+                            <div>
+                              <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: 0 }}>Drop an image here</p>
+                              <p style={{ fontSize: '0.75rem', opacity: 0.4, margin: '0.25rem 0 0 0' }}>or click to browse your files</p>
+                            </div>
+                          </>
+                        )}
+                      </label>
                       {backgroundColor && (backgroundColor.startsWith('/') || backgroundColor.startsWith('http')) && (
-                        <div style={{ width: '100%', height: '80px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
-                          <img src={backgroundColor} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ width: '100%', height: '80px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--glass-border)', position: 'relative' }}>
+                          <img src={backgroundColor} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: `blur(${backgroundBlur}px)`, transform: 'scale(1.05)' }} />
                         </div>
                       )}
                     </div>
@@ -596,9 +613,9 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
               <div className="glass" style={{
                 flex: 1, borderRadius: '32px', overflow: 'hidden', position: 'relative', border: `1px solid ${primaryColor}44`, background: previewBg, minHeight: '400px', boxShadow: `0 20px 80px -20px ${primaryColor}44`
               }}>
-                <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${backgroundBlur}px) brightness(${currentIsDark ? 0.6 : 1.1})`, transform: 'scale(1.1)' }} />
-                <div style={{ position: 'absolute', inset: 0, background: primaryColor, opacity: backgroundTint, mixBlendMode: currentIsDark ? 'soft-light' : 'overlay' }} />
-                <div style={{ position: 'absolute', inset: 0, background: currentIsDark ? '#000' : '#fff', opacity: backgroundWash }} />
+                <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${backgroundBlur}px)`, transform: 'scale(1.1)' }} />
+                <div style={{ position: 'absolute', inset: 0, background: primaryColor, opacity: backgroundTint, mixBlendMode: previewIsDark ? 'soft-light' : 'overlay' }} />
+                <div style={{ position: 'absolute', inset: 0, background: previewIsDark ? '#000' : '#fff', opacity: backgroundWash }} />
                 <div style={{ position: 'relative', zIndex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><div style={{ width: '32px', height: '32px', borderRadius: '8px', background: primaryColor }} /><div style={{ fontSize: '1rem', fontWeight: 800, color: previewText }}>{dashboardTitle}</div></div>
                   <div className="glass" style={{ padding: '0.8rem 1rem', borderRadius: '12px', background: previewSectionBg, border: `1px solid ${primaryColor}15`, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Search size={14} style={{ opacity: 0.3 }} /><div style={{ height: '7px', width: '40%', background: previewText, opacity: 0.2, borderRadius: '4px' }} /></div>
@@ -606,8 +623,8 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
                 </div>
               </div>
               <div className="glass" style={{ display: 'flex', borderRadius: '14px', padding: '0.3rem', background: 'rgba(var(--primary-rgb), 0.05)', alignSelf: 'center' }}>
-                <button onClick={() => setTheme('light')} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: !currentIsDark ? 'var(--primary)' : 'transparent', color: !currentIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Sun size={18} /></button>
-                <button onClick={() => setTheme('dark')} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: currentIsDark ? 'var(--primary)' : 'transparent', color: currentIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Moon size={18} /></button>
+                <button onClick={() => { setPreviewIsDark(false); setIsDark(false); }} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: !previewIsDark ? 'var(--primary)' : 'transparent', color: !previewIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Sun size={18} /></button>
+                <button onClick={() => { setPreviewIsDark(true); setIsDark(true); }} style={{ padding: '0.5rem 1rem', borderRadius: '10px', background: previewIsDark ? 'var(--primary)' : 'transparent', color: previewIsDark ? '#fff' : 'var(--text)', border: 'none', cursor: 'pointer' }}><Moon size={18} /></button>
               </div>
             </div>
           </div>
@@ -619,10 +636,15 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
               </button>
             ) : <div />}
 
-            <div style={{ display: 'flex', gap: '1.25rem' }}>
-              <button onClick={onClose} className="btn" style={{ padding: '0.8rem 2rem', borderRadius: '14px', fontWeight: 600, opacity: 0.6 }}>Cancel</button>
-              <button onClick={handleSaveClick} disabled={isSaving} className="btn btn-primary" style={{ padding: '0.8rem 3rem', borderRadius: '14px', fontWeight: 800, fontSize: '1rem' }}>
-                {isSaving ? "Saving..." : (editingTheme ? "Save Changes" : "Create Theme")}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={onClose} className="btn" style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600 }}>Cancel</button>
+              <button 
+                onClick={handleSaveClick} 
+                disabled={isSaving || isUploadingBg || isGenerating} 
+                className="btn btn-primary" 
+                style={{ padding: '0.75rem 2rem', borderRadius: '12px', fontWeight: 600, opacity: (isSaving || isUploadingBg || isGenerating) ? 0.5 : 1, cursor: (isSaving || isUploadingBg || isGenerating) ? 'not-allowed' : 'pointer' }}
+              >
+                {isSaving ? "Saving..." : isUploadingBg ? "Uploading Image..." : isGenerating ? "Generating..." : (editingTheme ? "Save Theme" : "Create Theme")}
               </button>
             </div>
           </div>

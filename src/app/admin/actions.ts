@@ -48,16 +48,21 @@ export async function searchOpenverseImages(query: string, page: number = 1) {
 
 // --- CORE ASSET GOVERNANCE ---
 export async function uploadImage(formData: FormData) {
-  const file = formData.get("file") as File;
-  if (!file) return null;
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const uploadDir = join(process.cwd(), "public", "uploads");
-  try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
-  const filename = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-  const path = join(uploadDir, filename);
-  await writeFile(path, buffer);
-  return `/api/uploads/${filename}`;
+  try {
+    const file = formData.get("file") as File;
+    if (!file) return null;
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const uploadDir = join(process.cwd(), "public", "uploads");
+    try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
+    const filename = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
+    const path = join(uploadDir, filename);
+    await writeFile(path, buffer);
+    return `/api/uploads/${filename}`;
+  } catch (err) {
+    console.error("Failed to upload image:", err);
+    return null;
+  }
 }
 
 export async function saveGeneratedImage(base64: string) {
@@ -1264,7 +1269,7 @@ export async function bulkApplyDeptTabRole(tabId: string, department: string, ro
     where: department === "Entire Organization"
       ? { isAdmin: false }
       : {
-        department: department === "General" ? null : department,
+        dashboardGroup: department === "General" ? "General" : department,
         isAdmin: false
       },
     select: { id: true }
@@ -1304,7 +1309,7 @@ export async function bulkApplyDeptSectionRole(sectionId: string, department: st
     where: department === "Entire Organization"
       ? { isAdmin: false }
       : {
-        department: department === "General" ? null : department,
+        dashboardGroup: department === "General" ? "General" : department,
         isAdmin: false
       },
     select: { id: true }
@@ -1393,7 +1398,7 @@ export async function bulkApplyDeptThemeRole(themeId: string, department: string
     where: department === "Entire Organization"
       ? { isAdmin: false }
       : {
-        department: department === "General" ? null : department,
+        dashboardGroup: department === "General" ? "General" : department,
         isAdmin: false
       },
     select: { id: true }

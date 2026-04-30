@@ -21,11 +21,10 @@ export default async function ThemeAdminPage() {
       }
     }),
     prisma.globalSettings.findUnique({ where: { id: "global" } }),
-    prisma.user.findMany({ select: { id: true, name: true, email: true, department: true, isAdmin: true } }),
-    prisma.user.findMany({ select: { department: true }, distinct: ['department'] })
+    prisma.user.findMany({ select: { id: true, name: true, email: true, department: true, dashboardGroup: true, avatarColor: true, isAdmin: true } })
   ]);
 
-  const departments = Array.from(new Set([...allDepts.map(d => d.department).filter(Boolean), "General"])) as string[];
+  const departments = Array.from(new Set(users.map(u => u.dashboardGroup || "General")));
 
   const defaultSettings = { 
     logoUrlLight: "", 

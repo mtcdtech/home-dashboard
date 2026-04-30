@@ -1,6 +1,6 @@
 {
-  "name": "mtcd-dashboard",
-  "version": "1.4.1",
+  "name": "home-dashboard",
+  "version": "1.4.2",
   "private": true,
   "scripts": {
     "dev": "next dev",

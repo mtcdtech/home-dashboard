@@ -40,6 +40,9 @@ export default async function RootLayout({
         <Providers>
           <div className="bg-gradient" />
           {children}
+          <div style={{ position: 'fixed', bottom: '8px', right: '12px', fontSize: '0.7rem', fontWeight: 600, opacity: 0.3, zIndex: 99999, pointerEvents: 'none' }}>
+            v{require('../../package.json').version}
+          </div>
         </Providers>
       </body>
     </html>

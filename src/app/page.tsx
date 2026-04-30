@@ -46,9 +46,9 @@ export default async function Home() {
     ? (await prisma.user.findUnique({ where: { id: userId }, select: { dashboardGroup: true } }))?.dashboardGroup
     : dbUser?.dashboardGroup || session.user?.dashboardGroup;
   const userDashboardGroup = rawUserDashboardGroup || "General";
-  // When impersonating, use target user's access rules (not admin bypass)
-  const isAdminView = realIsAdmin && !impersonateUserId;
-  const isAdmin = isAdminView || dbUser?.isAdmin || false;
+  // When impersonating, use target user's access rules. Admins retain admin view.
+  const isAdminView = (realIsAdmin && !impersonateUserId) || (dbUser?.isAdmin || false);
+  const isAdmin = isAdminView || false;
 
   if (dbUser && !dbUser.avatarColor) {
      const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#82E0AA", "#F1948A"];
@@ -97,6 +97,7 @@ export default async function Home() {
         isLibraryItem: true, 
         OR: [
           { organization: null },
+          { organization: "" },
           { organization: userDepartment || undefined }
         ]
       },
@@ -114,6 +115,7 @@ export default async function Home() {
         isLibraryItem: true,
         OR: [
           { organization: null },
+          { organization: "" },
           { organization: userDepartment || undefined }
         ]
       },

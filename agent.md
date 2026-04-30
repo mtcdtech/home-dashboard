@@ -24,3 +24,8 @@ This is a Home Dashboard application built with Next.js, used for internal manag
   - **Major (1st digit):** For massive, breaking changes or full rewrites.
   - **Minor (2nd digit):** For new features or significant additions.
   - **Patch (3rd digit):** For small bug fixes, UI tweaks, or minor updates.
+
+## Versioning
+- Version numbers must auto-increment with every change.
+- Use logic to determine if this is the first (major), second (minor), or third (patch) digit that increments based on the size of the change.
+- Ensure the version number prints on every single page at the bottom and is readable (e.g. white text in dark mode).
