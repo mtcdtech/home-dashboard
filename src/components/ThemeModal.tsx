@@ -615,7 +615,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
               }}>
                 <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${backgroundBlur}px)`, transform: 'scale(1.1)' }} />
                 <div style={{ position: 'absolute', inset: 0, background: primaryColor, opacity: backgroundTint, mixBlendMode: previewIsDark ? 'soft-light' : 'overlay' }} />
-                <div style={{ position: 'absolute', inset: 0, background: previewIsDark ? '#000' : '#fff', opacity: backgroundWash }} />
+                <div style={{ position: 'absolute', inset: 0, background: previewIsDark ? '#000' : '#fff', opacity: previewIsDark ? (0.2 + 0.6 * backgroundWash) : (0.2 + 0.3 * backgroundWash) }} />
                 <div style={{ position: 'relative', zIndex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><div style={{ width: '32px', height: '32px', borderRadius: '8px', background: primaryColor }} /><div style={{ fontSize: '1rem', fontWeight: 800, color: previewText }}>{dashboardTitle}</div></div>
                   <div className="glass" style={{ padding: '0.8rem 1rem', borderRadius: '12px', background: previewSectionBg, border: `1px solid ${primaryColor}15`, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Search size={14} style={{ opacity: 0.3 }} /><div style={{ height: '7px', width: '40%', background: previewText, opacity: 0.2, borderRadius: '4px' }} /></div>

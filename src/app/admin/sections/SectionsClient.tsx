@@ -524,21 +524,27 @@ export default function SectionsClient({
                                           const isViewer = section.allowedUsers?.some((a: any) => a.id === user.id);
                                           const isBlocked = section.blockedUsers?.some((b: any) => b.id === user.id);
 
+                                          let inheritedRoleFromTabs = 'none';
+                                          const userPushDirect = getSectionPushInfo(section, 'user', user.id);
                                           const userDept = user.dashboardGroup || "General";
-                                          const stagingDeptRole = modifiedDepts[`${userDept}_${section.id}`];
-                                          const savedDeptRole = section.departmentAccess?.find((da: any) => da.department === userDept)?.role || "none";
-                                          const displayDeptRole = stagingDeptRole !== undefined ? stagingDeptRole : savedDeptRole;
                                           const userPushDept = getSectionPushInfo(section, 'department', userDept);
                                           const userPushGlobal = getSectionPushInfo(section, 'global');
-                                          const isPushedDept = userPushDept.pushed || userPushGlobal.pushed;
-                                          const isITGroup = userDept === "IT";
-                                          const effectiveDeptRole = isITGroup ? 'owner' : ((isPushedDept && displayDeptRole === 'none') ? 'viewer' : displayDeptRole);
-                                          const role = isOwner ? "owner" : isEditor ? "editor" : isViewer ? "viewer" : (isBlocked ? "none" : "inherited");
-                                          let effectiveRole = user.isAdmin ? "owner" : (role === "inherited" ? effectiveDeptRole : role);
-                                          const userPushDirect = getSectionPushInfo(section, 'user', user.id);
-                                          const isPushedUser = userPushDirect.pushed || isPushedDept;
-                                          const pushViaTabUser = userPushDirect.viaTab || userPushDept.viaTab || userPushGlobal.viaTab;
-                                          if (isPushedUser && effectiveRole === "none") effectiveRole = "viewer";
+
+                                          if (userPushDirect.pushed || userPushDept.pushed || userPushGlobal.pushed) {
+                                             inheritedRoleFromTabs = 'viewer';
+                                          } else {
+                                             const hasTabAccess = section.tabSections?.some((ts: any) => {
+                                                const parentTab = tabs.find(t => t.id === ts.tabId);
+                                                if (!parentTab) return false;
+                                                return parentTab.owners?.some((o: any) => o.id === user.id) ||
+                                                       parentTab.editors?.some((e: any) => e.id === user.id) ||
+                                                       parentTab.allowedUsers?.some((a: any) => a.id === user.id);
+                                             });
+                                             if (hasTabAccess) inheritedRoleFromTabs = 'viewer';
+                                          }
+
+                                          const role = isOwner ? "owner" : isEditor ? "editor" : isViewer ? "viewer" : (isBlocked ? "none" : (inheritedRoleFromTabs !== 'none' ? 'inherited' : 'none'));
+                                          let effectiveRole = user.isAdmin ? "owner" : (role === "inherited" ? inheritedRoleFromTabs : role);
 
                                           return (
                                              <td key={section.id} style={{ padding: '0.4rem 0.6rem', textAlign: 'center', minWidth: '150px', whiteSpace: 'nowrap' }}>
@@ -562,7 +568,7 @@ export default function SectionsClient({
                                                       }}>
                                                          {user.isAdmin ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER (ADMIN)</> : (
                                                             role === 'inherited'
-                                                               ? <><ArrowDownLeft size={11} strokeWidth={3} /> INHERITED ({effectiveDeptRole === 'none' ? 'NOT SHARED' : effectiveDeptRole.toUpperCase()})</>
+                                                               ? <><ArrowDownLeft size={11} strokeWidth={3} /> INHERITED (VIEWER)</>
                                                                : (
                                                                   effectiveRole === 'none' ? <><X size={11} strokeWidth={3} /> NOT SHARED</> :
                                                                      effectiveRole === 'owner' ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER</> :
@@ -573,7 +579,7 @@ export default function SectionsClient({
                                                       </div>
                                                       <select
                                                          disabled={user.isAdmin}
-                                                         value={effectiveRole}
+                                                         value={role}
                                                          onChange={async (e) => {
                                                             const newRole = e.target.value;
                                                             // 1. Immediate Deep Optimistic Update
@@ -601,11 +607,11 @@ export default function SectionsClient({
                                                       >
                                                          {user.isAdmin ? <option value="owner">Owner (Admin)</option> : (
                                                             <>
-                                                               <option value="inherited">Inherited ({effectiveDeptRole === 'none' ? 'Not Shared' : effectiveDeptRole.charAt(0).toUpperCase() + effectiveDeptRole.slice(1)})</option>
+                                                               {inheritedRoleFromTabs !== 'none' && <option value="inherited">Inherited (Viewer)</option>}
                                                                <option value="viewer">Viewer</option>
                                                                <option value="editor">Editor</option>
                                                                <option value="owner">Owner</option>
-                                                               <option value="none" disabled={isPushedUser}>Not Shared</option>
+                                                               <option value="none">Not Shared</option>
                                                             </>
                                                          )}
                                                       </select>

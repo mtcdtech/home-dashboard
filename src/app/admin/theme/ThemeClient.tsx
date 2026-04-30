@@ -512,9 +512,23 @@ export default function ThemeClient({
                                              const isViewer = theme.allowedUsers?.some((v: any) => v.id === u.id);
                                              const isBlocked = theme.blockedUsers?.some((b: any) => b.id === u.id);
 
-                                             const deptRole = theme.departmentAccess?.find((da: any) => da.department === dept)?.role || "none";
-                                             const role = isOwner ? 'owner' : (isEditor ? 'editor' : (isViewer ? 'viewer' : (isBlocked ? 'none' : 'inherited')));
-                                             const effectiveRole = u.isAdmin ? 'owner' : (role === 'inherited' ? deptRole : role);
+                                             let inheritedRoleFromTabs = 'none';
+                                             const userTabs = theme.tabs?.filter((tab: any) => {
+                                                const tabOwner = tab.owners?.some((o: any) => o.id === u.id);
+                                                const tabEditor = tab.editors?.some((e: any) => e.id === u.id);
+                                                const tabViewer = tab.allowedUsers?.some((v: any) => v.id === u.id);
+                                                const tabPushedUser = tab.pushRules?.some((r: any) => r.scopeType === 'user' && r.scopeId === u.id);
+                                                const tabPushedDept = tab.pushRules?.some((r: any) => r.scopeType === 'department' && r.scopeId === dept);
+                                                const tabPushedGlobal = tab.pushRules?.some((r: any) => r.scopeType === 'global');
+                                                return tabOwner || tabEditor || tabViewer || tabPushedUser || tabPushedDept || tabPushedGlobal;
+                                             });
+
+                                             if (userTabs && userTabs.length > 0) {
+                                                inheritedRoleFromTabs = 'viewer';
+                                             }
+
+                                             const role = isOwner ? 'owner' : (isEditor ? 'editor' : (isViewer ? 'viewer' : (isBlocked ? 'none' : (inheritedRoleFromTabs !== 'none' ? 'inherited' : 'none'))));
+                                             const effectiveRole = u.isAdmin ? 'owner' : (role === 'inherited' ? inheritedRoleFromTabs : role);
 
                                              return (
                                                 <td key={theme.id} style={{ padding: '0.4rem 0.6rem', textAlign: 'center', minWidth: '150px' }}>
@@ -534,7 +548,7 @@ export default function ThemeClient({
                                                       }}>
                                                          {u.isAdmin ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER (ADMIN)</> : (
                                                             role === 'inherited'
-                                                               ? <><ArrowDownLeft size={11} strokeWidth={3} /> INHERITED ({deptRole === 'none' ? 'NOT SHARED' : deptRole.toUpperCase()})</>
+                                                               ? <><ArrowDownLeft size={11} strokeWidth={3} /> INHERITED ({inheritedRoleFromTabs.toUpperCase()})</>
                                                                : (
                                                                   effectiveRole === 'none' ? <><X size={11} strokeWidth={3} /> NOT SHARED</> :
                                                                      effectiveRole === 'owner' ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER</> :
@@ -564,7 +578,7 @@ export default function ThemeClient({
                                                             }}
                                                             style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 2 }}
                                                          >
-                                                            <option value="inherited">Inherited ({deptRole === 'none' ? 'Not Shared' : deptRole.charAt(0).toUpperCase() + deptRole.slice(1)})</option>
+                                                            {inheritedRoleFromTabs !== 'none' && <option value="inherited">Inherited (Viewer)</option>}
                                                             <option value="viewer">Viewer</option>
                                                             <option value="editor">Editor</option>
                                                             <option value="owner">Owner</option>

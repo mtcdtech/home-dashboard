@@ -17,7 +17,18 @@ export default async function ThemeAdminPage() {
         editors: { select: { id: true, name: true, email: true } },
         allowedUsers: { select: { id: true, name: true, email: true } },
         blockedUsers: { select: { id: true, name: true, email: true } },
-        departmentAccess: true
+        departmentAccess: true,
+        tabs: {
+          select: {
+            id: true,
+            pushRules: true,
+            owners: { select: { id: true } },
+            editors: { select: { id: true } },
+            allowedUsers: { select: { id: true } },
+            blockedUsers: { select: { id: true } },
+            departmentAccess: true
+          }
+        }
       }
     }),
     prisma.globalSettings.findUnique({ where: { id: "global" } }),

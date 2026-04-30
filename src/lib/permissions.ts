@@ -170,15 +170,7 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
     return { role: "viewer", source: pushSource(push), pushed: true, locked: !!push.locked, inherited: false };
   }
 
-  // 7. Department access.
-  const deptRecord = tab.departmentAccess?.find(da => normDept(da.department) === normDept(ctx.department));
-  if (deptRecord) {
-    if (deptRecord.role === "none") {
-      return { role: "none", source: "department-deny", pushed: false, locked: false, inherited: true };
-    }
-    const role = (deptRecord.role as AccessRole) || "viewer";
-    return { role, source: "department", pushed: false, locked: false, inherited: true };
-  }
+
 
   // 8. Catalog fallback — catalog tabs are visible to everyone by default.
   // Being "in the catalog" means anyone can discover and add this workspace.
@@ -232,22 +224,7 @@ export function resolveSectionAccess(
   if (hasUser(section.editors, ctx.userId)) return { role: "editor", source: "editor", pushed: false, locked: false, inherited: false };
   if (hasUser(section.allowedUsers, ctx.userId)) return { role: "viewer", source: "allowed", pushed: false, locked: false, inherited: false };
 
-  // 6. Department access on the section.
-  const deptRecord = section.departmentAccess?.find(da => normDept(da.department) === normDept(ctx.department));
-  if (deptRecord) {
-    if (deptRecord.role === "none") {
-      return { role: "none", source: "department-deny", pushed: false, locked: false, inherited: true };
-    }
-    const role = (deptRecord.role as AccessRole) || "viewer";
-    return { role, source: "department", pushed: false, locked: false, inherited: true };
-  }
 
-  // 6b. If the section has department restrictions defined but the user's
-  // department isn't in the list, deny access.  Think of it like a guest list:
-  // if there IS a list, you must be on it.
-  if (section.departmentAccess && section.departmentAccess.length > 0) {
-    return { role: "none", source: "department-deny", pushed: false, locked: false, inherited: true };
-  }
 
   // 7. Inherit visibility from the tab — having tab access means seeing its content.
   // (We've already returned NONE above when tabAccess.role === "none", so reaching
