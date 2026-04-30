@@ -40,13 +40,13 @@ def deploy_to_portainer(name, url, api_key, entra_secret, auth_secret):
     content = re.sub(r'REDEPLOY_DATE=\d+', f'REDEPLOY_DATE={int(time.time())}', content)
 
     payload = {
-        "StackFileContent": content,
-        "Env": [
+        "stackFileContent": content,
+        "env": [
             {"name": "AUTH_MICROSOFT_ENTRA_ID_SECRET", "value": entra_secret},
             {"name": "AUTH_SECRET", "value": auth_secret}
         ],
-        "Prune": True,
-        "PullImage": True
+        "prune": True,
+        "pullImage": True
     }
 
     try:
