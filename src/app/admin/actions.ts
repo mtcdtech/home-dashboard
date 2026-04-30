@@ -487,6 +487,16 @@ function normalizeUrl(url: string): string {
 
 export async function createBookmark(data: any) {
   if (data.url) data.url = normalizeUrl(data.url);
+  
+  if (data.sectionId) {
+    const maxOrderBookmark = await prisma.bookmark.findFirst({
+      where: { sectionId: data.sectionId },
+      orderBy: { order: "desc" },
+      select: { order: true }
+    });
+    data.order = maxOrderBookmark ? (maxOrderBookmark.order + 1) : 0;
+  }
+  
   await prisma.bookmark.create({ data });
   revalidatePath("/");
 }
