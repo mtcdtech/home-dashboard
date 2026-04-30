@@ -280,10 +280,10 @@ export default function SectionsClient({
                                    if (!newVal && !window.confirm("Are you sure you want to remove this from the catalog? Only the creator will be able to see it or add it back.")) return;
                                    
                                    const newGlobal = newVal ? section.isGlobal : false;
-                                   setModifiedSections((prev: any) => ({ ...prev, [section.id]: { ...section, isLibraryItem: newVal, isGlobal: newGlobal } }));
+                                   setSections((prev: any[]) => prev.map((s: any) => s.id === section.id ? { ...s, isLibraryItem: newVal, isGlobal: newGlobal } : s));
                                    await actions.updateSection(section.id, { ...section, isLibraryItem: newVal, isGlobal: newGlobal });
-                                }} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: (modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? '1px solid #10b981' : '1px solid rgba(var(--primary-rgb), 0.2)', background: (modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? 'rgba(16,185,129,0.15)' : 'rgba(var(--primary-rgb), 0.05)', color: (modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? '#10b981' : 'var(--text)', cursor: "pointer", fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', transition: 'all 0.2s' }}>
-                                   {(modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? '✓ CATALOG' : 'PRIVATE'}
+                                }} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: section.isLibraryItem ? '1px solid #10b981' : '1px solid rgba(var(--primary-rgb), 0.2)', background: section.isLibraryItem ? 'rgba(16,185,129,0.15)' : 'rgba(var(--primary-rgb), 0.05)', color: section.isLibraryItem ? '#10b981' : 'var(--text)', cursor: "pointer", fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', transition: 'all 0.2s' }}>
+                                   {section.isLibraryItem ? '✓ CATALOG' : 'PRIVATE'}
                                 </button>
                              </td>
                           ))}
@@ -302,17 +302,17 @@ export default function SectionsClient({
                           </td>
                           {filtered.map((section: any) => (
                              <td key={section.id} style={{ padding: '0.5rem 0.25rem', textAlign: 'center' }}>
-                                {(modifiedSections[section.id]?.isLibraryItem ?? section.isLibraryItem) ? (
-                                   <button onClick={async () => {
-                                      const newVal = !(modifiedSections[section.id]?.isGlobal ?? section.isGlobal);
-                                      setModifiedSections((prev: any) => ({ ...prev, [section.id]: { ...section, isGlobal: newVal } }));
-                                      await actions.updateSection(section.id, { ...section, isGlobal: newVal });
-                                   }} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: (modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)', background: (modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? 'rgba(var(--primary-rgb), 0.15)' : 'rgba(var(--primary-rgb), 0.05)', color: (modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? 'var(--primary)' : 'var(--text)', cursor: "pointer", fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', transition: 'all 0.2s' }}>
-                                      {(modifiedSections[section.id]?.isGlobal ?? section.isGlobal) ? '✓ ALLOWED' : 'RESTRICTED'}
-                                   </button>
-                                ) : (
-                                   <div style={{ fontSize: '0.65rem', opacity: 0.3, textTransform: 'uppercase', fontWeight: 800 }}>N/A</div>
-                                )}
+                                 {section.isLibraryItem ? (
+                                    <button onClick={async () => {
+                                       const newVal = !section.isGlobal;
+                                       setSections((prev: any[]) => prev.map((s: any) => s.id === section.id ? { ...s, isGlobal: newVal } : s));
+                                       await actions.updateSection(section.id, { ...section, isGlobal: newVal });
+                                    }} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: section.isGlobal ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)', background: section.isGlobal ? 'rgba(var(--primary-rgb), 0.15)' : 'rgba(var(--primary-rgb), 0.05)', color: section.isGlobal ? 'var(--primary)' : 'var(--text)', cursor: "pointer", fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', transition: 'all 0.2s' }}>
+                                       {section.isGlobal ? '✓ ALLOWED' : 'RESTRICTED'}
+                                    </button>
+                                 ) : (
+                                    <div style={{ fontSize: '0.65rem', opacity: 0.3, textTransform: 'uppercase', fontWeight: 800 }}>N/A</div>
+                                 )}
                              </td>
                           ))}
                        </tr>

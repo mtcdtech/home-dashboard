@@ -755,32 +755,7 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
                                                         <Lock size={9} />
                                                      </button>
                                                   )}
-                                                  {isPushedUser && (
-                                                     <div className="tooltip-container" style={{ position: 'relative', display: 'flex' }}>
-                                                        <a 
-                                                           href="#" 
-                                                           onClick={(e) => { e.preventDefault(); setViewMode("push"); }}
-                                                           style={{
-                                                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                              width: '24px', height: '24px', flexShrink: 0,
-                                                              color: '#22c55e', background: 'rgba(34, 197, 94, 0.1)',
-                                                              borderRadius: '6px',
-                                                              border: '1px solid rgba(34, 197, 94, 0.25)',
-                                                              cursor: 'pointer', textDecoration: 'none'
-                                                           }}
-                                                        >
-                                                           <Send size={10} />
-                                                        </a>
-                                                        <div className="tooltip-bubble" style={{ 
-                                                           position: 'absolute', bottom: '100%', right: 0, transform: 'translateY(-8px)', 
-                                                           background: 'rgba(0,0,0,0.9)', color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '8px', 
-                                                           fontSize: '0.65rem', width: 'max-content', zIndex: 10, visibility: 'hidden', opacity: 0, 
-                                                           transition: '0.2s all', border: '1px solid var(--glass-border)', textAlign: 'left', whiteSpace: 'normal', maxWidth: '200px'
-                                                        }}>
-                                                           Pushed to this user/department &mdash; click to manage in Push Matrix
-                                                        </div>
-                                                     </div>
-                                                  )}
+
                                                </div>
                                             )}
                                          </td>
@@ -852,32 +827,7 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
                                                         OFF
                                                      </button>
                                                   )}
-                                                  {isPushedUser && (
-                                                     <div className="tooltip-container" style={{ position: 'relative', display: 'flex' }}>
-                                                        <a 
-                                                           href="#" 
-                                                           onClick={(e) => { e.preventDefault(); setViewMode("push"); }}
-                                                           style={{
-                                                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                              width: '24px', height: '24px', flexShrink: 0,
-                                                              color: '#22c55e', background: 'rgba(34, 197, 94, 0.1)',
-                                                              borderRadius: '6px',
-                                                              border: '1px solid rgba(34, 197, 94, 0.25)',
-                                                              cursor: 'pointer', textDecoration: 'none'
-                                                           }}
-                                                        >
-                                                           <Send size={10} />
-                                                        </a>
-                                                        <div className="tooltip-bubble" style={{ 
-                                                           position: 'absolute', bottom: '100%', right: 0, transform: 'translateY(-8px)', 
-                                                           background: 'rgba(0,0,0,0.9)', color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '8px', 
-                                                           fontSize: '0.65rem', width: 'max-content', zIndex: 10, visibility: 'hidden', opacity: 0, 
-                                                           transition: '0.2s all', border: '1px solid var(--glass-border)', textAlign: 'left', whiteSpace: 'normal', maxWidth: '200px'
-                                                        }}>
-                                                           Pushed to this user/department &mdash; click to manage in Push Matrix
-                                                        </div>
-                                                     </div>
-                                                  )}
+
                                                </div>
                                             </td>
                                          );
