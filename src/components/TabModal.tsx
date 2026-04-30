@@ -15,9 +15,10 @@ export interface TabModalProps {
   allThemes?: any[];
   currentUserId?: string;
   isAdmin?: boolean;
+  allUsers?: any[];
 }
 
-export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [], currentUserId, isAdmin }: TabModalProps) {
+export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [], currentUserId, isAdmin, allUsers = [] }: TabModalProps) {
   const [title, setTitle] = useState(tab?.title || "");
   const [icon, setIcon] = useState(tab?.icon || "");
   const [isLibraryItem, setIsLibraryItem] = useState(tab?.isLibraryItem ?? false);
@@ -25,6 +26,8 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
   const [columns, setColumns] = useState(tab?.columns || 3);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const [newOwnerId, setNewOwnerId] = useState("");
+  const [transferring, setTransferring] = useState(false);
   const isOwner = isAdmin || tab?.owners?.some((u: any) => u.id === currentUserId);
   const isShared = tab?.isLibraryItem || tab?.organization || (tab?.allowedUsers && tab.allowedUsers.length > 0) || (tab?.departmentAccess && tab.departmentAccess.length > 0);
   const showDelete = isOwner;
@@ -45,6 +48,21 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
       console.error(err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTransferOwnership = async () => {
+    if (!newOwnerId || !tab || !currentUserId) return;
+    if (!confirm("Are you sure you want to transfer ownership? You will lose owner access.")) return;
+    setTransferring(true);
+    try {
+      await actions.transferTabOwnership(tab.id, currentUserId, newOwnerId);
+      onSaved();
+    } catch(err) {
+      console.error(err);
+      alert("Failed to transfer ownership.");
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -126,6 +144,33 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                   <IconPicker currentIcon={icon} setIcon={setIcon} query={query} setQuery={setQuery} iconRegistry={iconRegistry} onUpload={onUploadIcon} />
                 </div>
              </div>
+
+             {tab && isOwner && allUsers.length > 0 && (
+                <div className="glass-card" style={{ padding: '1rem', borderRadius: '10px', border: '1px solid rgba(231, 140, 60, 0.3)', background: 'rgba(231, 140, 60, 0.05)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'rgba(231, 140, 60, 1)', textTransform: 'uppercase' }}>Transfer Ownership</label>
+                   <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>Select a user to transfer ownership of this workspace to them. You will be downgraded to an editor.</div>
+                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <select
+                         value={newOwnerId}
+                         onChange={(e) => setNewOwnerId(e.target.value)}
+                         className="glass"
+                         style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', outline: 'none' }}
+                      >
+                         <option value="">-- Select New Owner --</option>
+                         {allUsers.filter(u => u.id !== currentUserId).map(u => (
+                            <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                         ))}
+                      </select>
+                      <button 
+                         onClick={handleTransferOwnership}
+                         disabled={transferring || !newOwnerId}
+                         style={{ padding: '0 1.5rem', borderRadius: '10px', fontWeight: 600, background: 'rgba(231, 140, 60, 0.8)', color: '#fff', border: 'none', cursor: (!newOwnerId || transferring) ? 'not-allowed' : 'pointer', opacity: (!newOwnerId || transferring) ? 0.5 : 1 }}
+                      >
+                         {transferring ? "Transferring..." : "Transfer"}
+                      </button>
+                   </div>
+                </div>
+             )}
           </div>
 
           <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(var(--primary-rgb), 0.03)' }}>

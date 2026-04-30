@@ -404,7 +404,10 @@ export async function updatePersonalLayout(data: {
   const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true, layout: true } });
   if (!dbUser) throw new Error("User not found");
 
-  let layout: any = dbUser.layout && typeof dbUser.layout === 'object' ? JSON.parse(JSON.stringify(dbUser.layout)) : {};
+  let layout: any = dbUser.layout;
+  if (typeof layout === 'string') { try { layout = JSON.parse(layout); } catch(e) { layout = {}; } }
+  else if (layout && typeof layout === 'object') { layout = JSON.parse(JSON.stringify(layout)); }
+  else { layout = {}; }
 
   if (data.tabOrder) {
     layout.tabOrder = data.tabOrder;
@@ -443,7 +446,10 @@ export async function updatePersonalLayoutBatch(updates: {
   const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true, layout: true } });
   if (!dbUser) throw new Error("User not found");
 
-  let layout: any = dbUser.layout && typeof dbUser.layout === 'object' ? JSON.parse(JSON.stringify(dbUser.layout)) : {};
+  let layout: any = dbUser.layout;
+  if (typeof layout === 'string') { try { layout = JSON.parse(layout); } catch(e) { layout = {}; } }
+  else if (layout && typeof layout === 'object') { layout = JSON.parse(JSON.stringify(layout)); }
+  else { layout = {}; }
 
   for (const data of updates) {
     if (!layout.tabSections) layout.tabSections = {};
@@ -643,6 +649,34 @@ async function _updateTabUserRole(tabId: string, userId: string, role: string) {
   }
 }
 
+export async function transferTabOwnership(tabId: string, currentOwnerId: string, newOwnerId: string) {
+  // Disconnect current owner, add them as an editor instead
+  await prisma.tab.update({
+    where: { id: tabId },
+    data: {
+      owners: { disconnect: { id: currentOwnerId } },
+      editors: { connect: { id: currentOwnerId } }
+    }
+  });
+
+  // Make the new owner an owner (disconnect from everything else first)
+  await prisma.tab.update({
+    where: { id: tabId },
+    data: {
+      editors: { disconnect: { id: newOwnerId } },
+      allowedUsers: { disconnect: { id: newOwnerId } },
+      blockedUsers: { disconnect: { id: newOwnerId } }
+    }
+  });
+  await prisma.tab.update({
+    where: { id: tabId },
+    data: { owners: { connect: { id: newOwnerId } } }
+  });
+
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
+}
+
 export async function updateTabUserRole(tabId: string, userId: string, role: string) {
   await _updateTabUserRole(tabId, userId, role);
   revalidatePath("/");
@@ -778,7 +812,10 @@ export async function importTabFromLibrary(tabId: string) {
   ]);
 
   // Remove from hiddenTabs and add to tabOrder
-  let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
+  let layout: any = user.layout;
+  if (typeof layout === 'string') { try { layout = JSON.parse(layout); } catch(e) { layout = {}; } }
+  else if (layout && typeof layout === 'object') { layout = JSON.parse(JSON.stringify(layout)); }
+  else { layout = {}; }
   if (layout.hiddenTabs) {
     layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
   }
@@ -845,7 +882,10 @@ export async function removeTabFromUser(tabId: string) {
   // Also add to hiddenTabs so pushed or global tabs don't keep reappearing
   const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { layout: true } });
   if (dbUser) {
-    let layout: any = dbUser.layout && typeof dbUser.layout === 'object' ? JSON.parse(JSON.stringify(dbUser.layout)) : {};
+    let layout: any = dbUser.layout;
+    if (typeof layout === 'string') { try { layout = JSON.parse(layout); } catch(e) { layout = {}; } }
+    else if (layout && typeof layout === 'object') { layout = JSON.parse(JSON.stringify(layout)); }
+    else { layout = {}; }
     if (!layout.hiddenTabs) layout.hiddenTabs = [];
     if (!layout.hiddenTabs.includes(tabId)) {
       layout.hiddenTabs.push(tabId);
@@ -1461,7 +1501,10 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
 
       // Ensure it is removed from everyone's hiddenTabs
       for (const user of allDepts) {
-        let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
+        let layout: any = user.layout;
+        if (typeof layout === 'string') { try { layout = JSON.parse(layout); } catch(e) { layout = {}; } }
+        else if (layout && typeof layout === 'object') { layout = JSON.parse(JSON.stringify(layout)); }
+        else { layout = {}; }
         if (layout.hiddenTabs && layout.hiddenTabs.includes(tabId)) {
           layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
           await prisma.user.update({ where: { id: user.id }, data: { layout } });
@@ -1484,7 +1527,10 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
         select: { id: true, layout: true }
       });
       for (const user of deptUsers) {
-        let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
+        let layout: any = user.layout;
+        if (typeof layout === 'string') { try { layout = JSON.parse(layout); } catch(e) { layout = {}; } }
+        else if (layout && typeof layout === 'object') { layout = JSON.parse(JSON.stringify(layout)); }
+        else { layout = {}; }
         if (layout.hiddenTabs && layout.hiddenTabs.includes(tabId)) {
           layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
           await prisma.user.update({ where: { id: user.id }, data: { layout } });
@@ -1509,7 +1555,10 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
       // Also ensure it is removed from their hiddenTabs so it actually appears!
       const user = await prisma.user.findUnique({ where: { id: targetId }, select: { layout: true } });
       if (user) {
-        let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
+        let layout: any = user.layout;
+        if (typeof layout === 'string') { try { layout = JSON.parse(layout); } catch(e) { layout = {}; } }
+        else if (layout && typeof layout === 'object') { layout = JSON.parse(JSON.stringify(layout)); }
+        else { layout = {}; }
         if (layout.hiddenTabs && layout.hiddenTabs.includes(tabId)) {
           layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
           await prisma.user.update({

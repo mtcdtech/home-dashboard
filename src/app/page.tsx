@@ -250,6 +250,7 @@ export default async function Home() {
       globalDefaultTabId={globalSettings?.defaultTabId || null}
       impersonating={impersonateUserId ? { userId: impersonateUserId, userName: (dbUser as any)?.name || (dbUser as any)?.email || "User" } : null}
       adminUsers={JSON.parse(JSON.stringify(adminUsers || []))}
+      allUsers={JSON.parse(JSON.stringify(allUsers || []))}
     />
   );
 }

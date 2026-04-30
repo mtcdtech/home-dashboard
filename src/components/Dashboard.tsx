@@ -103,6 +103,7 @@ export interface DashboardProps {
    globalDefaultTabId?: string | null;
    impersonating?: { userId: string; userName: string } | null;
    adminUsers?: any[];
+   allUsers?: any[];
 }
 
 // Global hook to resolve hydrated state
@@ -113,7 +114,7 @@ function useMounted() {
 }
 
 export function Dashboard({
-   tabs: initialTabs, activeTheme: baseActiveTheme, globalSettings, userDepartment, isAdmin, currentUserId, canEditContent, iconSize = 36, libraryTabs, librarySections, allThemes = [], allDepartments = [], userName, avatarColor, userDefaultTabId, globalDefaultTabId, impersonating = null, adminUsers = []
+   tabs: initialTabs, activeTheme: baseActiveTheme, globalSettings, userDepartment, isAdmin, currentUserId, canEditContent, iconSize = 36, libraryTabs, librarySections, allThemes = [], allDepartments = [], userName, avatarColor, userDefaultTabId, globalDefaultTabId, impersonating = null, adminUsers = [], allUsers = []
 }: DashboardProps) {
    const router = useRouter();
    const [tabs, setTabs] = useState<Tab[]>(initialTabs);
@@ -1122,8 +1123,9 @@ export function Dashboard({
                tab={targetTabToEdit}
                allDepartments={allDepartments}
                allThemes={allThemes}
-               isAdmin={isAdmin}
+               allUsers={allUsers}
                currentUserId={currentUserId}
+               isAdmin={isAdmin}
                onClose={() => setIsTabModalOpen(false)}
                onSaved={() => { setIsTabModalOpen(false); router.refresh(); }}
             />
