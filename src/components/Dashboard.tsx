@@ -730,6 +730,10 @@ export function Dashboard({
                                              alert("This workspace is locked by an administrator and cannot be removed.");
                                              return;
                                           }
+                                          if (hasTabAdminAccess(tab)) {
+                                             alert("You are the owner of this workspace. To remove it from your dashboard, please open workspace settings (the gear icon) and designate a new owner, or delete it entirely.");
+                                             return;
+                                          }
                                           if (confirm(`Remove "${tab.title}" from your dashboard?`)) { 
                                              try { 
                                                 await actions.removeTabFromUser(tab.id); 
@@ -739,10 +743,10 @@ export function Dashboard({
                                              } 
                                           } 
                                        }} 
-                                       style={{ opacity: (tab as any).isLocked ? 0.3 : 0.8, cursor: (tab as any).isLocked ? 'not-allowed' : 'pointer', display: 'flex', color: (tab as any).isLocked ? 'var(--text)' : '#ef4444' }} 
-                                       title={(tab as any).isLocked ? "Workspace Locked" : "Remove Workspace from Dashboard"}
+                                       style={{ opacity: (tab as any).isLocked || hasTabAdminAccess(tab) ? 0.3 : 0.8, cursor: (tab as any).isLocked || hasTabAdminAccess(tab) ? 'not-allowed' : 'pointer', display: 'flex', color: (tab as any).isLocked ? 'var(--text)' : '#ef4444' }} 
+                                       title={(tab as any).isLocked ? "Workspace Locked" : (hasTabAdminAccess(tab) ? "Owners must designate a new owner to remove" : "Remove Workspace from Dashboard")}
                                     >
-                                       {(tab as any).isLocked ? <Lock size={14} /> : <X size={14} />}
+                                       <X size={14} />
                                     </span>
                                  )}
                               </div>
@@ -950,7 +954,7 @@ export function Dashboard({
                               )}
 
                               {/* Add Section inside column */}
-                              {showEditControls && hasTabAdminAccess(tab) && (
+                              {showEditControls && hasTabEditAccess(tab) && (
                                  <div
                                     onClick={() => { setEditingSection(null); setIsSectionModalOpen(true); }}
                                     style={{ 

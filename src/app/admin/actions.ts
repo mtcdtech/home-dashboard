@@ -404,7 +404,7 @@ export async function updatePersonalLayout(data: {
   const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true, layout: true } });
   if (!dbUser) throw new Error("User not found");
 
-  let layout: any = dbUser.layout || {};
+  let layout: any = dbUser.layout && typeof dbUser.layout === 'object' ? JSON.parse(JSON.stringify(dbUser.layout)) : {};
 
   if (data.tabOrder) {
     layout.tabOrder = data.tabOrder;
@@ -443,7 +443,7 @@ export async function updatePersonalLayoutBatch(updates: {
   const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true, layout: true } });
   if (!dbUser) throw new Error("User not found");
 
-  let layout: any = dbUser.layout || {};
+  let layout: any = dbUser.layout && typeof dbUser.layout === 'object' ? JSON.parse(JSON.stringify(dbUser.layout)) : {};
 
   for (const data of updates) {
     if (!layout.tabSections) layout.tabSections = {};
