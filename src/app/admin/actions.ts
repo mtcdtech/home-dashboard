@@ -7,6 +7,17 @@ import { auth } from "@/auth";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 
+async function logActionActivity(type: string, detail: string) {
+  try {
+    const session = await auth();
+    const userId = session?.user?.id || "system";
+    const userName = session?.user?.name || session?.user?.email || "System";
+    await (prisma as any).activityLog.create({
+      data: { userId, userName, type, detail }
+    });
+  } catch(e) { }
+}
+
 // --- OPENVERSE IMAGE SEARCH ---
 export async function searchOpenverseImages(query: string, page: number = 1) {
   try {
@@ -166,6 +177,7 @@ export async function createTab(data: { title: string; icon?: string; order?: nu
       owners: effectiveUserId ? { connect: { id: effectiveUserId } } : undefined
     }
   });
+  await logActionActivity("tab_edit", `Created workspace: ${data.title}`);
   revalidatePath("/");
   revalidatePath("/admin/tabs");
 }
@@ -497,13 +509,16 @@ export async function createBookmark(data: any) {
     data.order = maxOrderBookmark ? (maxOrderBookmark.order + 1) : 0;
   }
   
-  await prisma.bookmark.create({ data });
+  const b = await prisma.bookmark.create({ data });
+  await logActionActivity("bookmark_edit", `Created bookmark: ${data.title || data.url}`);
   revalidatePath("/");
+  return b;
 }
 
 export async function updateBookmark(id: string, data: any) {
   if (data.url) data.url = normalizeUrl(data.url);
   await prisma.bookmark.update({ where: { id }, data });
+  await logActionActivity("bookmark_edit", `Updated bookmark: ${data.title || data.url || id}`);
   revalidatePath("/");
 }
 

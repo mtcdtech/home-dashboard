@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { LayoutGrid, Bookmark, Library, Settings, MousePointerClick, Users, LogIn, Activity, Clock } from "lucide-react";
 import { GlobalDefaultTab } from "./GlobalDefaultTab";
+import { RecentActivityClient } from "./RecentActivityClient";
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,8 @@ export default async function AdminPage() {
     (prisma as any).clickEvent.groupBy({ by: ['userId'], where: { createdAt: { gte: thirtyDaysAgo }, userId: { not: null } } }).then((r: any[]) => r.length),
     // Unique logins (last 30 days) from activity log
     (prisma as any).activityLog.groupBy({ by: ['userId'], where: { type: 'login', createdAt: { gte: thirtyDaysAgo }, userId: { not: null } } }).then((r: any[]) => r.length),
-    // Recent activity feed (last 20 entries)
-    (prisma as any).activityLog.findMany({ orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, userName: true, type: true, detail: true, createdAt: true } }),
+    // Recent activity feed (last 100 entries)
+    (prisma as any).activityLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100, select: { id: true, userName: true, type: true, detail: true, createdAt: true, userId: true } }),
   ]);
 
   const statCards = [
@@ -86,29 +87,7 @@ export default async function AdminPage() {
         </div>
 
         {/* Activity Feed */}
-        <div className="glass glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-          <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Activity size={20} /> Recent Activity
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', maxHeight: '280px', overflowY: 'auto' }}>
-            {activityFeed.length === 0 && (
-              <p style={{ opacity: 0.4, fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>No activity yet</p>
-            )}
-            {activityFeed.map((entry: any) => (
-              <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.6rem 0', borderBottom: '1px solid var(--glass-border)' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: typeColor[entry.type] || '#888', marginTop: '0.35rem', flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{entry.userName || 'Anonymous'}</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.55 }}> — {typeLabel[entry.type] || entry.type}</span>
-                  {entry.detail && <p style={{ margin: '0.1rem 0 0', fontSize: '0.7rem', opacity: 0.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.detail}</p>}
-                </div>
-                <span style={{ fontSize: '0.65rem', opacity: 0.35, whiteSpace: 'nowrap', marginTop: '0.1rem' }}>
-                  {new Date(entry.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RecentActivityClient initialFeed={activityFeed} />
       </div>
     </div>
   );

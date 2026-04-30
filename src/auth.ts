@@ -31,6 +31,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               });
             }
             console.log("Local admin authorized successfully");
+            (prisma as any).activityLog.create({
+              data: { userId: user.id, userName: user.name, type: "login", detail: "via Local Admin Credentials" }
+            }).catch(() => {});
             return user;
           } catch (error) {
             console.error("Local admin authorization failed:", error);
