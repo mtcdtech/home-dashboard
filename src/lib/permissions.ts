@@ -239,6 +239,13 @@ export function resolveSectionAccess(
     return { role, source: "department", pushed: false, locked: false, inherited: true };
   }
 
+  // 6b. If the section has department restrictions defined but the user's
+  // department isn't in the list, deny access.  Think of it like a guest list:
+  // if there IS a list, you must be on it.
+  if (section.departmentAccess && section.departmentAccess.length > 0) {
+    return { role: "none", source: "department-deny", pushed: false, locked: false, inherited: true };
+  }
+
   // 7. Inherit visibility from the tab — having tab access means seeing its content.
   // (We've already returned NONE above when tabAccess.role === "none", so reaching
   // here means the user has tab access.)

@@ -160,9 +160,6 @@ export default async function Home() {
     .filter(({ tab, access }: any) => {
       if (access.role === "none") return false;
       if (isAdminView) return true;
-      // During impersonation: show ALL tabs the target user has access to
-      // so the admin can see exactly what that user would see if they logged in
-      if (impersonateUserId) return true;
       if (access.locked) return true;
       if (userLayout.hiddenTabs?.includes(tab.id)) return false;
       if (access.pushed) return true;

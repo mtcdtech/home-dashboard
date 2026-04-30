@@ -354,16 +354,16 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
     }
   };
 
-  if (!isOpen) return null;
-
-  // LIVE PREVIEW CALCULATIONS — tied to the actual dashboard light/dark mode
+  // LIVE PREVIEW — keep darkMode in sync with the current browser toggle.
+  // (Hooks must be called before any early-return.)
   const currentIsDark = resolvedTheme === "dark";
-
-  // Keep the saved theme's darkMode flag in sync with the live toggle
   useEffect(() => {
     setIsDark(currentIsDark);
   }, [currentIsDark]);
 
+  if (!isOpen) return null;
+
+  // LIVE PREVIEW CALCULATIONS — tied to the actual dashboard light/dark mode
   const previewBg = currentIsDark ? '#080810' : '#f8fafc';
   const previewText = currentIsDark ? '#f8fafc' : '#080810';
 

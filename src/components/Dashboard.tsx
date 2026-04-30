@@ -528,7 +528,7 @@ export function Dashboard({
    return (
       <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', maxWidth: '100vw' }}>
          <style dangerouslySetInnerHTML={{ __html: dynamicCSS }} />
-         <AmbientBackground theme={activeTheme} />
+         <AmbientBackground theme={activeTheme} isLight={isLight} />
 
          {/* Impersonation Banner */}
          {impersonating && (
@@ -1220,18 +1220,20 @@ export function Dashboard({
 }
 
 // --- AMBIENT BACKGROUND SYSTEM ---
-function AmbientBackground({ theme }: { theme?: Theme | null }) {
+function AmbientBackground({ theme, isLight }: { theme?: Theme | null; isLight?: boolean }) {
    if (!theme) return null;
    const bgImg = (theme.backgroundColor && (theme.backgroundColor.startsWith('http') || theme.backgroundColor.startsWith('/') || theme.backgroundColor.startsWith('api') || theme.backgroundColor.startsWith('data:'))) ? theme.backgroundColor : null;
-
+   // Use the live browser mode (not the saved theme.darkMode) so the wash
+   // responds immediately when the user toggles light/dark mode.
+   const isDark = isLight === undefined ? theme.darkMode : !isLight;
 
    return (
       <div style={{ position: 'fixed', top: '-100px', bottom: '-100px', left: 0, right: 0, zIndex: -1, overflow: 'hidden', background: 'var(--bg-base)', pointerEvents: 'none' }}>
          <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '80%', height: '80%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(100px)', opacity: 0.8, animation: 'float 20s infinite alternate linear' }} />
          <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '70%', height: '70%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(120px)', opacity: 0.6, animation: 'float 25s infinite alternate-reverse linear' }} />
          {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 0}px) brightness(0.85)`, transform: 'scale(1.05)', opacity: 0.9 }} />}
-         <div style={{ position: 'absolute', inset: 0, background: 'var(--primary)', opacity: bgImg ? (theme.backgroundTint ?? 0.6) : 0.08, mixBlendMode: theme.darkMode ? 'soft-light' : 'overlay' }} />
-         <div style={{ position: 'absolute', inset: 0, background: theme.darkMode ? '#000' : '#fff', opacity: (theme as any).backgroundWash ?? 0.0 }} />
+         <div style={{ position: 'absolute', inset: 0, background: 'var(--primary)', opacity: bgImg ? (theme.backgroundTint ?? 0.6) : 0.08, mixBlendMode: isDark ? 'soft-light' : 'overlay' }} />
+         <div style={{ position: 'absolute', inset: 0, background: isDark ? '#000' : '#fff', opacity: (theme as any).backgroundWash ?? 0.0 }} />
          <div style={{ position: 'absolute', inset: 0, opacity: 0.03, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, pointerEvents: 'none' }} />
       </div>
    );
