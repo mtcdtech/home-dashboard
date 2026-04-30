@@ -46,9 +46,9 @@ export default async function Home() {
     ? (await prisma.user.findUnique({ where: { id: userId }, select: { dashboardGroup: true } }))?.dashboardGroup
     : dbUser?.dashboardGroup || session.user?.dashboardGroup;
   const userDashboardGroup = rawUserDashboardGroup || "General";
-  const isAdmin = realIsAdmin; // keep real admin access even when impersonating
   // When impersonating, use target user's access rules (not admin bypass)
   const isAdminView = realIsAdmin && !impersonateUserId;
+  const isAdmin = isAdminView || dbUser?.isAdmin || false;
 
   if (dbUser && !dbUser.avatarColor) {
      const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#82E0AA", "#F1948A"];
@@ -174,12 +174,14 @@ export default async function Home() {
           height: ts.height,
           defaultCollapsed: ts.defaultCollapsed || false,
           tabId: tab.id,
+          accessRole: resolveSectionAccess(ts.section, tab, access, userCtx).role
         }));
 
       return {
         ...tab,
         sections: visibleSections,
-        isLocked: access.locked
+        isLocked: access.locked,
+        accessRole: access.role
       };
     });
 
@@ -235,7 +237,7 @@ export default async function Home() {
         logoIcon: "LayoutGrid"
       }) as any}
       globalSettings={JSON.parse(JSON.stringify(globalSettings || { logoUrlLight: "", logoUrlDark: "", logoUrlSquareLight: "", logoUrlSquareDark: "", systemThemeColor: "#3b82f6" }))}
-      userDepartment={userDepartment} 
+      userDepartment={userDashboardGroup} 
       isAdmin={isAdmin}
       currentUserId={userId}
       userName={impersonateUserId ? (dbUser as any)?.name || (dbUser as any)?.email : session.user.name}

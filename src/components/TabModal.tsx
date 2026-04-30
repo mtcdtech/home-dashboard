@@ -21,6 +21,7 @@ export interface TabModalProps {
 export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, onUploadIcon, allThemes = [], currentUserId, isAdmin, allUsers = [] }: TabModalProps) {
   const [title, setTitle] = useState(tab?.title || "");
   const [icon, setIcon] = useState(tab?.icon || "");
+  const [description, setDescription] = useState(tab?.description || "");
   const [isLibraryItem, setIsLibraryItem] = useState(tab?.isLibraryItem ?? false);
   const [themeId, setThemeId] = useState(tab?.themeId || tab?.theme?.id || "");
   const [columns, setColumns] = useState(tab?.columns || 3);
@@ -39,9 +40,9 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
     setSaving(true);
     try {
       if (tab) {
-        await actions.updateTab(tab.id, { title, icon, columns, themeId: themeId || null, isLibraryItem } as any);
+        await actions.updateTab(tab.id, { title, icon, description, columns, themeId: themeId || null, isLibraryItem } as any);
       } else {
-        await actions.createTab({ title, icon, columns, themeId: themeId || null, isLibraryItem } as any);
+        await actions.createTab({ title, icon, description, columns, themeId: themeId || null, isLibraryItem } as any);
       }
       onSaved();
     } catch (err) {
@@ -120,7 +121,6 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                       </div>
                    </div>
 
-                   {/* Add to Catalog toggle */}
                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.6rem 0.8rem', borderRadius: '12px', border: `1px solid ${isLibraryItem ? 'var(--primary)' : 'var(--glass-border)'}`, background: isLibraryItem ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent', transition: 'all 0.2s ease' }}>
                       <input
                          type="checkbox"
@@ -134,6 +134,20 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                          <div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Other users can discover and add this workspace to their dashboard</div>
                       </div>
                    </label>
+
+                   {isLibraryItem && (
+                      <div style={{ marginTop: '0.25rem' }}>
+                         <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Description for Catalog</label>
+                         <textarea 
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Briefly describe what this workspace is used for..." 
+                            className="glass" 
+                            rows={2}
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.95rem', boxSizing: 'border-box', resize: 'vertical' }} 
+                         />
+                      </div>
+                   )}
 
                 </div>
              </div>

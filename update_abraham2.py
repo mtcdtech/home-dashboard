@@ -14,7 +14,8 @@ resp = requests.get(f"{URL}/api/stacks/{STACK_ID}/file", headers=HEADERS, verify
 content = resp.json()["StackFileContent"]
 
 # Update image name
-content = content.replace("mtcdtech/home-dashboard:latest", "mtcdtech/homedashboard:latest")
+content = content.replace("mtcdtech/home-dashboard:latest", "mtcdtech/homedashboard:abraham")
+content = content.replace("mtcdtech/homedashboard:latest", "mtcdtech/homedashboard:abraham")
 
 resp = requests.get(f"{URL}/api/stacks/{STACK_ID}", headers=HEADERS, verify=False)
 stack = resp.json()

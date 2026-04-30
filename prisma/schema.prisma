@@ -225,6 +225,7 @@ model Theme {
   backgroundTint Float    @default(0.5)
   sectionOpacity Float    @default(0.7)
   glassOpacity  Float    @default(0.12)
+  backgroundWash Float    @default(0.0)
   iconSize      Int      @default(64) // Default icon size for this theme
   isLibraryItem Boolean  @default(false)
   isReadOnlySync Boolean @default(false)

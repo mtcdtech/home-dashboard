@@ -120,7 +120,7 @@ export function Dashboard({
    const [tabs, setTabs] = useState<Tab[]>(initialTabs);
 
    // States
-   
+
    // Helper to determine text color based on background hex
    const getContrastYIQ = (hexcolor: string) => {
       if (!hexcolor) return 'var(--text)';
@@ -204,12 +204,13 @@ export function Dashboard({
    }, [isCatalogOpen]);
 
    const [catalogTab, setCatalogTab] = useState<"workspaces" | "sections">("workspaces");
+   const [catalogSearchQuery, setCatalogSearchQuery] = useState("");
 
    const hasTabAdminAccess = (tab?: Tab) => {
       if (!tab) return false;
       if (tab.isReadOnlySync) return false;
-      if (!currentUserId) return false;
       if (isAdmin) return true;
+      if ((tab as any).accessRole === "owner") return true;
       if (tab.owners?.some(u => u.id === currentUserId)) return true;
       return false;
    };
@@ -217,8 +218,8 @@ export function Dashboard({
    const hasTabEditAccess = (tab?: Tab) => {
       if (!tab) return false;
       if (tab.isReadOnlySync) return false;
-      if (!currentUserId) return false;
       if (adminBypass) return true;
+      if ((tab as any).accessRole === "owner" || (tab as any).accessRole === "editor") return true;
       if (tab.editors?.some(u => u.id === currentUserId)) return true;
       if (tab.owners?.some(u => u.id === currentUserId)) return true;
       return false;
@@ -227,8 +228,8 @@ export function Dashboard({
    const hasSectionEditAccess = (section?: Section, tab?: Tab) => {
       if (!section || !tab) return false;
       if (section.isReadOnlySync || tab.isReadOnlySync) return false;
-      if (!currentUserId) return false;
       if (adminBypass) return true;
+      if ((section as any).accessRole === "owner" || (section as any).accessRole === "editor") return true;
       if (section.editors?.some(u => u.id === currentUserId)) return true;
       if (section.owners?.some(u => u.id === currentUserId)) return true;
       if (hasTabEditAccess(tab)) return true;
@@ -439,8 +440,8 @@ export function Dashboard({
    const glsOpac = activeTheme.glassOpacity ?? 0.12;
 
    // Use the active TAB's primary color if it has its own theme, else fall back to global theme
-   const effectivePrimaryColor = (activeTabObj?.theme?.primaryColor && activeTabObj.theme.primaryColor !== '') 
-      ? activeTabObj.theme.primaryColor 
+   const effectivePrimaryColor = (activeTabObj?.theme?.primaryColor && activeTabObj.theme.primaryColor !== '')
+      ? activeTabObj.theme.primaryColor
       : activeTheme.primaryColor;
    // Debug: console.log('Active tab:', activeTabObj?.title, 'theme:', activeTabObj?.theme?.primaryColor, 'effective:', effectivePrimaryColor);
 
@@ -470,14 +471,17 @@ export function Dashboard({
       --glass-blur: 0px;
       --glass-saturate: 100%;
       --bg-color: color-mix(in srgb, ${effectivePrimaryColor} ${isLight ? '8%' : '15%'}, ${isLight ? '#ffffff' : '#000000'});
-      --modal-bg: ${isLight 
-         ? `linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), rgba(${hexToRgb(effectivePrimaryColor)}, 0.1)` 
+      --modal-bg: ${isLight
+         ? `linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), rgba(${hexToRgb(effectivePrimaryColor)}, 0.1)`
          : `linear-gradient(rgba(10, 10, 10, 0.75), rgba(10, 10, 10, 0.75)), rgba(${hexToRgb(effectivePrimaryColor)}, 0.2)`};
     }
     .navbar {
       position: sticky;
       top: 0;
       z-index: 50;
+      backdrop-filter: blur(24px) saturate(150%);
+      -webkit-backdrop-filter: blur(24px) saturate(150%);
+      background: var(--glass-bg);
     }
     .desktop-nav-group { display: flex; }
     .mobile-menu-btn { display: none; }
@@ -528,15 +532,15 @@ export function Dashboard({
 
          {/* Impersonation Banner */}
          {impersonating && (
-           <div style={{ position: 'sticky', top: 0, zIndex: 9998, background: 'linear-gradient(90deg, #f59e0b, #ef4444)', color: '#fff', padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', fontSize: '0.85rem', fontWeight: 700, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
-             <span>👁 Viewing dashboard as: <strong>{impersonating.userName}</strong> — edit controls disabled</span>
-             <button
-               onClick={async () => { await fetch('/api/admin/impersonate', { method: 'DELETE' }); window.close(); }}
-               style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '8px', padding: '0.3rem 1rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}
-             >
-               ✕ Exit Preview
-             </button>
-           </div>
+            <div style={{ position: 'sticky', top: 0, zIndex: 9998, background: 'linear-gradient(90deg, #f59e0b, #ef4444)', color: '#fff', padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', fontSize: '0.85rem', fontWeight: 700, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+               <span>👁 Viewing dashboard as: <strong>{impersonating.userName}</strong> — edit controls enabled</span>
+               <button
+                  onClick={async () => { await fetch('/api/admin/impersonate', { method: 'DELETE' }); window.close(); }}
+                  style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '8px', padding: '0.3rem 1rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}
+               >
+                  ✕ Exit Preview
+               </button>
+            </div>
          )}
 
          {/* Global Nav Bar - Updated for Mobile / Multi-row */}
@@ -581,7 +585,7 @@ export function Dashboard({
                               {userDepartment && <span style={{ fontSize: '10px', opacity: 0.5, lineHeight: 1, whiteSpace: 'nowrap' }}>{userDepartment}</span>}
                            </div>
                         </div>
-                        <button onClick={() => signOut()} title="Sign Out" className="btn nav-menu-btn" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', display: 'flex' }}>
+                        <button onClick={() => signOut()} title="Sign Out" className="btn nav-menu-btn" style={{ background: isLight ? 'rgba(185, 28, 28, 0.1)' : 'rgba(239, 68, 68, 0.15)', color: isLight ? '#b91c1c' : '#ef4444', border: 'none', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', display: 'flex' }}>
                            <LogOut size={18} /> <span className="mobile-menu-text">Sign Out</span>
                         </button>
                      </div>
@@ -724,9 +728,9 @@ export function Dashboard({
                                     </span>
                                  )}
                                  {currentUserId && !adminBypass && (
-                                    <span 
-                                       onClick={async (e) => { 
-                                          e.stopPropagation(); 
+                                    <span
+                                       onClick={async (e) => {
+                                          e.stopPropagation();
                                           if ((tab as any).isLocked) {
                                              alert("This workspace is locked by an administrator and cannot be removed.");
                                              return;
@@ -735,16 +739,16 @@ export function Dashboard({
                                              alert("You are the owner of this workspace. To remove it from your dashboard, please open workspace settings (the gear icon) and designate a new owner, or delete it entirely.");
                                              return;
                                           }
-                                          if (confirm(`Remove "${tab.title}" from your dashboard?`)) { 
-                                             try { 
-                                                await actions.removeTabFromUser(tab.id); 
-                                                router.refresh(); 
-                                             } catch (err: any) { 
-                                                alert(err.message); 
-                                             } 
-                                          } 
-                                       }} 
-                                       style={{ opacity: (tab as any).isLocked || hasTabAdminAccess(tab) ? 0.3 : 0.8, cursor: (tab as any).isLocked || hasTabAdminAccess(tab) ? 'not-allowed' : 'pointer', display: 'flex', color: (tab as any).isLocked ? 'var(--text)' : '#ef4444' }} 
+                                          if (confirm(`Remove "${tab.title}" from your dashboard?`)) {
+                                             try {
+                                                await actions.removeTabFromUser(tab.id);
+                                                router.refresh();
+                                             } catch (err: any) {
+                                                alert(err.message);
+                                             }
+                                          }
+                                       }}
+                                       style={{ opacity: (tab as any).isLocked || hasTabAdminAccess(tab) ? 0.3 : 0.8, cursor: (tab as any).isLocked || hasTabAdminAccess(tab) ? 'not-allowed' : 'pointer', display: 'flex', color: (tab as any).isLocked ? 'var(--text)' : '#ef4444' }}
                                        title={(tab as any).isLocked ? "Workspace Locked" : (hasTabAdminAccess(tab) ? "Owners must designate a new owner to remove" : "Remove Workspace from Dashboard")}
                                     >
                                        <X size={14} />
@@ -762,7 +766,7 @@ export function Dashboard({
                            onClick={() => { setTargetTabToEdit(null); setIsTabModalOpen(true); }}
                            style={{
                               padding: '0.75rem 1.25rem', background: 'rgba(var(--primary-rgb), 0.15)', border: '1px dashed var(--glass-border)', borderBottom: 'none',
-                              cursor: 'pointer', borderRadius: '12px 12px 0 0', color: 'var(--text)', opacity: 0.7, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem',
+                              cursor: 'pointer', borderRadius: '12px 12px 0 0', color: '#ffffff', opacity: 0.7, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem',
                               backdropFilter: 'blur(10px)'
                            }}
                         >
@@ -925,7 +929,7 @@ export function Dashboard({
                                                    }}
                                                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(150,150,150,0.1)'}
                                                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                      onClick={() => { if (!showEditControls) fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: bookmark.id, bookmarkTitle: bookmark.title, bookmarkUrl: bookmark.url }) }).catch(() => {}); }}
+                                                      onClick={() => { if (!showEditControls) fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: bookmark.id, bookmarkTitle: bookmark.title, bookmarkUrl: bookmark.url }) }).catch(() => { }); }}
                                                    >
                                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', flexShrink: 0 }}>
                                                          <IconComponent name={bookmark.icon} size={28} />
@@ -958,17 +962,17 @@ export function Dashboard({
                               {showEditControls && hasTabEditAccess(tab) && (
                                  <div
                                     onClick={() => { setEditingSection(null); setIsSectionModalOpen(true); }}
-                                    style={{ 
-                                       background: isLight 
-                                          ? `rgba(${hexToRgb(effectivePrimaryColor)}, 0.08)` 
-                                          : `rgba(${hexToRgb(effectivePrimaryColor)}, 0.12)`, 
-                                       borderRadius: '16px', 
-                                       border: isLight 
-                                          ? `2px dashed rgba(${hexToRgb(effectivePrimaryColor)}, 0.55)` 
-                                          : '2px dashed rgba(255, 255, 255, 0.3)', 
-                                       display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', justifyContent: 'center', 
-                                       padding: '1.5rem', cursor: 'pointer', opacity: 0.85, transition: 'opacity 0.2s, transform 0.2s, background 0.2s', 
-                                       color: 'var(--text)', marginTop: '0.5rem', boxShadow: isLight ? `0 2px 8px rgba(${hexToRgb(effectivePrimaryColor)}, 0.15)` : '0 4px 12px rgba(0,0,0,0.1)'
+                                    style={{
+                                       background: isLight
+                                          ? `rgba(${hexToRgb(effectivePrimaryColor)}, 0.08)`
+                                          : `rgba(${hexToRgb(effectivePrimaryColor)}, 0.12)`,
+                                       borderRadius: '16px',
+                                       border: isLight
+                                          ? `2px dashed rgba(${hexToRgb(effectivePrimaryColor)}, 0.55)`
+                                          : '2px dashed rgba(255, 255, 255, 0.3)',
+                                       display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', justifyContent: 'center',
+                                       padding: '1.5rem', cursor: 'pointer', opacity: 0.85, transition: 'opacity 0.2s, transform 0.2s, background 0.2s',
+                                       color: isLight ? 'var(--text)' : '#ffffff', marginTop: '0.5rem', boxShadow: isLight ? `0 2px 8px rgba(${hexToRgb(effectivePrimaryColor)}, 0.15)` : '0 4px 12px rgba(0,0,0,0.1)'
                                     }}
                                     onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.02)'; }}
                                     onMouseLeave={e => { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'scale(1)'; }}
@@ -1011,66 +1015,84 @@ export function Dashboard({
                   </div>
 
                   <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                        <input value={catalogSearchQuery} onChange={e => setCatalogSearchQuery(e.target.value)} placeholder="Search catalog..." className="glass" style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)', fontSize: '0.85rem' }} />
+                     </div>
+
                      {catalogTab === "workspaces" && (
                         libraryTabs.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared workspaces available.</div> :
-                           libraryTabs.map(libTab => {
+                           libraryTabs
+                              .filter(t => t.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()))
+                              .sort((a, b) => a.title.localeCompare(b.title))
+                              .map(libTab => {
                               const isAdded = tabs.some(t => t.id === libTab.id);
                               return (
-                              <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', opacity: isAdded ? 0.5 : 1, background: 'rgba(var(--primary-rgb), 0.06)' }}>
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>
-                                    {libTab.icon && <IconComponent name={libTab.icon} size={18} />}
-                                    {libTab.title}
-                                    {libTab.isReadOnlySync && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', border: 'none', borderRadius: '4px', marginLeft: 'auto', textTransform: 'uppercase', fontWeight: 800 }}>Imported</span>}
-                                 </div>
-                                 {libTab.description && <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{libTab.description}</div>}
-                                 {isAdded ? (
-                                    <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(0,0,0,0.05)', color: 'var(--text)', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'center', opacity: 0.7 }}>
-                                       Already added to dashboard
+                                 <div key={libTab.id} className="glass-card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', opacity: isAdded ? 0.5 : 1, background: 'rgba(var(--primary-rgb), 0.06)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>
+                                       {libTab.icon && <IconComponent name={libTab.icon} size={18} />}
+                                       {libTab.title}
+                                       {libTab.isReadOnlySync && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', border: 'none', borderRadius: '4px', marginLeft: 'auto', textTransform: 'uppercase', fontWeight: 800 }}>Imported</span>}
                                     </div>
-                                 ) : (
-                                    <button
-                                       onClick={async () => { await actions.importTabFromLibrary(libTab.id); router.refresh(); }}
-                                       style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
-                                    >
-                                       <Plus size={16} /> Add to Dashboard
-                                    </button>
-                                 )}
-                              </div>
-                           )})
+                                    {libTab.description && <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{libTab.description}</div>}
+                                    {isAdded ? (
+                                       <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(0,0,0,0.05)', color: 'var(--text)', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'center', opacity: 0.7 }}>
+                                          Already added to dashboard
+                                       </div>
+                                    ) : (
+                                       <button
+                                          onClick={async () => { await actions.importTabFromLibrary(libTab.id); router.refresh(); }}
+                                          style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+                                       >
+                                          <Plus size={16} /> Add to Dashboard
+                                       </button>
+                                    )}
+                                 </div>
+                              )
+                           })
                      )}
 
                      {catalogTab === "sections" && (
                         librarySections.length === 0 ? <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No shared sections available.</div> :
-                           librarySections.map(libSec => {
+                           librarySections
+                              .filter(s => s.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()))
+                              .sort((a, b) => a.title.localeCompare(b.title))
+                              .map(libSec => {
                               const activeTabObj = tabs.find(t => t.id === activeTabId);
                               const isAdded = activeTabObj?.sections?.some(s => s.id === libSec.id);
                               const canDrag = !isAdded && hasTabEditAccess(activeTabObj);
                               return (
-                              <div
-                                 key={libSec.id}
-                                 className="glass-card"
-                                 draggable={canDrag}
-                                 onDragStart={(e) => {
-                                    if(!canDrag) { e.preventDefault(); return; }
-                                    e.dataTransfer.effectAllowed = "all";
-                                    e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
-                                    setDraggedSectionId(`catalogSection:${libSec.id}`);
-                                    setTimeout(() => setIsCatalogOpen(false), 50);
-                                 }}
-                                  onDragEnd={() => setDraggedSectionId(null)}
-                                 style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: canDrag ? 'grab' : 'default', opacity: isAdded ? 0.5 : (canDrag ? 1 : 0.7), background: canDrag ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(var(--primary-rgb), 0.04)' }}
-                              >
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--primary)' }}>
-                                    {canDrag && <GripVertical size={16} style={{ opacity: 0.5 }} />}
-                                    {libSec.icon && <IconComponent name={libSec.icon} size={16} />}
-                                    {libSec.title}
-                                    {libSec.isReadOnlySync && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', border: 'none', borderRadius: '4px', marginLeft: 'auto', textTransform: 'uppercase', fontWeight: 800 }}>Imported</span>}
+                                 <div
+                                    key={libSec.id}
+                                    className="glass-card"
+                                    draggable={canDrag}
+                                    onDragStart={(e) => {
+                                       if (!canDrag) { e.preventDefault(); return; }
+                                       e.dataTransfer.effectAllowed = "all";
+                                       e.dataTransfer.setData("text/plain", `catalogSection:${libSec.id}`);
+                                       setDraggedSectionId(`catalogSection:${libSec.id}`);
+                                       setTimeout(() => setIsCatalogOpen(false), 50);
+                                    }}
+                                    onDragEnd={() => setDraggedSectionId(null)}
+                                    style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: canDrag ? 'grab' : 'default', opacity: isAdded ? 0.5 : (canDrag ? 1 : 0.7), background: canDrag ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(var(--primary-rgb), 0.04)' }}
+                                 >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--primary)' }}>
+                                       {canDrag && <GripVertical size={16} style={{ opacity: 0.5 }} />}
+                                       {libSec.icon && <IconComponent name={libSec.icon} size={16} />}
+                                       {libSec.title}
+                                       {libSec.isReadOnlySync && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', border: 'none', borderRadius: '4px', marginLeft: 'auto', textTransform: 'uppercase', fontWeight: 800 }}>Imported</span>}
+                                    </div>
+                                    {libSec.description && (
+                                       <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: canDrag ? '1.5rem' : '0' }}>
+                                          {libSec.description}
+                                       </div>
+                                    )}
+                                    <div style={{ fontSize: '0.85rem', opacity: 0.5, paddingLeft: canDrag ? '1.5rem' : '0' }}>
+                                       {isAdded ? "Already added to this workspace." : (!hasTabEditAccess(activeTabObj) ? "You need edit access to add sections to this workspace." : "Drag this card onto any column in your dashboard to insert it.")}
+                                    </div>
                                  </div>
-                                 <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: canDrag ? '1.5rem' : '0' }}>
-                                    {isAdded ? "Already added to this workspace." : (!hasTabEditAccess(activeTabObj) ? "You need edit access to add sections to this workspace." : (libSec.description || "Drag this card onto any column in your dashboard to insert it."))}
-                                 </div>
-                              </div>
-                           )})
+                              )
+                           })
                      )}
                   </div>
                </div>
@@ -1203,12 +1225,13 @@ function AmbientBackground({ theme }: { theme?: Theme | null }) {
    const bgImg = (theme.backgroundColor && (theme.backgroundColor.startsWith('http') || theme.backgroundColor.startsWith('/') || theme.backgroundColor.startsWith('api') || theme.backgroundColor.startsWith('data:'))) ? theme.backgroundColor : null;
 
 
-      return (
+   return (
       <div style={{ position: 'fixed', top: '-100px', bottom: '-100px', left: 0, right: 0, zIndex: -1, overflow: 'hidden', background: 'var(--bg-base)', pointerEvents: 'none' }}>
          <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '80%', height: '80%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(100px)', opacity: 0.8, animation: 'float 20s infinite alternate linear' }} />
          <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '70%', height: '70%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(120px)', opacity: 0.6, animation: 'float 25s infinite alternate-reverse linear' }} />
          {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 0}px) brightness(0.85)`, transform: 'scale(1.05)', opacity: 0.9 }} />}
          <div style={{ position: 'absolute', inset: 0, background: 'var(--primary)', opacity: bgImg ? (theme.backgroundTint ?? 0.6) : 0.08, mixBlendMode: theme.darkMode ? 'soft-light' : 'overlay' }} />
+         <div style={{ position: 'absolute', inset: 0, background: theme.darkMode ? '#000' : '#fff', opacity: (theme as any).backgroundWash ?? 0.0 }} />
          <div style={{ position: 'absolute', inset: 0, opacity: 0.03, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, pointerEvents: 'none' }} />
       </div>
    );
