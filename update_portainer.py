@@ -37,7 +37,10 @@ def deploy_to_portainer(name, url, api_key, entra_secret, auth_secret):
         return
 
     # Replace REDEPLOY_DATE to trigger restart
-    content = re.sub(r'REDEPLOY_DATE=\d+', f'REDEPLOY_DATE={int(time.time())}', content)
+    if 'REDEPLOY_DATE=' in content:
+        content = re.sub(r'REDEPLOY_DATE=\d+', f'REDEPLOY_DATE={int(time.time())}', content)
+    else:
+        content = content.replace('environment:', f'environment:\n      - REDEPLOY_DATE={int(time.time())}')
 
     payload = {
         "stackFileContent": content,
