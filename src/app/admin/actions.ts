@@ -755,7 +755,7 @@ export async function importTabFromLibrary(tabId: string) {
   const session = await auth();
   if (!session?.user?.email) throw new Error("Unauthorized");
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true, layout: true } });
   if (!user) throw new Error("User not found");
 
   // Get all sections in this tab so we can grant sub-access
@@ -776,6 +776,20 @@ export async function importTabFromLibrary(tabId: string) {
       data: { allowedUsers: { connect: { id: user.id } } }
     }))
   ]);
+
+  // Remove from hiddenTabs and add to tabOrder
+  let layout: any = user.layout || {};
+  if (layout.hiddenTabs) {
+    layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
+  }
+  if (!layout.tabOrder) layout.tabOrder = [];
+  if (!layout.tabOrder.includes(tabId)) {
+    layout.tabOrder.push(tabId);
+  }
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { layout }
+  });
 
   revalidatePath("/");
 }
@@ -819,6 +833,25 @@ export async function removeTabFromUser(tabId: string) {
       allowedUsers: { disconnect: { id: user.id } }
     }
   });
+
+  // Also add to hiddenTabs so pushed or global tabs don't keep reappearing
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { layout: true } });
+  if (dbUser) {
+    let layout: any = dbUser.layout || {};
+    if (!layout.hiddenTabs) layout.hiddenTabs = [];
+    if (!layout.hiddenTabs.includes(tabId)) {
+      layout.hiddenTabs.push(tabId);
+    }
+    // Also remove from tabOrder if present
+    if (layout.tabOrder) {
+      layout.tabOrder = layout.tabOrder.filter((id: string) => id !== tabId);
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { layout }
+    });
+  }
+
   revalidatePath("/");
 }
 

@@ -718,6 +718,11 @@ export function Dashboard({
                                        {userDefaultTabId === tab.id ? <Star size={14} fill="#F7DC6F" stroke="#F7DC6F" /> : <Star size={14} />}
                                     </span>
                                  )}
+                                 {currentUserId && !(tab as any).isLocked && !adminBypass && (
+                                    <span onClick={async (e) => { e.stopPropagation(); if (confirm(`Remove "${tab.title}" from your dashboard?`)) { try { await actions.removeTabFromUser(tab.id); router.refresh(); } catch (err: any) { alert(err.message); } } }} style={{ opacity: 0.8, cursor: 'pointer', display: 'flex', color: '#ef4444' }} title="Remove Workspace from Dashboard">
+                                       <X size={14} />
+                                    </span>
+                                 )}
                               </div>
                            )}
                         </button>

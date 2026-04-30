@@ -150,10 +150,21 @@ export default async function Home() {
         return resolveSectionAccess(ls, {} as any, fakeTabAccess, userCtx).role !== "none";
       });
 
+  const userLayout = (dbUser as any)?.layout || {};
+
   // Filter sections based on visibility for non-admins and reshape to the expected prop shape
   const shapedTabs = tabs
     .map((tab: any) => ({ tab, access: resolveTabAccess(tab, userCtx) }))
-    .filter(({ access }: any) => access.role !== "none")
+    .filter(({ tab, access }: any) => {
+      if (access.role === "none") return false;
+      if (isAdminView) return true;
+      if (access.locked) return true;
+      if (userLayout.hiddenTabs?.includes(tab.id)) return false;
+      if (access.pushed) return true;
+      if (access.role === "owner" || access.role === "editor") return true;
+      if (userLayout.tabOrder?.includes(tab.id)) return true;
+      return false;
+    })
     .map(({ tab, access }: any) => {
       const visibleSections = tab.tabSections
         .filter((ts: any) => resolveSectionAccess(ts.section, tab, access, userCtx).role !== "none")
@@ -168,11 +179,10 @@ export default async function Home() {
       return {
         ...tab,
         sections: visibleSections,
+        isLocked: access.locked
       };
     });
 
-  const userLayout = (dbUser as any)?.layout || {};
-  
   // Apply personal overrides for sections ONLY if not admin
   if (!isAdminView) {
      shapedTabs.forEach((tab: any) => {
