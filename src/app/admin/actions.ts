@@ -827,6 +827,14 @@ export async function removeTabFromUser(tabId: string) {
     }
   }
 
+  const tab = await prisma.tab.findUnique({
+    where: { id: tabId },
+    include: { owners: { select: { id: true } } }
+  });
+  if (tab?.owners?.some((o: any) => o.id === user.id)) {
+    throw new Error("You are the owner of this workspace. To remove it from your dashboard, please open the Admin Dashboard and designate a new owner, or delete it entirely.");
+  }
+
   await (prisma as any).tab.update({
     where: { id: tabId },
     data: {
@@ -1438,7 +1446,7 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
     // Auto-reconcile permissions: pushed targets must have at least viewer access
     if (targetType === "global") {
       // For global push, ensure every department has at least viewer access
-      const allDepts = await prisma.user.findMany({ select: { dashboardGroup: true } });
+      const allDepts = await prisma.user.findMany({ select: { id: true, dashboardGroup: true, layout: true } });
       const uniqueDepts = Array.from(new Set(allDepts.map(u => u.dashboardGroup || "General")));
       for (const dept of uniqueDepts) {
         const existing = await (prisma as any).tabDepartmentAccess.findUnique({
@@ -1450,6 +1458,15 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
           });
         }
       }
+
+      // Ensure it is removed from everyone's hiddenTabs
+      for (const user of allDepts) {
+        let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
+        if (layout.hiddenTabs && layout.hiddenTabs.includes(tabId)) {
+          layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
+          await prisma.user.update({ where: { id: user.id }, data: { layout } });
+        }
+      }
     } else if (targetType === "department" && targetId) {
       // For department push, ensure department has at least viewer access
       const existing = await (prisma as any).tabDepartmentAccess.findUnique({
@@ -1459,6 +1476,19 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
         await (prisma as any).tabDepartmentAccess.create({
           data: { tabId, department: targetId, role: "viewer" }
         });
+      }
+
+      // Ensure it is removed from everyone's hiddenTabs in that department
+      const deptUsers = await prisma.user.findMany({
+        where: { OR: [ { dashboardGroup: targetId }, { dashboardGroup: targetId.toLowerCase() } ] },
+        select: { id: true, layout: true }
+      });
+      for (const user of deptUsers) {
+        let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
+        if (layout.hiddenTabs && layout.hiddenTabs.includes(tabId)) {
+          layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
+          await prisma.user.update({ where: { id: user.id }, data: { layout } });
+        }
       }
     } else if (targetType === "user" && targetId) {
       // For user push, ensure user has at least viewer access
@@ -1474,6 +1504,19 @@ export async function togglePushRule(tabId: string, targetType: string, targetId
           where: { id: tabId },
           data: { allowedUsers: { connect: { id: targetId } } }
         });
+      }
+
+      // Also ensure it is removed from their hiddenTabs so it actually appears!
+      const user = await prisma.user.findUnique({ where: { id: targetId }, select: { layout: true } });
+      if (user) {
+        let layout: any = user.layout && typeof user.layout === 'object' ? JSON.parse(JSON.stringify(user.layout)) : {};
+        if (layout.hiddenTabs && layout.hiddenTabs.includes(tabId)) {
+          layout.hiddenTabs = layout.hiddenTabs.filter((id: string) => id !== tabId);
+          await prisma.user.update({
+            where: { id: targetId },
+            data: { layout }
+          });
+        }
       }
     }
   } else {

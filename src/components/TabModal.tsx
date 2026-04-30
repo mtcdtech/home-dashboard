@@ -28,7 +28,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
   const isOwner = isAdmin || tab?.owners?.some((u: any) => u.id === currentUserId);
   const isShared = tab?.isLibraryItem || tab?.organization || (tab?.allowedUsers && tab.allowedUsers.length > 0) || (tab?.departmentAccess && tab.departmentAccess.length > 0);
   const showDelete = isOwner;
-  const showRemove = isShared || !isOwner;
+  const showRemove = !isOwner;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
