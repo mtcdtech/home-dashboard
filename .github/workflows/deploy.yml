@@ -1,0 +1,29 @@
+name: Deploy to Portainer
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Trigger Portainer Deployments
+        env:
+          AUTH_MICROSOFT_ENTRA_ID_SECRET: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          PORTAINER_API_KEY_CHURCH: ${{ secrets.PORTAINER_API_KEY_CHURCH }}
+          PORTAINER_API_KEY_ABRAHAM: ${{ secrets.PORTAINER_API_KEY_ABRAHAM }}
+        run: python update_portainer.py
