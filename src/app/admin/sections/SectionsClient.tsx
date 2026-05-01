@@ -533,6 +533,10 @@ React.useEffect(() => {
                                           const userDept = user.dashboardGroup || "General";
                                           const userPushDept = getSectionPushInfo(section, 'department', userDept);
                                           const userPushGlobal = getSectionPushInfo(section, 'global');
+                                          
+                                          const isPushedUser = userPushDirect.pushed || userPushDept.pushed || userPushGlobal.pushed;
+                                          const pushViaTabUser = userPushDirect.viaTab || userPushDept.viaTab || userPushGlobal.viaTab;
+
 
                                           if (userPushDirect.pushed || userPushDept.pushed || userPushGlobal.pushed) {
                                              inheritedRoleFromTabs = 'viewer';
