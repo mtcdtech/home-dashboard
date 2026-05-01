@@ -22,7 +22,8 @@ import * as actions from "@/app/admin/actions";
 export default function AdminLayout({
    children,
    session,
-   avatarColor
+   avatarColor,
+   dashboardGroup
 }: {
    children: React.ReactNode;
    session: any;
