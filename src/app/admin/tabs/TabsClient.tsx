@@ -67,6 +67,7 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
    const [columns, setColumns] = useState(3);
    const [isLibraryItem, setIsLibraryItem] = useState(false);
    const [isGlobal, setIsGlobal] = useState(false);
+   const [isPublic, setIsPublic] = useState(false);
    const [pushToNewUsers, setPushToNewUsers] = useState(false);
    const [description, setDescription] = useState("");
    const [pushDept, setPushDept] = useState("");
@@ -85,6 +86,7 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
       setColumns(3);
       setIsLibraryItem(false);
       setIsGlobal(false);
+      setIsPublic(false);
       setDescription("");
       setPushDept("");
       setIsModalOpen(true);
@@ -110,6 +112,7 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
       setColumns(tab.columns ?? 3);
       setIsLibraryItem(tab.isLibraryItem ?? false);
       setIsGlobal(tab.isGlobal ?? false);
+      setIsPublic(tab.isPublic ?? false);
       setPushToNewUsers(tab.pushToNewUsers ?? false);
       setDescription(tab.description || "");
       setPushDept("");
@@ -118,7 +121,7 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
 
    const save = async () => {
       if (!title) return;
-      const data = { title, icon, organization, allowedUserIds, themeId: themeId || null, columns: Number(columns), isLibraryItem, isGlobal, pushToNewUsers, description };
+      const data = { title, icon, organization, allowedUserIds, themeId: themeId || null, columns: Number(columns), isLibraryItem, isGlobal, isPublic, pushToNewUsers, description };
       if (editingTab) {
          await actions.updateTab(editingTab.id, data);
       } else {
@@ -992,6 +995,13 @@ export default function TabsClient({ initialTabs, users, departments, themes }: 
                            <div>
                               <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Entire Organization Override</div>
                               <div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Automatically makes this workspace visible to everyone, overriding any restrictions.</div>
+                           </div>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: "pointer", padding: '0.6rem 0.8rem', borderRadius: '12px', border: `1px solid ${isPublic ? 'var(--primary)' : 'var(--glass-border)'}`, background: isPublic ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent', transition: 'all 0.2s ease', marginTop: '0.5rem' }}>
+                           <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: "pointer", flexShrink: 0 }} />
+                           <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Public Access (No Login Required)</div>
+                              <div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Allow anyone with the link to view this workspace. Admins only.</div>
                            </div>
                         </label>
                      </div>
