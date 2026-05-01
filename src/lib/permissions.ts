@@ -216,13 +216,7 @@ export function resolveSectionAccess(
     return { role: "none", source: "blocked", pushed: false, locked: false, inherited: false };
   }
 
-  // 3. Non-catalog sections: only visible to owners.
-  if (!section.isLibraryItem) {
-    if (hasUser(section.owners, ctx.userId)) {
-      return { role: "owner", source: "non-catalog-owner", pushed: false, locked: false, inherited: false };
-    }
-    return NONE;
-  }
+  // 3. (Removed "Non-catalog sections only visible to owners" to allow tab viewers to see sections within shared/public tabs)
 
   // 4. Tab owners/editors manage all sections in the tab.
   if (hasUser(tab.owners, ctx.userId)) {
