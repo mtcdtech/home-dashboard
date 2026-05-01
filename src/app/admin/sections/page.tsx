@@ -26,7 +26,7 @@ export default async function SectionsAdminPage() {
     prisma.tab.findMany({
       where: { isLibraryItem: true },
       orderBy: { order: "asc" },
-      select: { id: true, title: true, icon: true, pushRules: true, tabSections: { select: { sectionId: true } } }
+      select: { id: true, title: true, icon: true, pushRules: true, tabSections: { select: { sectionId: true } }, owners: { select: { id: true } }, editors: { select: { id: true } }, allowedUsers: { select: { id: true } } }
     }),
     prisma.user.findMany({ select: { id: true, name: true, email: true, department: true, dashboardGroup: true, avatarColor: true, isAdmin: true } }),
     prisma.theme.findMany()

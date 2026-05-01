@@ -135,7 +135,8 @@ export default async function Home() {
   // Filter out "Local Admin" — admins who aren't the local system admin
   const adminUsers = allUsers.filter((u: any) => u.isAdmin && u.name !== 'Local Admin' && u.email !== 'admin@local');
 
-  const userCtx = buildUserContext({ userId, dashboardGroup: userDashboardGroup, isAdminView });
+  const isLocalAdmin = session?.user?.email === 'admin@local' || session?.user?.name === 'Local Admin';
+  const userCtx = buildUserContext({ userId, dashboardGroup: userDashboardGroup, isAdminView, isLocalAdmin });
 
   // Filter catalog tabs by user access when not in admin view
   const filteredLibraryTabs = isAdminView

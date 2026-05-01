@@ -48,6 +48,7 @@ export interface UserContext {
   userId: string;
   department: string;        // dashboardGroup, normalized non-empty (defaults "General")
   isAdminView: boolean;      // admin viewing as themselves (not impersonating)
+  isLocalAdmin: boolean;     // true if the user is the Local Admin (admin@local)
 }
 
 interface UserRef { id: string }
@@ -94,11 +95,13 @@ export function buildUserContext(args: {
   userId: string;
   dashboardGroup?: string | null;
   isAdminView: boolean;
+  isLocalAdmin?: boolean;
 }): UserContext {
   return {
     userId: args.userId,
     department: args.dashboardGroup || "General",
     isAdminView: args.isAdminView,
+    isLocalAdmin: args.isLocalAdmin || false,
   };
 }
 
@@ -124,7 +127,12 @@ function pushSource(rule: PushRule): AccessSource {
 
 export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision {
   if (ctx.isAdminView) {
-    return { role: "owner", source: "admin", pushed: false, locked: false, inherited: false };
+    if (tab.isReadOnlySync && !ctx.isLocalAdmin) {
+      // For imported workspaces, normal admins don't automatically get owner access.
+      // They must fall through to standard explicit checks (owner/editor/viewer).
+    } else {
+      return { role: "owner", source: "admin", pushed: false, locked: false, inherited: false };
+    }
   }
 
   // 1. Global org-wide visibility (overrides blocks per matrix).
@@ -185,7 +193,11 @@ export function resolveSectionAccess(
   ctx: UserContext
 ): AccessDecision {
   if (ctx.isAdminView) {
-    return { role: "owner", source: "admin", pushed: false, locked: false, inherited: false };
+    if (section.isReadOnlySync && !ctx.isLocalAdmin) {
+      // For imported workspaces, normal admins don't automatically get owner access.
+    } else {
+      return { role: "owner", source: "admin", pushed: false, locked: false, inherited: false };
+    }
   }
 
   // Section is unreachable if the tab is denied (callers should already gate, but be defensive).

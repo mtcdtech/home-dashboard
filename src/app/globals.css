@@ -116,18 +116,30 @@ a {
 
 /* Buttons */
 .btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.25rem;
+  padding: 0.75rem 1.5rem;
   border-radius: 12px;
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
   color: var(--text);
   font-family: inherit;
+  font-size: 1.05rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 .search-input {
@@ -147,14 +159,15 @@ a {
 
 .btn-primary {
   background: var(--primary);
-  color: var(--nav-text);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(var(--primary-rgb), 0.2), 0 2px 4px -2px rgba(var(--primary-rgb), 0.2);
 }
 
 .btn-primary:hover {
   background: var(--primary);
-  filter: brightness(1.2);
-  box-shadow: 0 0 25px var(--primary-glow);
+  filter: brightness(1.15);
+  box-shadow: 0 10px 20px -3px rgba(var(--primary-rgb), 0.4);
 }
 
 /* Utilities */

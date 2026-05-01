@@ -1,9 +1,9 @@
 {
   "name": "home-dashboard",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
