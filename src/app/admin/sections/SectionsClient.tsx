@@ -128,8 +128,8 @@ export default function SectionsClient({
       setSections((prev: Section[]) => prev.map((s: Section) => {
          if (s.id === sectionId) {
             const newTabSections = isAssigned
-               ? [...s.tabSections, { tabId, sectionId }]
-               : s.tabSections.filter((ts: any) => ts.tabId !== tabId);
+               ? [...(s.tabSections || []), { tabId, sectionId }]
+               : (s.tabSections || []).filter((ts: any) => ts.tabId !== tabId);
             return { ...s, tabSections: newTabSections };
          }
          return s;
@@ -726,7 +726,7 @@ export default function SectionsClient({
                               </button>
                            </td>
                            {tabs.map((tab: any) => {
-                              const isAssigned = section.tabSections.some((ts: any) => ts.tabId === tab.id);
+                              const isAssigned = (section.tabSections || []).some((ts: any) => ts.tabId === tab.id);
                               return (
                                  <td key={tab.id} style={{ textAlign: 'center', padding: '0.5rem' }}>
                                     <div

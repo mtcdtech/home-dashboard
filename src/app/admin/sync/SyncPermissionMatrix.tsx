@@ -126,14 +126,15 @@ export default function SyncPermissionMatrix({ syncedTabs, users, departments }:
                         const isViewer = tab.allowedUsers?.some((a: any) => a.id === user.id);
                         const deptRole = tab.departmentAccess?.find((da: any) => da.department === (user.department || "General"))?.role || "none";
                         const role = isOwner ? "owner" : isEditor ? "editor" : isViewer ? "viewer" : "inherited";
-                        const effectiveRole = user.isAdmin ? "owner" : (role === "inherited" ? deptRole : role);
+                        const isLocalAdmin = user.email === 'admin@local' || user.name === 'Local Admin';
+                        const effectiveRole = isLocalAdmin ? "owner" : (role === "inherited" ? deptRole : role);
                         return (
                           <td key={tab.id} style={{ padding: '0.4rem 0.6rem', textAlign: 'center', minWidth: 150 }}>
-                            <div className="glass" style={{ width: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden', minHeight: 34, border: effectiveRole === 'owner' ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)', background: user.isAdmin ? 'repeating-linear-gradient(45deg, rgba(var(--primary-rgb), 0.25), rgba(var(--primary-rgb), 0.25) 10px, rgba(var(--primary-rgb), 0.35) 10px, rgba(var(--primary-rgb), 0.35) 20px)' : effectiveRole === 'owner' ? 'var(--primary)' : effectiveRole === 'editor' ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(var(--primary-rgb), 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <div style={{ position: 'absolute', pointerEvents: 'none', color: effectiveRole === 'owner' && !user.isAdmin ? '#fff' : 'var(--text)', fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', whiteSpace: 'nowrap', zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                {user.isAdmin ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER (ADMIN)</> : role === 'inherited' ? <><ArrowDownLeft size={11} strokeWidth={3} /> {deptRole === 'none' ? 'NOT SHARED' : deptRole.toUpperCase()}</> : effectiveRole === 'none' ? 'NOT SHARED' : effectiveRole.toUpperCase()}
+                            <div className="glass" style={{ width: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden', minHeight: 34, border: effectiveRole === 'owner' ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)', background: isLocalAdmin ? 'repeating-linear-gradient(45deg, rgba(var(--primary-rgb), 0.25), rgba(var(--primary-rgb), 0.25) 10px, rgba(var(--primary-rgb), 0.35) 10px, rgba(var(--primary-rgb), 0.35) 20px)' : effectiveRole === 'owner' ? 'var(--primary)' : effectiveRole === 'editor' ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(var(--primary-rgb), 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ position: 'absolute', pointerEvents: 'none', color: effectiveRole === 'owner' && !isLocalAdmin ? '#fff' : 'var(--text)', fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', whiteSpace: 'nowrap', zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                {isLocalAdmin ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER (ADMIN)</> : role === 'inherited' ? <><ArrowDownLeft size={11} strokeWidth={3} /> {deptRole === 'none' ? 'NOT SHARED' : deptRole.toUpperCase()}</> : effectiveRole === 'none' ? 'NOT SHARED' : effectiveRole.toUpperCase()}
                               </div>
-                              <select disabled={user.isAdmin} value={user.isAdmin ? "owner" : role} onChange={async (e) => {
+                              <select disabled={isLocalAdmin} value={isLocalAdmin ? "owner" : role} onChange={async (e) => {
                                 const newRole = e.target.value;
                                 setTabs(prev => prev.map(t => {
                                   if (t.id !== tab.id) return t;
