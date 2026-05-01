@@ -17,11 +17,11 @@ export default async function AdminLayout({
   }
 
   console.log("Admin layout: Authorized access by", session.user.email);
-  const userId = (session.user as any).id;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+  const userEmail = session.user.email;
+  const user = userEmail ? await prisma.user.findUnique({
+    where: { email: userEmail },
     select: { avatarColor: true, dashboardGroup: true }
-  });
+  }) : null;
 
   return <AdminLayoutClient session={session} avatarColor={user?.avatarColor} dashboardGroup={user?.dashboardGroup}>{children}</AdminLayoutClient>;
 }
