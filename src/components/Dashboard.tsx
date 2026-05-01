@@ -179,6 +179,7 @@ export function Dashboard({
    // Section Edit
    const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
    const [editingSection, setEditingSection] = useState<Section | null>(null);
+   const [targetColumnForSection, setTargetColumnForSection] = useState<number>(0);
 
    // Drag and Drop States
    const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
@@ -961,7 +962,7 @@ export function Dashboard({
                               {/* Add Section inside column */}
                               {showEditControls && hasTabEditAccess(tab) && (
                                  <div
-                                    onClick={() => { setEditingSection(null); setIsSectionModalOpen(true); }}
+                                    onClick={() => { setEditingSection(null); setTargetColumnForSection(colIdx); setIsSectionModalOpen(true); }}
                                     style={{
                                        background: isLight
                                           ? `rgba(${hexToRgb(effectivePrimaryColor)}, 0.08)`
@@ -1132,6 +1133,7 @@ export function Dashboard({
             <SectionModal
                section={editingSection}
                targetTabId={activeTab?.id}
+               targetColumn={targetColumnForSection}
                isAdmin={isAdmin}
                currentUserId={currentUserId}
                onClose={() => setIsSectionModalOpen(false)}

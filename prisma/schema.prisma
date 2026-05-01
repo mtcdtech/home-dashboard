@@ -91,6 +91,7 @@ model Tab {
   themeId     String?      // Optional theme override for this tab
   theme       Theme?       @relation(fields: [themeId], references: [id], onDelete: SetNull)
   isLibraryItem Boolean    @default(false)
+  isPublic    Boolean      @default(false)
   description   String?     // Description for the library
   tabSections TabSection[] // new relation
   columns     Int          @default(3)
@@ -226,6 +227,8 @@ model Theme {
   sectionOpacity Float    @default(0.7)
   glassOpacity  Float    @default(0.12)
   backgroundWash Float    @default(0.0)
+  backgroundWashBlack Float @default(0.0)
+  backgroundWashWhite Float @default(0.0)
   iconSize      Int      @default(64) // Default icon size for this theme
   isLibraryItem Boolean  @default(false)
   isReadOnlySync Boolean @default(false)

@@ -49,7 +49,8 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
   const [backgroundTint, setBackgroundTint] = useState(0.5);
   const [sectionOpacity, setSectionOpacity] = useState(0.7);
   const [glassOpacity, setGlassOpacity] = useState(0.12);
-  const [backgroundWash, setBackgroundWash] = useState(0.0);
+  const [backgroundWashBlack, setBackgroundWashBlack] = useState(0.0);
+  const [backgroundWashWhite, setBackgroundWashWhite] = useState(0.0);
   const [isLibraryItem, setIsLibraryItem] = useState(false);
 
   const [previewIsDark, setPreviewIsDark] = useState(true);
@@ -91,7 +92,8 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
         setBackgroundTint(editingTheme.backgroundTint ?? 0.5);
         setSectionOpacity(editingTheme.sectionOpacity ?? 0.7);
         setGlassOpacity(editingTheme.glassOpacity ?? 0.12);
-        setBackgroundWash(editingTheme.backgroundWash ?? 0.0);
+        setBackgroundWashBlack(editingTheme.backgroundWashBlack ?? editingTheme.backgroundWash ?? 0.0);
+        setBackgroundWashWhite(editingTheme.backgroundWashWhite ?? editingTheme.backgroundWash ?? 0.0);
         setIsLibraryItem(editingTheme.isLibraryItem ?? false);
       } else {
         setName(randomName());
@@ -105,7 +107,8 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
         setBackgroundTint(0.5);
         setSectionOpacity(0.7);
         setGlassOpacity(0.12);
-        setBackgroundWash(0.0);
+        setBackgroundWashBlack(0.0);
+        setBackgroundWashWhite(0.0);
         setIsLibraryItem(false);
       }
       setIsDeleteModalOpen(false);
@@ -357,7 +360,8 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
       backgroundTint: Number(backgroundTint),
       sectionOpacity: Number(sectionOpacity),
       glassOpacity: Number(glassOpacity),
-      backgroundWash: Number(backgroundWash),
+      backgroundWashBlack: Number(backgroundWashBlack),
+      backgroundWashWhite: Number(backgroundWashWhite),
       isLibraryItem
     };
     try {
@@ -448,11 +452,12 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                     <div className="field">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Background B/W Wash</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundWash * 100)}%</span></div>
-                      <input type="range" min="0" max="1" step="0.05" value={backgroundWash} onChange={(e) => setBackgroundWash(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Black Wash (Dark Mode)</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundWashBlack * 100)}%</span></div>
+                      <input type="range" min="0" max="1" step="0.05" value={backgroundWashBlack} onChange={(e) => setBackgroundWashBlack(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
                     </div>
                     <div className="field">
-                      {/* Empty field for layout balance */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}><span style={{ fontSize: '0.85rem', fontWeight: 600 }}>White Wash (Light Mode)</span><span className="glass" style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>{Math.round(backgroundWashWhite * 100)}%</span></div>
+                      <input type="range" min="0" max="1" step="0.05" value={backgroundWashWhite} onChange={(e) => setBackgroundWashWhite(parseFloat(e.target.value))} style={{ width: '100%', accentColor: primaryColor }} />
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -615,7 +620,7 @@ export default function ThemeModal({ isOpen, onClose, editingTheme, onSave, onDe
               }}>
                 <div style={{ position: 'absolute', inset: 0, backgroundImage: backgroundColor ? `url(${backgroundColor})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${backgroundBlur}px)`, transform: 'scale(1.1)' }} />
                 <div style={{ position: 'absolute', inset: 0, background: primaryColor, opacity: backgroundTint, mixBlendMode: previewIsDark ? 'soft-light' : 'overlay' }} />
-                <div style={{ position: 'absolute', inset: 0, background: previewIsDark ? '#000' : '#fff', opacity: previewIsDark ? (0.2 + 0.6 * backgroundWash) : (0.2 + 0.3 * backgroundWash) }} />
+                <div style={{ position: 'absolute', inset: 0, background: previewIsDark ? '#000' : '#fff', opacity: previewIsDark ? (0.2 + 0.6 * backgroundWashBlack) : (0.2 + 0.3 * backgroundWashWhite) }} />
                 <div style={{ position: 'relative', zIndex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><div style={{ width: '32px', height: '32px', borderRadius: '8px', background: primaryColor }} /><div style={{ fontSize: '1rem', fontWeight: 800, color: previewText }}>{dashboardTitle}</div></div>
                   <div className="glass" style={{ padding: '0.8rem 1rem', borderRadius: '12px', background: previewSectionBg, border: `1px solid ${primaryColor}15`, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Search size={14} style={{ opacity: 0.3 }} /><div style={{ height: '7px', width: '40%', background: previewText, opacity: 0.2, borderRadius: '4px' }} /></div>

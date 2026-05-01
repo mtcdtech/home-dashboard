@@ -59,6 +59,7 @@ interface TabLike {
   id: string;
   isGlobal?: boolean;
   isLibraryItem?: boolean;
+  isPublic?: boolean;
   isReadOnlySync?: boolean;
   blockedUsers?: UserRef[];
   allowedUsers?: UserRef[];
@@ -136,7 +137,7 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
   }
 
   // 1. Global org-wide visibility (overrides blocks per matrix).
-  if (tab.isGlobal) {
+  if (tab.isGlobal || tab.isPublic) {
     if (hasUser(tab.owners, ctx.userId)) return { role: "owner", source: "owner", pushed: false, locked: false, inherited: false };
     if (hasUser(tab.editors, ctx.userId)) return { role: "editor", source: "editor", pushed: false, locked: false, inherited: false };
     return { role: "viewer", source: "global", pushed: false, locked: false, inherited: true };

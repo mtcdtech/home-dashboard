@@ -27,6 +27,7 @@ export default function AdminLayout({
    children: React.ReactNode;
    session: any;
    avatarColor?: string | null;
+   dashboardGroup?: string | null;
 }) {
   const pathname = usePathname();
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -116,21 +117,12 @@ export default function AdminLayout({
                   {session?.user?.name || "User"}
                 </span>
                 <span style={{ fontSize: '0.65rem', opacity: 0.5, lineHeight: 1 }}>
-                  {userDepartment || "General"}
+                  {dashboardGroup || userDepartment || "General"}
                 </span>
               </div>
             </div>
           </div>
           
-          <button 
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} 
-            className="btn" 
-            style={{ padding: '0.5rem', color: 'var(--text)', opacity: 0.6 }}
-            title="Toggle Theme"
-          >
-            {mounted && resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
           <button 
             onClick={() => {
               import("next-auth/react").then(mod => mod.signOut({ callbackUrl: "/" }));
@@ -140,6 +132,15 @@ export default function AdminLayout({
             title="Sign Out"
           >
             <LogOut size={18} />
+          </button>
+
+          <button 
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} 
+            className="btn" 
+            style={{ padding: '0.5rem', color: 'var(--text)', opacity: 0.6 }}
+            title="Toggle Theme"
+          >
+            {mounted && resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           <a href="/" className="btn admin-dashboard-link" style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, border: '1px solid var(--glass-border)', display: 'flex', gap: '0.4rem', color: 'var(--text)', alignItems: 'center' }}>

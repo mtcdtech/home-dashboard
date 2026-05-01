@@ -23,6 +23,7 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
   const [icon, setIcon] = useState(tab?.icon || "");
   const [description, setDescription] = useState(tab?.description || "");
   const [isLibraryItem, setIsLibraryItem] = useState(tab?.isLibraryItem ?? false);
+  const [isPublic, setIsPublic] = useState(tab?.isPublic ?? false);
   const [themeId, setThemeId] = useState(tab?.themeId || tab?.theme?.id || "");
   const [columns, setColumns] = useState(tab?.columns || 3);
   const [query, setQuery] = useState("");
@@ -40,9 +41,9 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
     setSaving(true);
     try {
       if (tab) {
-        await actions.updateTab(tab.id, { title, icon, description, columns, themeId: themeId || null, isLibraryItem } as any);
+        await actions.updateTab(tab.id, { title, icon, description, columns, themeId: themeId || null, isLibraryItem, isPublic } as any);
       } else {
-        await actions.createTab({ title, icon, description, columns, themeId: themeId || null, isLibraryItem } as any);
+        await actions.createTab({ title, icon, description, columns, themeId: themeId || null, isLibraryItem, isPublic } as any);
       }
       onSaved();
     } catch (err) {
@@ -134,6 +135,22 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
                          <div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Other users can discover and add this workspace to their dashboard</div>
                       </div>
                    </label>
+
+                   {isAdmin && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.6rem 0.8rem', borderRadius: '12px', border: `1px solid ${isPublic ? 'var(--primary)' : 'var(--glass-border)'}`, background: isPublic ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent', transition: 'all 0.2s ease' }}>
+                         <input
+                            type="checkbox"
+                            checked={isPublic}
+                            onChange={(e) => setIsPublic(e.target.checked)}
+                            style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
+                         />
+                         <LayoutGrid size={16} style={{ opacity: 0.6, flexShrink: 0 }} />
+                         <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Public Access (No Login Required)</div>
+                            <div style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: '2px' }}>Allow anyone with the link to view this workspace. Admins only.</div>
+                         </div>
+                      </label>
+                   )}
 
                    {isLibraryItem && (
                       <div style={{ marginTop: '0.25rem' }}>

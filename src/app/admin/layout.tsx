@@ -20,8 +20,8 @@ export default async function AdminLayout({
   const userId = (session.user as any).id;
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { avatarColor: true }
+    select: { avatarColor: true, dashboardGroup: true }
   });
 
-  return <AdminLayoutClient session={session} avatarColor={user?.avatarColor}>{children}</AdminLayoutClient>;
+  return <AdminLayoutClient session={session} avatarColor={user?.avatarColor} dashboardGroup={user?.dashboardGroup}>{children}</AdminLayoutClient>;
 }

@@ -177,6 +177,7 @@ export async function createTab(data: { title: string; icon?: string; order?: nu
       organization: data.organization || null,
       columns: data.columns ?? 3,
       isLibraryItem: (data as any).isLibraryItem ?? false,
+      isPublic: (data as any).isPublic ?? false,
       description: (data as any).description || null,
       allowedUsers: data.allowedUserIds ? { connect: data.allowedUserIds.map(id => ({ id })) } : undefined,
       owners: effectiveUserId ? { connect: { id: effectiveUserId } } : undefined
@@ -203,6 +204,7 @@ export async function updateTab(id: string, data: { title: string; icon?: string
       organization: data.organization || null,
       columns: data.columns ?? 3,
       isLibraryItem,
+      isPublic: (data as any).isPublic ?? false,
       pushToNewUsers: (data as any).pushToNewUsers ?? false,
       description: (data as any).description || null,
       allowedUsers: data.allowedUserIds ? { set: data.allowedUserIds.map(uid => ({ id: uid })) } : undefined,

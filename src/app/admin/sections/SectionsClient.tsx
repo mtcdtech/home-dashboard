@@ -182,7 +182,7 @@ React.useEffect(() => {
       window.location.reload();
    };
 
-   const filtered = sections.filter((s: any) => s.title.toLowerCase().includes(searchQuery.toLowerCase()) && s.isLibraryItem);
+   const filtered = sections.filter((s: any) => (s.title || "").toLowerCase().includes(searchQuery.toLowerCase()) && s.isLibraryItem);
 
    return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

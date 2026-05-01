@@ -8,6 +8,7 @@ import * as actions from "@/app/admin/actions";
 export interface SectionModalProps {
   section: any | null; // if null, creating new
   targetTabId?: string; // used for creating new
+  targetColumn?: number; // used to place section in specific column
   onClose: () => void;
   onSaved: () => void;
   iconRegistry?: { selfhost: any[], walkx: any[] };
@@ -16,7 +17,7 @@ export interface SectionModalProps {
   isAdmin?: boolean;
 }
 
-export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegistry, onUploadIcon, currentUserId, isAdmin }: SectionModalProps) {
+export function SectionModal({ section, targetTabId, targetColumn, onClose, onSaved, iconRegistry, onUploadIcon, currentUserId, isAdmin }: SectionModalProps) {
   const [title, setTitle] = useState(section?.title || "");
   const [icon, setIcon] = useState(section?.icon || "");
   const [description, setDescription] = useState(section?.description || "");
@@ -39,7 +40,7 @@ export function SectionModal({ section, targetTabId, onClose, onSaved, iconRegis
         if (targetTabId) await actions.updateTabSectionCollapsed(section.id, targetTabId, defaultCollapsed);
       } else if (targetTabId) {
         const newSection = await actions.createSection({ title, icon, isLibraryItem, description, isGlobal: false } as any);
-        await actions.addSectionToTab(newSection.id, targetTabId);
+        await actions.addSectionToTab(newSection.id, targetTabId, targetColumn || 0);
         await actions.updateTabSectionCollapsed(newSection.id, targetTabId, defaultCollapsed);
       }
       onSaved();

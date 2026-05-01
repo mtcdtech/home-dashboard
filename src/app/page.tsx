@@ -10,19 +10,24 @@ export const dynamic = 'force-dynamic';
 export default async function Home() {
   const session = await auth();
 
+  let isPublicView = false;
   if (!session?.user) {
-    redirect("/login");
+    const publicTabsExist = await prisma.tab.count({ where: { isPublic: true } });
+    if (publicTabsExist === 0) {
+      redirect("/login");
+    }
+    isPublicView = true;
   }
 
-  const userEmail = session.user?.email;
+  const userEmail = session?.user?.email;
 
-  let dbUser = await prisma.user.findUnique({
+  let dbUser = userEmail ? await prisma.user.findUnique({
     where: { email: userEmail },
     select: { id: true, avatarColor: true, isAdmin: true, defaultTabId: true, layout: true, department: true, dashboardGroup: true }
-  });
+  }) : null;
 
-  const realUserId = dbUser?.id || (session.user as any)?.id;
-  const realIsAdmin = dbUser?.isAdmin || (session.user as any)?.isAdmin || false;
+  const realUserId = dbUser?.id || (session?.user as any)?.id || "public-user";
+  const realIsAdmin = dbUser?.isAdmin || (session?.user as any)?.isAdmin || false;
 
   // Impersonation: allow admins to view as another user
   let impersonateUserId: string | null = null;
@@ -41,11 +46,11 @@ export default async function Home() {
   const userId = dbUser?.id || realUserId;
   const userDepartment = impersonateUserId
     ? (await prisma.user.findUnique({ where: { id: userId }, select: { department: true } }))?.department
-    : dbUser?.department || session.user?.department;
+    : dbUser?.department || session?.user?.department || "Public";
   const rawUserDashboardGroup = impersonateUserId
     ? (await prisma.user.findUnique({ where: { id: userId }, select: { dashboardGroup: true } }))?.dashboardGroup
-    : dbUser?.dashboardGroup || session.user?.dashboardGroup;
-  const userDashboardGroup = rawUserDashboardGroup || "General";
+    : dbUser?.dashboardGroup || session?.user?.dashboardGroup;
+  const userDashboardGroup = rawUserDashboardGroup || "Public";
   // When impersonating, use target user's access rules. Admins retain admin view.
   const isAdminView = (realIsAdmin && !impersonateUserId) || (dbUser?.isAdmin || false);
   const isAdmin = isAdminView || false;
@@ -161,6 +166,7 @@ export default async function Home() {
   const shapedTabs = tabs
     .map((tab: any) => ({ tab, access: resolveTabAccess(tab, userCtx) }))
     .filter(({ tab, access }: any) => {
+      if (isPublicView) return tab.isPublic;
       if (access.role === "none") return false;
       if (isAdminView) return true;
       if (access.locked) return true;
@@ -244,11 +250,11 @@ export default async function Home() {
       globalSettings={JSON.parse(JSON.stringify(globalSettings || { logoUrlLight: "", logoUrlDark: "", logoUrlSquareLight: "", logoUrlSquareDark: "", systemThemeColor: "#3b82f6" }))}
       userDepartment={userDashboardGroup} 
       isAdmin={isAdmin}
-      currentUserId={userId}
-      userName={impersonateUserId ? (dbUser as any)?.name || (dbUser as any)?.email : session.user.name}
+      currentUserId={session?.user ? userId : null}
+      userName={impersonateUserId ? (dbUser as any)?.name || (dbUser as any)?.email : (session?.user?.name || "Guest")}
       avatarColor={avatarColor}
-      canEditContent={isAdmin || (session.user as any).canEditContent || false}
-      iconSize={(session.user as any).iconSize || (activeTheme as any)?.iconSize || 48}
+      canEditContent={isAdmin || (session?.user as any)?.canEditContent || false}
+      iconSize={(session?.user as any)?.iconSize || (activeTheme as any)?.iconSize || 48}
       libraryTabs={JSON.parse(JSON.stringify(filteredLibraryTabs || []))}
       librarySections={JSON.parse(JSON.stringify(filteredLibrarySections || []))}
       allThemes={JSON.parse(JSON.stringify(allThemes || []))}
