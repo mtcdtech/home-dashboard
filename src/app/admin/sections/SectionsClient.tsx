@@ -71,6 +71,10 @@ export default function SectionsClient({
    const themeTintColor = activeTheme?.tintColor || '#be123c';
 
    const [sections, setSections] = useState<Section[]>(initialSections.filter(s => !s.isReadOnlySync));
+// Ensure departmentAccess is always an array to avoid crashes
+React.useEffect(() => {
+  setSections(prev => prev.map(sec => ({ ...sec, departmentAccess: Array.isArray(sec.departmentAccess) ? sec.departmentAccess : [] })));
+}, []);
 
    function getContrastText(hexcolor: string) {
       if (!hexcolor || hexcolor.length < 7) return '#fff';
