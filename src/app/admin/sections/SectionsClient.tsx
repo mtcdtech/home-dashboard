@@ -86,15 +86,15 @@ export default function SectionsClient({
    // Check if a section is pushed to a given target via its parent workspace push rules
    function getSectionPushInfo(section: Section, targetType: string, targetId?: string): { pushed: boolean; viaTab?: string } {
       for (const tab of tabs) {
-         const sectionInTab = tab.tabSections?.some(ts => ts.sectionId === section.id);
+         const sectionInTab = Array.isArray(tab.tabSections) ? tab.tabSections.some(ts => ts.sectionId === section.id) : false;
          if (!sectionInTab) continue;
-         const matchingRule = tab.pushRules?.find(r => {
+         const matchingRule = Array.isArray(tab.pushRules) ? tab.pushRules.find(r => {
             if (r.targetType !== targetType) return false;
             if (targetType === 'global') return true;
             if (targetType === 'department') return (r.targetId || '').toLowerCase().trim() === (targetId || '').toLowerCase().trim();
             if (targetType === 'user') return r.targetId === targetId;
             return false;
-         });
+         }) : undefined;
          if (matchingRule) return { pushed: true, viaTab: tab.title };
       }
       return { pushed: false };
@@ -355,8 +355,8 @@ export default function SectionsClient({
                                     </td>
                                     {filtered.map((section: any) => {
                                        const stagingRole = modifiedDepts[`${dept}_${section.id}`];
-                                       const savedRole = section.departmentAccess?.find((da: any) => da.department === dept)?.role || "none";
-                                       const displayRole = stagingRole !== undefined ? stagingRole : savedRole;
+                                       const savedRole = Array.isArray(section.departmentAccess) ? section.departmentAccess.find((da: any) => da.department === dept)?.role : "none";
+                                       const displayRole = stagingRole !== undefined ? stagingRole : (savedRole || "none");
                                        const isEntireOrg = section.isGlobal;
                                        const pushInfo = isEntireOrg
                                           ? getSectionPushInfo(section, 'global')
@@ -519,10 +519,10 @@ export default function SectionsClient({
                                           </div>
                                        </td>
                                        {filtered.map((section: any) => {
-                                          const isOwner = section.owners?.some((o: any) => o.id === user.id);
-                                          const isEditor = section.editors?.some((e: any) => e.id === user.id);
-                                          const isViewer = section.allowedUsers?.some((a: any) => a.id === user.id);
-                                          const isBlocked = section.blockedUsers?.some((b: any) => b.id === user.id);
+                                          const isOwner = Array.isArray(section.owners) && section.owners.some((o: any) => o.id === user.id);
+                                          const isEditor = Array.isArray(section.editors) && section.editors.some((e: any) => e.id === user.id);
+                                          const isViewer = Array.isArray(section.allowedUsers) && section.allowedUsers.some((a: any) => a.id === user.id);
+                                          const isBlocked = Array.isArray(section.blockedUsers) && section.blockedUsers.some((b: any) => b.id === user.id);
 
                                           let inheritedRoleFromTabs = 'none';
                                           const userPushDirect = getSectionPushInfo(section, 'user', user.id);
@@ -533,18 +533,19 @@ export default function SectionsClient({
                                           if (userPushDirect.pushed || userPushDept.pushed || userPushGlobal.pushed) {
                                              inheritedRoleFromTabs = 'viewer';
                                           } else {
-                                             const hasTabAccess = section.tabSections?.some((ts: any) => {
+                                             const hasTabAccess = Array.isArray(section.tabSections) ? section.tabSections.some((ts: any) => {
                                                 const parentTab = tabs.find(t => t.id === ts.tabId);
                                                 if (!parentTab) return false;
-                                                return parentTab.owners?.some((o: any) => o.id === user.id) ||
-                                                       parentTab.editors?.some((e: any) => e.id === user.id) ||
-                                                       parentTab.allowedUsers?.some((a: any) => a.id === user.id);
-                                             });
+                                                return (Array.isArray(parentTab.owners) && parentTab.owners.some((o: any) => o.id === user.id)) ||
+                                                       (Array.isArray(parentTab.editors) && parentTab.editors.some((e: any) => e.id === user.id)) ||
+                                                       (Array.isArray(parentTab.allowedUsers) && parentTab.allowedUsers.some((a: any) => a.id === user.id));
+                                             }) : false;
                                              if (hasTabAccess) inheritedRoleFromTabs = 'viewer';
                                           }
 
                                           const role = isOwner ? "owner" : isEditor ? "editor" : isViewer ? "viewer" : (isBlocked ? "none" : (inheritedRoleFromTabs !== 'none' ? 'inherited' : 'none'));
-                                          let effectiveRole = user.isAdmin ? "owner" : (role === "inherited" ? inheritedRoleFromTabs : role);
+                                          const isLocalAdmin = user.email === 'admin@local' || user.name === 'Local Admin';
+                                          let effectiveRole = isLocalAdmin ? "owner" : (role === "inherited" ? inheritedRoleFromTabs : role);
 
                                           return (
                                              <td key={section.id} style={{ padding: '0.4rem 0.6rem', textAlign: 'center', minWidth: '150px', whiteSpace: 'nowrap' }}>
@@ -554,7 +555,7 @@ export default function SectionsClient({
                                                       style={{
                                                          width: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden', minHeight: '34px', minWidth: '130px',
                                                          border: effectiveRole === "owner" ? '1px solid var(--primary)' : '1px solid rgba(var(--primary-rgb), 0.2)',
-                                                         background: user.isAdmin
+                                                         background: isLocalAdmin
                                                             ? 'repeating-linear-gradient(45deg, rgba(var(--primary-rgb), 0.25), rgba(var(--primary-rgb), 0.25) 10px, rgba(var(--primary-rgb), 0.35) 10px, rgba(var(--primary-rgb), 0.35) 20px)'
                                                             : (effectiveRole === "owner" ? 'var(--primary)' : effectiveRole === "editor" ? 'rgba(var(--primary-rgb), 0.12)' : 'rgba(var(--primary-rgb), 0.05)'),
                                                          display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -562,11 +563,11 @@ export default function SectionsClient({
                                                    >
                                                       <div style={{
                                                          position: 'absolute', pointerEvents: 'none',
-                                                         color: (effectiveRole === "owner" && !user.isAdmin) ? ownerTextColor : 'var(--text)',
+                                                         color: (effectiveRole === "owner" && !isLocalAdmin) ? ownerTextColor : 'var(--text)',
                                                          fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap',
                                                          zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.35rem'
                                                       }}>
-                                                         {user.isAdmin ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER (ADMIN)</> : (
+                                                         {isLocalAdmin ? <><ShieldCheck size={11} strokeWidth={3} /> OWNER (ADMIN)</> : (
                                                             role === 'inherited'
                                                                ? <><ArrowDownLeft size={11} strokeWidth={3} /> INHERITED (VIEWER)</>
                                                                : (
@@ -578,7 +579,7 @@ export default function SectionsClient({
                                                          )}
                                                       </div>
                                                       <select
-                                                         disabled={user.isAdmin}
+                                                         disabled={isLocalAdmin}
                                                          value={role}
                                                          onChange={async (e) => {
                                                             const newRole = e.target.value;
