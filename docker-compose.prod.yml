@@ -11,7 +11,7 @@ services:
       - NEXTAUTH_URL=https://home.server.mtcd.org
       - AUTH_URL=https://home.server.mtcd.org
       - AUTH_TRUST_HOST=true
-      - AUTH_SECRET=85Fa8SnqPbz5f7PDa8thsn+bGAAO0m/cjW0l6WZSrF4=
+      - AUTH_SECRET=${AUTH_SECRET:?set AUTH_SECRET}
       - AUTHENTIK_PCO_CLIENT_ID=${AUTHENTIK_PCO_CLIENT_ID}
       - AUTHENTIK_PCO_CLIENT_SECRET=${AUTHENTIK_PCO_CLIENT_SECRET}
       - AUTHENTIK_PCO_ISSUER=${AUTHENTIK_PCO_ISSUER:-https://auth.server.mtcd.org/application/o/home-dashboard-pco/}
