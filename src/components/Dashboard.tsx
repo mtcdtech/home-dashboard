@@ -677,7 +677,7 @@ export function Dashboard({
          {/* Tab Selection */}
          {(tabs.length > 1 || showEditControls) && !searchQuery.trim() && (
             <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent', position: 'relative' }}>
-               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: activeTabObj ? `${Math.max(1600, activeTabObj.columns * 400)}px` : '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
                   {tabs.map(tab => {
                      const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor;
                      const isActiveTab = activeTabId === tab.id;
@@ -804,7 +804,7 @@ export function Dashboard({
          )}
 
          {/* Main Content Area */}
-         <div className="dashboard-main-content" style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden' }}>
+         <div className="dashboard-main-content" style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: activeTabObj ? `${Math.max(1600, activeTabObj.columns * 400)}px` : '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden' }}>
             {displayedTabs.map(tab => {
                const isShared = tab.isLibraryItem || tab.organization || (tab.allowedUsers && tab.allowedUsers.length > 0) || (tab.departmentAccess && tab.departmentAccess.length > 0);
                return (
