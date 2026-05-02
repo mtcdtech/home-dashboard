@@ -73,12 +73,12 @@ export const authConfig = {
         return true;
       }
 
-      // 🔐 Global protection signal
-      if (!isLoggedIn) return false;
+      // 🔐 Global protection signal - removed to allow page.tsx to handle public tab logic
+      // if (!isLoggedIn) return false;
 
       // 🛡️ Admin protection signal
       if (nextUrl.pathname.startsWith("/admin")) {
-        return true;
+        return isLoggedIn ? true : false;
       }
 
       return true;
