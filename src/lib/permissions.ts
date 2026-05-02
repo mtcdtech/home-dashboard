@@ -143,17 +143,9 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
     return { role: "viewer", source: "global", pushed: false, locked: false, inherited: true };
   }
 
-  // 2. Explicit user deny.
+  // 3. Explicit user deny.
   if (hasUser(tab.blockedUsers, ctx.userId)) {
     return { role: "none", source: "blocked", pushed: false, locked: false, inherited: false };
-  }
-
-  // 3. Non-catalog: only visible to owners.
-  if (!tab.isLibraryItem) {
-    if (hasUser(tab.owners, ctx.userId)) {
-      return { role: "owner", source: "non-catalog-owner", pushed: false, locked: false, inherited: false };
-    }
-    return NONE;
   }
 
   // 4. Owner / editor / allowed (explicit user grants beat push).
@@ -179,7 +171,10 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
     return { role: "viewer", source: pushSource(push), pushed: true, locked: !!push.locked, inherited: false };
   }
 
-
+  // 7. Non-catalog fallback: if none of the explicit or push grants matched, it's hidden.
+  if (!tab.isLibraryItem) {
+    return NONE;
+  }
 
   // 8. Catalog fallback — catalog tabs are visible to everyone by default.
   // Being "in the catalog" means anyone can discover and add this workspace.
