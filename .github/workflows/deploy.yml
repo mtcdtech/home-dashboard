@@ -45,10 +45,17 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Trigger Portainer Updates
+            - name: Trigger Portainer Updates
         env:
           AUTH_MICROSOFT_ENTRA_ID_SECRET: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           PORTAINER_API_KEY_CHURCH: ${{ secrets.PORTAINER_API_KEY_CHURCH }}
           PORTAINER_API_KEY_ABRAHAM: ${{ secrets.PORTAINER_API_KEY_ABRAHAM }}
+          AUTHENTIK_PCO_CLIENT_ID: ${{ secrets.AUTHENTIK_PCO_CLIENT_ID }}
+          AUTHENTIK_PCO_CLIENT_SECRET: ${{ secrets.AUTHENTIK_PCO_CLIENT_SECRET }}
+          AUTHENTIK_PCO_ISSUER: ${{ secrets.AUTHENTIK_PCO_ISSUER }}
+          AUTHENTIK_MS_CLIENT_ID: ${{ secrets.AUTHENTIK_MS_CLIENT_ID }}
+          AUTHENTIK_MS_CLIENT_SECRET: ${{ secrets.AUTHENTIK_MS_CLIENT_SECRET }}
+          AUTHENTIK_MS_ISSUER: ${{ secrets.AUTHENTIK_MS_ISSUER }}
         run: python update_portainer.py
+
