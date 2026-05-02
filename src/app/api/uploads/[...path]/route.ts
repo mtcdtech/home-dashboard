@@ -8,8 +8,20 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path: pathSegments } = await params;
+  
+  // Prevent path traversal
+  if (pathSegments.some(segment => segment === '..' || segment === '.' || segment.includes('/'))) {
+    return new NextResponse("Invalid path", { status: 400 });
+  }
+
   const path = pathSegments.join("/");
-  const filePath = join(process.cwd(), "public", "uploads", path);
+  const baseUploadsDir = join(process.cwd(), "public", "uploads");
+  const filePath = join(baseUploadsDir, path);
+
+  // Double check that the resolved path is inside the uploads directory
+  if (!filePath.startsWith(baseUploadsDir)) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
 
   if (!existsSync(filePath)) {
     return new NextResponse("Not Found", { status: 404 });
