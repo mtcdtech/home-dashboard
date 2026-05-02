@@ -7,16 +7,25 @@ import { buildUserContext, resolveTabAccess, resolveSectionAccess } from "@/lib/
 
 export const dynamic = 'force-dynamic';
 
-export default async function Home() {
+export default async function Home(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const session = await auth();
+  const searchParams = await props.searchParams;
+  const requestedTab = searchParams?.tab as string | undefined;
 
   let isPublicView = false;
   if (!session?.user) {
-    const publicTabsExist = await prisma.tab.count({ where: { isPublic: true } });
-    if (publicTabsExist === 0) {
+    if (requestedTab) {
+      // Only allow access if the explicitly requested tab is public
+      const requestedIsPublic = await prisma.tab.count({ where: { id: requestedTab, isPublic: true } });
+      if (requestedIsPublic > 0) {
+        isPublicView = true;
+      } else {
+        redirect("/login");
+      }
+    } else {
+      // Direct access to root without a tab parameter redirects to login
       redirect("/login");
     }
-    isPublicView = true;
   }
 
   const userEmail = session?.user?.email;
