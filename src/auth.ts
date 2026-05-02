@@ -54,16 +54,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         
         let department = "";
         let isGroupAdmin = false;
+        const groups: string[] = (profile?.groups as string[]) || [];
 
         if (account?.provider === "microsoft-entra-id" && profile) {
-           department = profile.department || "";
-           // Microsoft Graph API lookup for department could go here if not in profile
-           // Let's rely on the profile.department for now, or fallback to ""
+           department = (profile as any).department || "";
         } else if (account?.provider === "synology" && profile) {
-           const synProfile = profile as any;
-           isGroupAdmin = (synProfile.groups || []).includes("administrators");
+           isGroupAdmin = groups.includes("administrators");
            department = isGroupAdmin ? "Admin" : "Synology";
            console.log("Synology SSO Sign-in - User:", user.email, "isGroupAdmin:", isGroupAdmin);
+        } else if (account?.provider === "authentik-pco" || account?.provider === "authentik-ms") {
+           // Authentik returns groups as an array of names from the property mapping
+           isGroupAdmin =
+             groups.includes("app-home-dashboard-global-admins") ||
+             groups.includes("app-home-dashboard-admins") ||
+             groups.includes("Authentik Admins");
+           // Department mapping is left blank by default; the existing dashboardGroup
+           // upsert logic will fall back to "General" for new users.
+           department = "";
         }
 
         (user as any).department = department;

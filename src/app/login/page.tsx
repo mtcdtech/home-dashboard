@@ -32,6 +32,8 @@ export default async function LoginPage() {
         loginTheme={loginTheme}
         hasMicrosoft={!!process.env.AUTH_MICROSOFT_ENTRA_ID_ID && !process.env.NEXTAUTH_URL?.includes("abraham16")}
         hasSynology={!!process.env.SYNOLOGY_CLIENT_ID}
+        hasAuthentikPco={!!process.env.AUTHENTIK_PCO_CLIENT_ID}
+        hasAuthentikMs={!!process.env.AUTHENTIK_MS_CLIENT_ID}
       />
     </Suspense>
   );

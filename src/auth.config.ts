@@ -3,6 +3,58 @@ import type { NextAuthConfig } from "next-auth";
 
 const providers: any[] = [];
 
+// Authentik OIDC -> Planning Center (auto-redirect via dedicated single-source flow)
+if (process.env.AUTHENTIK_PCO_CLIENT_ID) {
+  providers.push({
+    id: "authentik-pco",
+    name: "Planning Center",
+    type: "oidc",
+    issuer: process.env.AUTHENTIK_PCO_ISSUER,            // https://auth.server.mtcd.org/application/o/home-dashboard-pco/
+    clientId: process.env.AUTHENTIK_PCO_CLIENT_ID,
+    clientSecret: process.env.AUTHENTIK_PCO_CLIENT_SECRET,
+    authorization: { params: { scope: "openid email profile groups" } },
+    checks: ["pkce", "state"],
+    allowDangerousEmailAccountLinking: true,
+    profile(profile: any) {
+      return {
+        id: profile.sub,
+        name: profile.name || profile.preferred_username,
+        email: profile.email,
+        image: profile.picture || null,
+        department: "",      // populated in signIn callback from groups
+        isAdmin: false,
+      };
+    },
+  });
+}
+
+// Authentik OIDC -> Microsoft Entra (auto-redirect via dedicated single-source flow)
+if (process.env.AUTHENTIK_MS_CLIENT_ID) {
+  providers.push({
+    id: "authentik-ms",
+    name: "Microsoft",
+    type: "oidc",
+    issuer: process.env.AUTHENTIK_MS_ISSUER,             // https://auth.server.mtcd.org/application/o/home-dashboard-ms/
+    clientId: process.env.AUTHENTIK_MS_CLIENT_ID,
+    clientSecret: process.env.AUTHENTIK_MS_CLIENT_SECRET,
+    authorization: { params: { scope: "openid email profile groups" } },
+    checks: ["pkce", "state"],
+    allowDangerousEmailAccountLinking: true,
+    profile(profile: any) {
+      return {
+        id: profile.sub,
+        name: profile.name || profile.preferred_username,
+        email: profile.email,
+        image: profile.picture || null,
+        department: "",
+        isAdmin: false,
+      };
+    },
+  });
+}
+
+// Keeping MicrosoftEntraID commented per plan instructions in case of rollback
+/*
 if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {
   providers.push(MicrosoftEntraID({
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
@@ -22,6 +74,7 @@ if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {
       },
   }));
 }
+*/
 
 if (process.env.SYNOLOGY_CLIENT_ID) {
   providers.push({

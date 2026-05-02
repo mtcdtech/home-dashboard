@@ -11,7 +11,7 @@ const IconComponent = ({ name, size = 24, color = "currentColor" }: { name: stri
   return <Icon size={size} color={color} />;
 };
 
-export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicrosoft, hasSynology }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any, hasMicrosoft?: boolean, hasSynology?: boolean }) {
+export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicrosoft, hasSynology, hasAuthentikPco, hasAuthentikMs }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any, hasMicrosoft?: boolean, hasSynology?: boolean, hasAuthentikPco?: boolean, hasAuthentikMs?: boolean }) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
@@ -156,7 +156,73 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
           </div>
         )}
 
-        {hasMicrosoft && (
+        {hasAuthentikPco && (
+          <button 
+            onClick={() => signIn("authentik-pco", { callbackUrl: "/" })}
+            style={{ 
+              width: '100%',
+              padding: '1rem', 
+              borderRadius: '8px', 
+              background: 'linear-gradient(90deg, #449bf2, #5dd4a7)', 
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '1rem',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              marginBottom: '1rem',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.filter = 'brightness(1.1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.filter = 'brightness(1)';
+            }}
+          >
+            <img src="/brand/pco.png" alt="" width={24} height={24} />
+            Sign in with Planning Center
+          </button>
+        )}
+
+        {hasAuthentikMs && (
+          <button 
+            onClick={() => signIn("authentik-ms", { callbackUrl: "/" })}
+            style={{ 
+              width: '100%',
+              padding: '1rem', 
+              borderRadius: '8px', 
+              background: '#000000', 
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '1rem',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              marginBottom: '1rem',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.filter = 'brightness(1.5)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.filter = 'brightness(1)';
+            }}
+          >
+            <img src="/brand/ms-symbol.svg" alt="" width={24} height={24} />
+            Sign in with Microsoft (@mtcd.org)
+          </button>
+        )}
+
+        {hasMicrosoft && !hasAuthentikMs && (
           <button 
             onClick={() => signIn("microsoft-entra-id", { callbackUrl: "/" })}
             style={{ 

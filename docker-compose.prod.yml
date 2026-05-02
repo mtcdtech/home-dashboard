@@ -12,6 +12,12 @@ services:
       - AUTH_URL=https://home.server.mtcd.org
       - AUTH_TRUST_HOST=true
       - AUTH_SECRET=85Fa8SnqPbz5f7PDa8thsn+bGAAO0m/cjW0l6WZSrF4=
+      - AUTHENTIK_PCO_CLIENT_ID=${AUTHENTIK_PCO_CLIENT_ID}
+      - AUTHENTIK_PCO_CLIENT_SECRET=${AUTHENTIK_PCO_CLIENT_SECRET}
+      - AUTHENTIK_PCO_ISSUER=${AUTHENTIK_PCO_ISSUER:-https://auth.server.mtcd.org/application/o/home-dashboard-pco/}
+      - AUTHENTIK_MS_CLIENT_ID=${AUTHENTIK_MS_CLIENT_ID}
+      - AUTHENTIK_MS_CLIENT_SECRET=${AUTHENTIK_MS_CLIENT_SECRET}
+      - AUTHENTIK_MS_ISSUER=${AUTHENTIK_MS_ISSUER:-https://auth.server.mtcd.org/application/o/home-dashboard-ms/}
     volumes:
       - homedashboard_personal_uploads:/app/public/uploads
     depends_on:

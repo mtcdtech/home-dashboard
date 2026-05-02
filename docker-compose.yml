@@ -20,6 +20,12 @@ services:
       - NEXT_TELEMETRY_DISABLED=1
       - DATABASE_URL=postgresql://user:password@db:5432/dashboard?schema=public
       - AUTH_TRUST_HOST=true
+      - AUTHENTIK_PCO_CLIENT_ID=${AUTHENTIK_PCO_CLIENT_ID}
+      - AUTHENTIK_PCO_CLIENT_SECRET=${AUTHENTIK_PCO_CLIENT_SECRET}
+      - AUTHENTIK_PCO_ISSUER=${AUTHENTIK_PCO_ISSUER:-https://auth.server.mtcd.org/application/o/home-dashboard-pco/}
+      - AUTHENTIK_MS_CLIENT_ID=${AUTHENTIK_MS_CLIENT_ID}
+      - AUTHENTIK_MS_CLIENT_SECRET=${AUTHENTIK_MS_CLIENT_SECRET}
+      - AUTHENTIK_MS_ISSUER=${AUTHENTIK_MS_ISSUER:-https://auth.server.mtcd.org/application/o/home-dashboard-ms/}
     depends_on:
       db:
         condition: service_healthy
