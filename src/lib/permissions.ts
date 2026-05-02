@@ -136,13 +136,6 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
     }
   }
 
-  // 1. Global org-wide visibility (overrides blocks per matrix).
-  if (tab.isGlobal || tab.isPublic) {
-    if (hasUser(tab.owners, ctx.userId)) return { role: "owner", source: "owner", pushed: false, locked: false, inherited: false };
-    if (hasUser(tab.editors, ctx.userId)) return { role: "editor", source: "editor", pushed: false, locked: false, inherited: false };
-    return { role: "viewer", source: "global", pushed: false, locked: false, inherited: true };
-  }
-
   // 3. Explicit user deny.
   if (hasUser(tab.blockedUsers, ctx.userId)) {
     return { role: "none", source: "blocked", pushed: false, locked: false, inherited: false };
@@ -171,12 +164,17 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
     return { role: "viewer", source: pushSource(push), pushed: true, locked: !!push.locked, inherited: false };
   }
 
-  // 7. Non-catalog fallback: if none of the explicit or push grants matched, it's hidden.
+  // 7. Global/Public visibility — if it's public, everyone gets viewer access.
+  if ((tab as any).isGlobal || tab.isPublic) {
+    return { role: "viewer", source: "global", pushed: false, locked: false, inherited: true };
+  }
+
+  // 8. Non-catalog fallback: if none of the explicit or push grants matched, it's hidden.
   if (!tab.isLibraryItem) {
     return NONE;
   }
 
-  // 8. Catalog fallback — catalog tabs are visible to everyone by default.
+  // 9. Catalog fallback — catalog tabs are visible to everyone by default.
   // Being "in the catalog" means anyone can discover and add this workspace.
   // If access needs to be restricted, use department access or block rules above.
   return { role: "viewer", source: "global", pushed: false, locked: false, inherited: true };
