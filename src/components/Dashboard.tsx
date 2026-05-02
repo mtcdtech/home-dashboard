@@ -688,8 +688,8 @@ export function Dashboard({
                            className="workspace-tab-btn"
                            onClick={() => setActiveTabId(tab.id)}
                            draggable={showEditControls}
-                           onDragStart={(e) => { if (showEditControls) { setDraggedTabId(tab.id); e.dataTransfer.effectAllowed = "move"; } }}
-                           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverTabId(tab.id); }}
+                           onDragStart={(e) => { if (!showEditControls) { e.preventDefault(); return; } setDraggedTabId(tab.id); e.dataTransfer.effectAllowed = "move"; }}
+                           onDragOver={(e) => { if (!showEditControls) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverTabId(tab.id); }}
                            onDragLeave={() => setDragOverTabId(null)}
                            onDrop={(e) => { handleTabDrop(e, tab.id); setDragOverTabId(null); }}
                            style={{
@@ -863,8 +863,8 @@ export function Dashboard({
                                     <div
                                        key={section.id}
                                        draggable={showEditControls && hasTabEditAccess(tab)}
-                                       onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", section.id); e.stopPropagation(); } }}
-                                       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = draggedSectionId?.startsWith("catalogSection:") ? "copy" : "move"; e.stopPropagation(); setDragOverSectionId(section.id); }}
+                                       onDragStart={(e) => { if (!(showEditControls && hasTabEditAccess(tab))) { e.preventDefault(); return; } setDraggedSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", section.id); e.stopPropagation(); }}
+                                       onDragOver={(e) => { if (!(showEditControls && hasTabEditAccess(tab))) return; e.preventDefault(); e.dataTransfer.dropEffect = draggedSectionId?.startsWith("catalogSection:") ? "copy" : "move"; e.stopPropagation(); setDragOverSectionId(section.id); }}
                                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setDragOverSectionId(null); } }}
                                        onDragEnd={() => { setDraggedSectionId(null); setDragOverSectionId(null); setDragOverColIdx(null); }}
                                        onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleSectionDrop(e, section.id, tab.id, colIdx); }}
@@ -917,8 +917,8 @@ export function Dashboard({
                                                 <div
                                                    key={bookmark.id}
                                                    draggable={showEditControls && hasTabEditAccess(tab)}
-                                                   onDragStart={(e) => { if (showEditControls && hasTabEditAccess(tab)) { setDraggedBookmarkId(bookmark.id); setDraggedBookmarkSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", bookmark.id); e.stopPropagation(); } }}
-                                                   onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; setDragOverBookmarkId(bookmark.id); }}
+                                                   onDragStart={(e) => { if (!(showEditControls && hasTabEditAccess(tab))) { e.preventDefault(); return; } setDraggedBookmarkId(bookmark.id); setDraggedBookmarkSectionId(section.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", bookmark.id); e.stopPropagation(); }}
+                                                   onDragOver={(e) => { if (!(showEditControls && hasTabEditAccess(tab))) return; e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; setDragOverBookmarkId(bookmark.id); }}
                                                    onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverBookmarkId(null); }}
                                                    onDragEnd={() => { setDraggedBookmarkId(null); setDraggedBookmarkSectionId(null); setDragOverBookmarkId(null); }}
                                                    onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleBookmarkDrop(e, bookmark.id, section.id); }}
