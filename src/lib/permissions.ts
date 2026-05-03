@@ -141,6 +141,13 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
     return { role: "none", source: "blocked", pushed: false, locked: false, inherited: false };
   }
 
+  
+  // 3.5 Department Access
+  const deptMatch = tab.departmentAccess?.find(da => normDept(da.department) === normDept(ctx.department));
+  if (deptMatch && deptMatch.role === "none") {
+     return { role: "none", source: "department-deny", pushed: false, locked: false, inherited: true };
+  }
+
   // 4. Owner / editor / allowed (explicit user grants beat push).
   const ownerHit = hasUser(tab.owners, ctx.userId);
   const editorHit = hasUser(tab.editors, ctx.userId);
@@ -157,6 +164,17 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
   }
   if (allowedHit) {
     return { role: "viewer", source: "allowed", pushed: !!push, locked: !!push?.locked, inherited: false };
+  }
+
+  
+  if (deptMatch && deptMatch.role === "owner") {
+     return { role: "owner", source: "department", pushed: !!push, locked: !!push?.locked, inherited: true };
+  }
+  if (deptMatch && deptMatch.role === "editor") {
+     return { role: "editor", source: "department", pushed: !!push, locked: !!push?.locked, inherited: true };
+  }
+  if (deptMatch && deptMatch.role === "viewer") {
+     return { role: "viewer", source: "department", pushed: !!push, locked: !!push?.locked, inherited: true };
   }
 
   // 6. Push grants viewer minimum.
@@ -202,6 +220,13 @@ export function resolveSectionAccess(
     if (hasUser(section.owners, ctx.userId)) return { role: "owner", source: "owner", pushed: false, locked: false, inherited: false };
     if (hasUser(section.editors, ctx.userId)) return { role: "editor", source: "editor", pushed: false, locked: false, inherited: false };
     return { role: "viewer", source: "global", pushed: false, locked: false, inherited: true };
+  }
+
+  
+  // 1.5 Department Access
+  const deptMatch = section.departmentAccess?.find(da => normDept(da.department) === normDept(ctx.department));
+  if (deptMatch && deptMatch.role === "none") {
+     return { role: "none", source: "department-deny", pushed: tabAccess.pushed, locked: tabAccess.locked, inherited: true };
   }
 
   // 2. Explicit user deny.

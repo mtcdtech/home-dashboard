@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { resolveTabAccess } from "./permissions";
+import { resolveTabAccess, buildUserContext } from "./permissions";
 import { prisma } from "./prisma";
 
 export async function requireSession() {
@@ -29,12 +29,24 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
       editors: true,
       departmentAccess: true,
       pushRules: true,
+      allowedUsers: true,
     }
   });
 
   if (!tabObj) throw new Error("Tab not found");
+  
+  const targetUser = await prisma.user.findUnique({
+    where: { id: user.id as string },
+    include: { allowedSections: true }
+  });
+  if (!targetUser) throw new Error("User not found");
 
-  const access = await resolveTabAccess(tabObj, user.id);
+  const context = buildUserContext({
+    userId: targetUser.id,
+    dashboardGroup: targetUser.dashboardGroup || targetUser.department,
+    isAdminView: targetUser.isAdmin
+  });
+  const access = resolveTabAccess(tabObj, context);
   
   if (action === 'owner' && access.role !== 'owner') {
     throw new Error("Forbidden: Tab owner access required");

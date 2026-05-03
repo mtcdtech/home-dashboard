@@ -1,192 +1,241 @@
-You are working in this repo:
+You are working in:
 
 /Users/benny2168/Dockers/MTCD/docker/antigravity/mtcd-workspaces/homedashboard
 
+Branch:
+security-efficiency-hardening
+
 Goal:
-Harden the Home Dashboard app for security first, then address the highest-impact efficiency issues. Do this in small, reviewable commits. Do not deploy until all validation passes.
+Fix the hardening branch so it builds, passes tests, and is safe to review again. Do not merge to main. Do not deploy.
 
-Important:
-This is a church member-facing dashboard app. Security is higher priority than performance. Fix critical auth, authorization, file access, and SSRF risks before refactoring efficiency.
+Current review verdict:
+FAIL — not safe to merge or deploy.
 
-Essential task order:
+You did make some good progress:
+- `/api/debug-auth` removed
+- `AUTH_SECRET` de-hardcoded
+- dev credentials gated
+- upload path traversal partially/fully addressed
 
-1. Create a safety branch and backup
-   - Create a new branch:
-     `security-efficiency-hardening`
-   - Save a pre-work diff/status backup to `/tmp/homedashboard-hardening/`.
-   - Do not overwrite uncommitted work without preserving it.
+But the branch currently has build-breaking and security-breaking issues that must be fixed.
 
-2. Remove hardcoded admin credentials
-   Files to inspect:
-   - `src/auth.ts`
-   - `src/auth.config.ts`
+Required fix order:
 
-   Requirements:
-   - Remove or disable any `admin/admin` credentials provider behavior in production.
-   - If a dev-only credentials provider is retained, guard it with an explicit env var like `ENABLE_DEV_CREDENTIALS=true` and `NODE_ENV !== "production"`.
-   - Never auto-create a production admin from hardcoded credentials.
-   - Add clear error behavior when credentials login is disabled.
+1. Restore a clean validation baseline
 
-3. Rotate/remove committed production secrets
-   Files to inspect:
-   - `docker-compose.prod.yml`
-   - `.env*`
-   - repo root config files
+Run:
 
-   Requirements:
-   - Remove committed `AUTH_SECRET` or any real secret values.
-   - Replace with `${AUTH_SECRET:?set AUTH_SECRET}` or equivalent environment reference.
-   - Add `.env`, `.env.local`, `.env.production`, secrets, tokens, and generated logs to `.gitignore`.
-   - Do not commit new secret values.
-   - Add a note to `README` or deployment docs saying the old secret must be rotated.
+```bash
+git status --short
+git branch --show-current
+npx prisma generate
+npm run build
+npx tsc --noEmit
+```
 
-4. Lock down debug and unauthenticated APIs
-   Files to inspect:
-   - `src/app/api/debug-auth/route.ts`
-   - `src/app/api/sync/**`
-   - `src/app/api/upload/**`
-   - `src/app/api/uploads/[...path]/route.ts`
-   - `src/middleware.ts`
-   - `src/auth.config.ts`
+Capture the current failures before fixing.
 
-   Requirements:
-   - Delete `/api/debug-auth` or restrict it to master admins only and remove sensitive fields from output.
-   - Do not return password hashes/plaintext password fields, full user lists, or ACL dumps.
-   - Revisit middleware exemptions. `/api/sync` must not be globally unauthenticated unless protected by a strong per-route token.
-   - Any unauthenticated endpoint must be explicitly justified in comments and protected against data leakage.
+2. Fix build-breaking `actions.ts` issues
 
-5. Add centralized server-side authorization guards
-   Files to create/update:
-   - `src/lib/authz.ts` or similar
-   - `src/app/admin/actions.ts`
-   - any other server actions/API mutators
+File:
+`src/app/admin/actions.ts`
 
-   Requirements:
-   - Create helpers:
-     - `requireSession()`
-     - `requireAdmin()`
-     - `requireMasterAdmin()` if applicable
-     - `requireTabRole(tabId, minimumRole)`
-     - `requireSectionRole(sectionId, minimumRole)`
-   - Use the existing permissions resolver from `src/lib/permissions.ts` where appropriate.
-   - Every admin server action must call an authorization guard before mutating data.
-   - `toggleUserAdmin`, user deletion, role changes, department changes, sync/import actions, push rules, tab/section/bookmark mutations, upload deletion, and settings/theme mutations must be guarded.
-   - Standard users may only mutate their own allowed resources.
-   - Admin-only actions must fail closed.
+Problems:
+- `urlObj` is redeclared around lines 93 and 112.
+- Many server actions use `arguments[0]`, which Next.js Server Actions forbids.
 
-6. Fix upload path traversal and file serving
-   Files to inspect:
-   - `src/app/api/uploads/[...path]/route.ts`
-   - upload actions/routes
+Requirements:
+- Remove all `arguments[0]` usage.
+- Do not use dynamic argument inspection in server actions.
+- Change guard calls to use explicit named parameters already present in each function signature.
+- If a function has no relevant resource ID, use `requireAdmin()` or `requireSession()` appropriately.
+- Ensure `npm run build` no longer fails due to server action syntax.
 
-   Requirements:
-   - Normalize and resolve requested paths.
-   - Ensure resolved path stays inside the intended uploads directory.
-   - Reject `..`, absolute paths, encoded traversal, symlinks if unsafe.
-   - Require authentication if uploads are not intentionally public.
-   - Set safe content-type and cache headers.
-   - Never expose `.env`, Prisma files, source files, or arbitrary filesystem paths.
+3. Fix broken authz resolver integration
 
-7. Add SSRF protections for sync/import/image download
-   Files to inspect:
-   - `src/app/admin/actions.ts`
-   - functions like `importWorkspaceFromSyncUrl`, `refreshSyncedWorkspace`, `downloadImageFromUrl`
-   - favicon/image import helpers
+File:
+`src/lib/authz.ts`
 
-   Requirements:
-   - Validate URLs before fetching.
-   - Allow only `http` and `https`.
-   - Reject localhost, loopback, private IP ranges, link-local, metadata IPs, and internal hostnames.
-   - Add request timeout.
-   - Add max response size.
-   - Validate content-type for images.
-   - Do not write fetched content into public webroot unless it passes validation.
-   - Consider an allowlist for trusted sync hosts if practical.
+Problem:
+`requireTabRole` passes `user.id` directly into `resolveTabAccess`, but `resolveTabAccess` expects a full `UserContext`.
 
-8. Fix known admin UI runtime bugs
-   Files:
-   - `src/app/admin/sections/SectionsClient.tsx`
-   - `src/app/admin/tabs/TabsClient.tsx`
-   - `src/app/admin/theme/ThemeClient.tsx`
+Requirements:
+- Import and use `buildUserContext` from `src/lib/permissions.ts`.
+- Load the current user and relevant grant data needed by the resolver.
+- Pass a proper `UserContext` into `resolveTabAccess` and `resolveSectionAccess`.
+- Keep master-admin bypass behavior.
+- Fail closed if user/session/resource is missing.
 
-   Requirements:
-   - Fix undefined `modifiedSections` / `setModifiedSections`.
-   - Fix undefined `isPushedUser`.
-   - Fix undefined `setBackgroundColor`.
-   - Run TypeScript after fixes and reduce errors where feasible.
+Expected helper behavior:
+- `requireSession()` returns the current authenticated user/session.
+- `requireAdmin()` requires admin/master-admin status.
+- `requireMasterAdmin()` requires master admin if the app distinguishes this.
+- `requireTabRole(tabId, minimumRole)` validates effective tab/workspace access.
+- `requireSectionRole(sectionId, minimumRole)` validates effective section access.
 
-9. Propagate pushed/locked metadata to the dashboard client
-   Files:
-   - `src/app/page.tsx`
-   - `src/components/Dashboard.tsx`
-   - related tab modal/remove workspace UI
+4. Fix wrong resource guard calls
 
-   Requirements:
-   - Preserve resolver output metadata for each tab:
-     - `pushed`
-     - `locked`
-     - `source`
-     - `inherited`
-   - Send needed metadata to the client.
-   - Hide or disable “Remove Workspace” for locked pushed workspaces.
-   - Keep server-side enforcement in place.
+File:
+`src/app/admin/actions.ts`
 
-10. Fix highest-impact efficiency issues
-   Do this only after the security tasks above.
+Problem:
+Some section actions pass `sectionId` into `requireTabRole`.
 
-   Requirements:
-   - Narrow `src/app/page.tsx` Prisma queries using `select` and permission-aware filtering.
-   - Remove unnecessary `JSON.parse(JSON.stringify(...))` deep clones where possible.
-   - Route icon clients through the existing `/api/icons` endpoint instead of directly hitting GitHub/jsDelivr.
-   - Make imported workspace refresh manual or queued instead of auto-refreshing on tab switch.
-   - Batch reorder writes or convert to fractional ordering if practical.
-   - Avoid `import * as LucideIcons`; use named imports or a curated icon map.
-   - Remove `import * as actions` from large client modules where practical.
-   - Clean tracked scratch logs, pid files, tar files, and backup files from repo root.
-   - Fix duplicate/conflicting `react` / `react-dom` dependency declarations.
+Known examples:
+- `addSectionToTab`
+- `removeSectionFromTab`
+- `updateSectionLayout`
+- `moveSection`
+- `pushSectionToDepartment`
 
-11. Add tests
-   Requirements:
-   - Keep `node scratch/permissions.test.mjs` passing.
-   - Add tests or scripts for:
-     - auth guard behavior
-     - locked push removal denial
-     - upload path traversal rejection
-     - SSRF URL rejection
-     - non-admin cannot call admin mutators
-   - If no full test framework exists, add deterministic Node scripts under `scratch/` similar to `permissions.test.mjs`.
+Requirements:
+- Use `requireSectionRole(sectionId, "editor")` or `"owner"` for section-level actions.
+- Use `requireTabRole(tabId, "editor")` or `"owner"` for workspace/tab-level actions.
+- For actions linking a section to a tab, check both resources if needed:
+  - caller can edit/own the target tab
+  - caller can view/edit/own the section depending on action semantics
 
-12. Validation commands
-   Run before each commit if possible:
+5. Fix `updateUserDefaultTab` authorization
 
-   ```bash
-   npx prisma generate
-   node scratch/permissions.test.mjs
-   npm run build
-   npx tsc --noEmit
-   ```
+File:
+`src/app/admin/actions.ts`
 
-   If `tsc` still fails due to pre-existing errors, summarize:
-   - number of errors before/after
-   - whether this work introduced any new errors
-   - remaining highest-priority TS errors
+Problem:
+`updateUserDefaultTab(userId, …)` only requires a session, so one user can mutate another user’s record.
 
-13. Commit strategy
-   Use small commits in this order:
-   - `Remove hardcoded auth secrets and debug exposure`
-   - `Add server-side authorization guards`
-   - `Harden uploads and remote fetches`
-   - `Fix admin permissions UI runtime errors`
-   - `Propagate locked push metadata to dashboard`
-   - `Improve dashboard query and icon efficiency`
-   - `Clean repo artifacts and dependency metadata`
+Requirements:
+- Allow user to update only their own default tab.
+- Allow admins/master admins to update another user’s default tab if that is intended.
+- Validate that the target tab is visible to the target user before setting it.
+- Fail closed.
 
-14. Final summary
-   When done, report:
-   - commits created
-   - files changed
-   - security issues fixed
-   - efficiency issues fixed
-   - validation results
-   - remaining risks
-   - whether it is safe to deploy
+6. Finish SSRF hardening
+
+Files to inspect:
+- `src/app/admin/actions.ts`
+- any helper used by `downloadImageFromUrl`
+- sync/import/favicons/image download helpers
+
+Problem:
+Current SSRF guard only blocks `localhost`, `127.0.0.1`, `::1`, and `0.0.0.0`.
+
+Requirements:
+- Allow only `http` and `https`.
+- Reject:
+  - localhost
+  - loopback IPv4/IPv6
+  - private IPv4 ranges: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
+  - link-local: `169.254.0.0/16`
+  - metadata IP: `169.254.169.254`
+  - multicast/reserved ranges
+  - IPv6 unique-local/link-local ranges
+  - internal hostnames if detectable
+- Resolve DNS and validate resolved IPs before fetching.
+- Guard against DNS rebinding where practical by validating the final URL/redirect target.
+- Disable or tightly limit redirects, or validate each redirect target.
+- Add fetch timeout.
+- Add max response size.
+- Validate image MIME type before writing files.
+- Do not write fetched content into public/static storage unless validation passes.
+
+7. Restore or recreate permissions tests
+
+Problem:
+`node scratch/permissions.test.mjs` fails because the file is missing.
+
+Requirements:
+- Restore `scratch/permissions.test.mjs`.
+- It should test the central permissions resolver.
+- Expected result: 20/20 passing, or better.
+- Keep it runnable with plain Node and no test framework if that is the repo pattern.
+
+8. Add security regression tests/scripts
+
+If no formal test framework exists, add deterministic scripts under `scratch/`.
+
+Required coverage:
+- non-admin cannot call/admin-gated mutator logic
+- locked push cannot be removed
+- upload path traversal is rejected
+- SSRF URL validator rejects private/link-local/metadata URLs
+- user cannot update another user’s default tab
+- resolver still handles pushed/locked/inherited access
+
+Suggested files:
+- `scratch/security.test.mjs`
+- `scratch/permissions.test.mjs`
+
+9. Fix remaining UI runtime bug
+
+File:
+`src/app/admin/theme/ThemeClient.tsx`
+
+Problem:
+`setBackgroundColor` is undefined.
+
+Requirement:
+- Define the missing state setter or remove the stale call.
+- Confirm the theme editor no longer crashes on background upload.
+
+10. Propagate pushed/locked metadata to dashboard
+
+Files:
+- `src/app/page.tsx`
+- `src/components/Dashboard.tsx`
+
+Requirements:
+- Preserve resolver metadata:
+  - `pushed`
+  - `locked`
+  - `source`
+  - `inherited`
+- Send needed metadata to the dashboard client.
+- Hide or disable “Remove Workspace” for locked pushed workspaces.
+- Keep server-side enforcement in `removeTabFromUser`.
+
+11. Do not attempt broad efficiency work until security/build passes
+
+After security/build passes, only then address easy efficiency fixes:
+- icon clients should use `/api/icons`
+- reduce obvious JSON deep clones
+- remove automatic imported workspace refresh on tab switch if still present
+- clean obvious tracked scratch/log/pid files
+- fix duplicate/conflicting React dependency declarations if present
+
+Do not do massive speculative rewrites in this branch.
+
+12. Validation gate
+
+Before saying done, run:
+
+```bash
+npx prisma generate
+node scratch/permissions.test.mjs
+node scratch/security.test.mjs
+npm run build
+npx tsc --noEmit
+```
+
+If `npx tsc --noEmit` still fails from pre-existing issues:
+- prove whether this branch introduced new TS errors
+- list the remaining errors
+- do not hide new errors
+
+13. Final output required
+
+When done, report:
+
+- current branch
+- latest commit SHA
+- files changed
+- exact security issues fixed
+- exact remaining risks, if any
+- validation command results
+- whether `npm run build` passes
+- whether `node scratch/permissions.test.mjs` passes
+- whether `node scratch/security.test.mjs` passes
+- whether safe to merge
+- whether safe to deploy
+
+Do not merge to main.
+Do not deploy.

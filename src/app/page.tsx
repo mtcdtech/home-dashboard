@@ -201,6 +201,9 @@ export default async function Home(props: { searchParams: Promise<{ [key: string
         ...tab,
         sections: visibleSections,
         isLocked: access.locked,
+        isPushed: access.pushed,
+        source: access.source,
+        inherited: access.inherited,
         accessRole: access.role
       };
     });

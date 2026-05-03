@@ -110,15 +110,6 @@ export default function ThemeClient({
       }
    };
 
-   const handleBgUpload = async (file: File) => {
-      const fd = new FormData();
-      fd.append("file", file);
-      const url = await actions.uploadImage(fd);
-      if (url) setBackgroundColor(url);
-   };
-
-   const [isDraggingBg, setIsDraggingBg] = useState(false);
-
    const handleLogoUpload = async (file: File, field: string) => {
       const fd = new FormData(); fd.append("file", file);
       const url = await actions.uploadImage(fd);

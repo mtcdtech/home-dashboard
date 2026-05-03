@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { parseBookmarksHtml } from "@/lib/bookmark-parser";
 import { auth } from "@/auth";
 import { requireSession, requireAdmin, requireTabRole, requireSectionRole } from "@/lib/authz";
+import { safeFetch } from "@/lib/ssrf";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 
@@ -90,20 +91,7 @@ export async function saveGeneratedImage(base64: string) {
 export async function downloadImageFromUrl(url: string) {
   await requireSession();
   try {
-    const urlObj = new URL(url);
-    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') return null;
-    if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1' || urlObj.hostname === '::1' || urlObj.hostname === '0.0.0.0') {
-      console.error("Blocked SSRF attempt to loopback:", url);
-      return null;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) return null;
-    const arrayBuffer = await response.arrayBuffer();
+    const arrayBuffer = await safeFetch(url);
     const buffer = Buffer.from(arrayBuffer);
 
     const uploadDir = join(process.cwd(), "public", "uploads");
@@ -141,14 +129,10 @@ export async function fetchFavicon(targetUrl: string) {
   await requireSession();
   try {
     const domain = new URL(targetUrl).hostname;
-    // High-fidelity favicon signal from Google's high-res proxy
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
 
-    const response = await fetch(faviconUrl);
-    if (!response.ok) return null;
-
-    const bytes = await response.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const arrayBuffer = await safeFetch(faviconUrl);
+    const buffer = Buffer.from(arrayBuffer);
 
     const uploadDir = join(process.cwd(), "public", "uploads");
     try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
@@ -204,7 +188,7 @@ export async function createTab(data: { title: string; icon?: string; order?: nu
 }
 
 export async function updateTab(id: string, data: { title: string; icon?: string | null; order?: number; themeId?: string | null; organization?: string | null; allowedUserIds?: string[]; columns?: number }) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(id, "edit");
   // Imported (read-only sync) workspaces are never catalog items per access-matrix spec.
   const existing = await (prisma as any).tab.findUnique({ where: { id }, select: { isReadOnlySync: true } });
   const requestedLibrary = (data as any).isLibraryItem ?? false;
@@ -238,7 +222,7 @@ export async function reorderTabs(orderedIds: string[]) {
 }
 
 export async function deleteTab(id: string) {
-  await requireTabRole(arguments[0], "owner");
+  await requireTabRole(id, "owner");
   const tab = await prisma.tab.findUnique({ 
     where: { id },
     include: { tabSections: true }
@@ -305,7 +289,8 @@ export async function createSection(data: any) {
 }
 
 export async function addSectionToTab(sectionId: string, tabId: string, column: number = 0) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
+  await requireSectionRole(sectionId, "edit");
   // Permission check: only tab owners, editors, or admins can add sections
   const session = await auth();
   const userId = session?.user?.id;
@@ -334,13 +319,14 @@ export async function addSectionToTab(sectionId: string, tabId: string, column: 
 }
 
 export async function removeSectionFromTab(sectionId: string, tabId: string) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
+  await requireSectionRole(sectionId, "edit");
   await (prisma as any).tabSection.deleteMany({ where: { sectionId, tabId } });
   revalidatePath("/");
 }
 
 export async function toggleSectionInTab(tabId: string, sectionId: string, isAssigned: boolean) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   if (isAssigned) {
     const existing = await (prisma as any).tabSection.findUnique({ where: { tabId_sectionId: { tabId, sectionId } } });
     if (!existing) await (prisma as any).tabSection.create({ data: { tabId, sectionId, order: 999, column: 0 } });
@@ -352,7 +338,7 @@ export async function toggleSectionInTab(tabId: string, sectionId: string, isAss
 }
 
 export async function updateSection(id: string, data: any) {
-  await requireSectionRole(arguments[0], "edit");
+  await requireSectionRole(id, "edit");
   // Imported (read-only sync) sections are never catalog items per access-matrix spec.
   const existing = await prisma.section.findUnique({ where: { id }, select: { isReadOnlySync: true } });
   const requestedLibrary = data.isLibraryItem ?? false;
@@ -371,14 +357,15 @@ export async function updateSection(id: string, data: any) {
 }
 
 export async function deleteSection(id: string) {
-  await requireSectionRole(arguments[0], "owner");
+  await requireSectionRole(id, "owner");
   await prisma.section.delete({ where: { id } });
   revalidatePath("/");
   revalidatePath("/admin/sections");
 }
 
 export async function updateSectionLayout(sectionId: string, tabId: string, data: { height?: number | null; isAutoResize?: boolean }) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
+  await requireSectionRole(sectionId, "edit");
   await (prisma as any).tabSection.update({
     where: { tabId_sectionId: { tabId, sectionId } },
     data: data,
@@ -400,7 +387,12 @@ export async function updateTabSectionCollapsed(sectionId: string, tabId: string
 }
 
 export async function updateUserDefaultTab(userId: string, defaultTabId: string | null) {
-  await requireSession();
+  const session = await requireSession();
+  const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+  if (!targetUser) throw new Error("User not found");
+  if (session.user.id !== userId && !session.user.isAdmin) {
+    throw new Error("Unauthorized to change another user's default tab");
+  }
   await prisma.user.update({ where: { id: userId }, data: { defaultTabId } });
   revalidatePath("/");
 }
@@ -416,7 +408,8 @@ export async function updateGlobalDefaultTab(defaultTabId: string | null) {
 }
 
 export async function moveSection(sectionId: string, tabId: string, targetColumn: number, beforeSectionId?: string) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
+  await requireSectionRole(sectionId, "edit");
   await (prisma as any).tabSection.update({ where: { tabId_sectionId: { tabId, sectionId } }, data: { column: targetColumn } });
   const allInTarget = await (prisma as any).tabSection.findMany({ where: { tabId, column: targetColumn }, orderBy: { order: "asc" } }) as any[];
   const withoutMoved = allInTarget.filter((ts: any) => ts.sectionId !== sectionId);
@@ -604,7 +597,7 @@ export async function deleteTheme(id: string) {
 }
 
 export async function updateTabTheme(tabId: string, themeData: any) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   const session = await auth();
   const user = (session as any)?.user;
   if (!user) throw new Error("Unauthorized");
@@ -689,7 +682,7 @@ export async function setUserAllowedSections(userId: string, sectionIds: string[
 }
 
 export async function setTabEditors(tabId: string, userIds: string[]) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   await (prisma as any).tab.update({
     where: { id: tabId },
     data: {
@@ -723,7 +716,7 @@ async function _updateTabUserRole(tabId: string, userId: string, role: string) {
 }
 
 export async function transferTabOwnership(tabId: string, currentOwnerId: string, newOwnerId: string) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   // Disconnect current owner, add them as an editor instead
   await prisma.tab.update({
     where: { id: tabId },
@@ -752,7 +745,7 @@ export async function transferTabOwnership(tabId: string, currentOwnerId: string
 }
 
 export async function updateTabUserRole(tabId: string, userId: string, role: string) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   await _updateTabUserRole(tabId, userId, role);
   revalidatePath("/");
   revalidatePath("/admin/tabs");
@@ -773,14 +766,14 @@ async function _updateTabDepartmentRole(tabId: string, department: string, role:
 }
 
 export async function updateTabDepartmentRole(tabId: string, department: string, role: string) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   await _updateTabDepartmentRole(tabId, department, role);
   revalidatePath("/");
   revalidatePath("/admin/tabs");
 }
 
 export async function setSectionEditors(sectionId: string, userIds: string[]) {
-  await requireSectionRole(arguments[0], "edit");
+  await requireSectionRole(sectionId, "edit");
   await prisma.section.update({
     where: { id: sectionId },
     data: {
@@ -814,7 +807,7 @@ async function _updateSectionUserRole(sectionId: string, userId: string, role: s
 }
 
 export async function updateSectionUserRole(sectionId: string, userId: string, role: string) {
-  await requireSectionRole(arguments[0], "edit");
+  await requireSectionRole(sectionId, "edit");
   await _updateSectionUserRole(sectionId, userId, role);
   revalidatePath("/");
   revalidatePath("/admin/sections");
@@ -835,7 +828,7 @@ async function _updateSectionDepartmentRole(sectionId: string, department: strin
 }
 
 export async function updateSectionDepartmentRole(sectionId: string, department: string, role: string) {
-  await requireSectionRole(arguments[0], "edit");
+  await requireSectionRole(sectionId, "edit");
   await _updateSectionDepartmentRole(sectionId, department, role);
   revalidatePath("/");
   revalidatePath("/admin/sections");
@@ -855,7 +848,7 @@ export async function pushTabToDepartment(tabId: string, department: string) {
 }
 
 export async function pushSectionToDepartment(sectionId: string, department: string) {
-  await requireTabRole(arguments[0], "edit");
+  await requireAdmin();
   const users = await prisma.user.findMany({ where: { department }, select: { id: true } });
   await prisma.section.update({
     where: { id: sectionId },
@@ -1317,7 +1310,7 @@ export async function executeBookmarkImport(mappings: any[]) {
 }
 
 export async function bulkApplyDeptTabRole(tabId: string, department: string, role: string) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   // 1. Update the department-level setting
   await _updateTabDepartmentRole(tabId, department, role);
 
@@ -1358,7 +1351,7 @@ export async function bulkApplyDeptTabRole(tabId: string, department: string, ro
 }
 
 export async function bulkApplyDeptSectionRole(sectionId: string, department: string, role: string) {
-  await requireSectionRole(arguments[0], "edit");
+  await requireSectionRole(sectionId, "edit");
   // 1. Update the department-level setting
   await _updateSectionDepartmentRole(sectionId, department, role);
 
@@ -1494,7 +1487,7 @@ export async function setUserDefaultTab(userId: string, tabId: string) {
 
 
 export async function updateGlobalLayoutBatch(tabId: string, updates: { sectionId: string; column: number; order?: number }[]) {
-  await requireTabRole(arguments[0], "edit");
+  await requireTabRole(tabId, "edit");
   const session = await auth();
   const user = session?.user;
   if (!user?.email) throw new Error("Unauthorized");
