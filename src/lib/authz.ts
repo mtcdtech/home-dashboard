@@ -20,8 +20,6 @@ export async function requireAdmin() {
 
 export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
   const user = await requireSession();
-  if ((user as any).isAdmin) return user;
-
   const tabObj = await prisma.tab.findUnique({
     where: { id: tabId },
     include: {
@@ -44,7 +42,8 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
   const context = buildUserContext({
     userId: targetUser.id,
     dashboardGroup: targetUser.dashboardGroup || targetUser.department,
-    isAdminView: targetUser.isAdmin
+    isAdminView: targetUser.isAdmin,
+    isLocalAdmin: targetUser.email === 'admin@local' || targetUser.name === 'Local Admin'
   });
   const access = resolveTabAccess(tabObj, context);
   
@@ -61,8 +60,6 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
 
 export async function requireSectionRole(sectionId: string, action: 'edit' | 'owner') {
   const user = await requireSession();
-  if ((user as any).isAdmin) return user;
-
   const sectionObj = await prisma.section.findUnique({
     where: { id: sectionId },
     include: {

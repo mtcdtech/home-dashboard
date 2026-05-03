@@ -20,6 +20,8 @@ export async function isSafeUrl(urlString: string): Promise<boolean> {
       if (parts[0] === 192 && parts[1] === 168) return false; // Private 192.168.x.x
       if (parts[0] === 169 && parts[1] === 254) return false; // Link-local / Metadata
       if (parts[0] >= 224) return false; // Multicast / Reserved
+      if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return false; // Carrier-grade NAT 100.64.0.0/10
+      if (parts[0] === 198 && parts[1] >= 18 && parts[1] <= 19) return false; // Benchmarking 198.18.0.0/15
     } 
     // Check IPv6
     else if (address.includes(':')) {

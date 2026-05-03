@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { resolveTabAccess, buildUserContext } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { parseBookmarksHtml } from "@/lib/bookmark-parser";
 import { auth } from "@/auth";
@@ -91,7 +92,7 @@ export async function saveGeneratedImage(base64: string) {
 export async function downloadImageFromUrl(url: string) {
   await requireSession();
   try {
-    const arrayBuffer = await safeFetch(url);
+    const arrayBuffer = await safeFetch(url, { expectedTypePrefix: 'image/' });
     const buffer = Buffer.from(arrayBuffer);
 
     const uploadDir = join(process.cwd(), "public", "uploads");
@@ -131,7 +132,7 @@ export async function fetchFavicon(targetUrl: string) {
     const domain = new URL(targetUrl).hostname;
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
 
-    const arrayBuffer = await safeFetch(faviconUrl);
+    const arrayBuffer = await safeFetch(faviconUrl, { expectedTypePrefix: 'image/' });
     const buffer = Buffer.from(arrayBuffer);
 
     const uploadDir = join(process.cwd(), "public", "uploads");
@@ -390,9 +391,36 @@ export async function updateUserDefaultTab(userId: string, defaultTabId: string 
   const session = await requireSession();
   const targetUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!targetUser) throw new Error("User not found");
-  if (session.user.id !== userId && !session.user.isAdmin) {
+  
+  if (session.user.id !== userId && !(session.user as any).isAdmin) {
     throw new Error("Unauthorized to change another user's default tab");
   }
+
+  if (defaultTabId) {
+    const tab = await prisma.tab.findUnique({
+      where: { id: defaultTabId },
+      include: {
+        owners: true,
+        editors: true,
+        allowedUsers: true,
+        blockedUsers: true,
+        departmentAccess: true,
+        pushRules: true
+      }
+    });
+    if (!tab) throw new Error("Tab not found");
+    const ctx = buildUserContext({
+      userId: targetUser.id,
+      dashboardGroup: targetUser.dashboardGroup || targetUser.department,
+      isAdminView: targetUser.isAdmin,
+      isLocalAdmin: targetUser.email === 'admin@local' || targetUser.name === 'Local Admin'
+    });
+    const access = resolveTabAccess(tab, ctx);
+    if (access.role === "none" && !(session.user as any).isAdmin) {
+      throw new Error("Target tab is not accessible by this user");
+    }
+  }
+
   await prisma.user.update({ where: { id: userId }, data: { defaultTabId } });
   revalidatePath("/");
 }
@@ -1415,6 +1443,7 @@ async function _updateThemeUserRole(themeId: string, userId: string, role: strin
 }
 
 export async function updateThemeUserRole(themeId: string, userId: string, role: string) {
+  await requireAdmin();
   await _updateThemeUserRole(themeId, userId, role);
   revalidatePath("/");
   revalidatePath("/admin/theme");
@@ -1435,12 +1464,14 @@ async function _updateThemeDepartmentRole(themeId: string, department: string, r
 }
 
 export async function updateThemeDepartmentRole(themeId: string, department: string, role: string) {
+  await requireAdmin();
   await _updateThemeDepartmentRole(themeId, department, role);
   revalidatePath("/");
   revalidatePath("/admin/theme");
 }
 
 export async function bulkApplyDeptThemeRole(themeId: string, department: string, role: string) {
+  await requireAdmin();
   // 1. Update the department-level setting
   await _updateThemeDepartmentRole(themeId, department, role);
 
@@ -1509,7 +1540,7 @@ export async function updateGlobalLayoutBatch(tabId: string, updates: { sectionI
 // Group management
 export async function renameGroup(oldName: string, newName: string) {
   await requireAdmin();
-  "use server";
+
   if (!oldName || !newName || oldName === "General") return;
   await prisma.user.updateMany({
     where: { dashboardGroup: oldName },
@@ -1519,7 +1550,7 @@ export async function renameGroup(oldName: string, newName: string) {
 
 export async function deleteGroup(groupName: string) {
   await requireAdmin();
-  "use server";
+
   if (!groupName || groupName === "General") return;
   await prisma.user.updateMany({
     where: { dashboardGroup: groupName },
@@ -1530,7 +1561,7 @@ export async function deleteGroup(groupName: string) {
 // Clean "Entire Organization" entries from specific tabs
 export async function removeEntireOrgAccess(tabId: string) {
   await requireAdmin();
-  "use server";
+
   await (prisma as any).tabDepartmentAccess.deleteMany({
     where: { tabId, department: "Entire Organization" }
   });
@@ -1541,7 +1572,7 @@ export async function removeEntireOrgAccess(tabId: string) {
 // List all department access entries (for debugging)
 export async function listDeptAccess() {
   await requireAdmin();
-  "use server";
+
   return (prisma as any).tabDepartmentAccess.findMany({
     include: { tab: { select: { id: true, title: true } } }
   });

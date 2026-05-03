@@ -11,9 +11,9 @@ services:
       - NEXTAUTH_URL=https://home.abraham16.com
       - AUTH_URL=https://home.abraham16.com
       - AUTH_TRUST_HOST=true
-      - AUTH_SECRET=85Fa8SnqPbz5f7PDa8thsn+bGAAO0m/cjW0l6WZSrF4=
-      - SYNOLOGY_CLIENT_ID=dc7539fab929d7fb6f1725ad64ce4a6f
-      - SYNOLOGY_CLIENT_SECRET=U93mrDlkxacUmeBEJW5KHFa7W1Rq5mhv
+      - AUTH_SECRET=<CHANGE_ME_AUTH_SECRET>
+      - SYNOLOGY_CLIENT_ID=<CHANGE_ME_SYNOLOGY_CLIENT_ID>
+      - SYNOLOGY_CLIENT_SECRET=<CHANGE_ME_SYNOLOGY_CLIENT_SECRET>
       - SYNOLOGY_ISSUER=https://sso.abraham16.com/webman/sso
     volumes:
       - dashboard_uploads_sso:/app/public/uploads
