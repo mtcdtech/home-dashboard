@@ -392,7 +392,7 @@ export async function updateUserDefaultTab(userId: string, defaultTabId: string 
   const targetUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!targetUser) throw new Error("User not found");
   
-  if (session.user.id !== userId && !(session.user as any).isAdmin) {
+  if (session.id !== userId && !(session as any).isAdmin) {
     throw new Error("Unauthorized to change another user's default tab");
   }
 
@@ -416,7 +416,7 @@ export async function updateUserDefaultTab(userId: string, defaultTabId: string 
       isLocalAdmin: targetUser.email === 'admin@local' || targetUser.name === 'Local Admin'
     });
     const access = resolveTabAccess(tab, ctx);
-    if (access.role === "none" && !(session.user as any).isAdmin) {
+    if (access.role === "none" && !(session as any).isAdmin) {
       throw new Error("Target tab is not accessible by this user");
     }
   }
