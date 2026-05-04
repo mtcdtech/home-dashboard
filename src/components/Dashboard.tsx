@@ -464,7 +464,14 @@ export function Dashboard({
       root.style.setProperty('--bg-base', bgHex);
       root.style.setProperty('--theme-color', bgHex);
       root.style.backgroundColor = bgHex;
-      if (document.body) document.body.style.backgroundColor = bgHex;
+      /*
+       * Do NOT set document.body.style.backgroundColor. An opaque body
+       * background paints over the AmbientBackground (z-index:-1) and
+       * hides the theme image. The <html> background above is enough
+       * to tint the iOS safe-area gutters and act as the pre-image
+       * fallback color.
+       */
+      if (document.body) document.body.style.backgroundColor = '';
       /*
        * Update *every* <meta name="theme-color">, including any with a
        * media= attribute, then ensure exactly one canonical unqualified
@@ -621,10 +628,20 @@ export function Dashboard({
      * bottom URL-bar / home-indicator gutter using the html element's
      * background color. Mirror the active theme onto html so those native
      * chrome regions tint to match the dashboard rather than rendering
-     * black. The body color is inherited via --bg-color already.
+     * black.
+     *
+     * IMPORTANT: do NOT set background-color on <body>. Body must stay
+     * transparent so the AmbientBackground layer (position:fixed,
+     * z-index:-1) is visible — an opaque body background paints in
+     * front of negative-z-index children and hides the theme image.
+     * The html background already provides the safe-area tint and the
+     * pre-image fallback color.
      */
-    html, body {
+    html {
       background-color: var(--bg-color);
+    }
+    body {
+      background-color: transparent;
     }
   `;
 
