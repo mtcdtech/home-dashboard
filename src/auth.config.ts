@@ -53,13 +53,23 @@ if (process.env.AUTHENTIK_MS_CLIENT_ID) {
   });
 }
 
-// Keeping MicrosoftEntraID commented per plan instructions in case of rollback
-/*
-if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {
+// Legacy Microsoft Entra ID provider — fallback when Authentik is not configured.
+// Activates only when all three legacy vars are set, so the login button is usable.
+if (
+  process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
+  process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
+  process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID
+) {
+  const tenantId = process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID;
+  const issuer =
+    process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER ||
+    `https://login.microsoftonline.com/${tenantId}/v2.0`;
   providers.push(MicrosoftEntraID({
+      id: "microsoft-entra-id",
+      name: "Microsoft",
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+      issuer,
       authorization: { params: { scope: "openid profile email User.Read" } },
       allowDangerousEmailAccountLinking: true,
       profile(profile: any) {
@@ -69,12 +79,11 @@ if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {
           email: profile.email || profile.preferred_username,
           image: null,
           department: profile.department || "",
-          isAdmin: false, // Default to false, handled in signIn/jwt callbacks
+          isAdmin: false,
         };
       },
   }));
 }
-*/
 
 if (process.env.SYNOLOGY_CLIENT_ID) {
   providers.push({
