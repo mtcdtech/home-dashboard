@@ -15,16 +15,30 @@ export const metadata: Metadata = {
   },
 };
 
+/*
+ * Theme color is a single, non-media-qualified value on purpose.
+ *
+ * Next.js renders `themeColor: [{media,color}, ...]` as multiple
+ * <meta name="theme-color" media="..."> tags, and iOS Safari prefers
+ * the matching media-qualified tag over an unqualified one. The
+ * dashboard runtime updates a single <meta name="theme-color"> on every
+ * tab/theme change, so any media-qualified tags from this export would
+ * out-rank the runtime tag and freeze the iOS status bar at the static
+ * color. Keeping a single static fallback here means the runtime tag is
+ * the only one Safari can match, and the dashboard's per-tab tint is
+ * what actually paints the Dynamic Island gutter in PWA mode.
+ *
+ * Note: in Safari tab mode (non-standalone), the OS status bar lives
+ * outside the web view, so the best achievable result is theme-color +
+ * body tint — the theme image cannot reach the OS status strip.
+ */
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#050505" },
-    { media: "(prefers-color-scheme: light)", color: "#eef2f7" },
-  ],
+  themeColor: "#050505",
 };
 
 export const dynamic = "force-dynamic";

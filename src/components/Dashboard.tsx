@@ -462,14 +462,33 @@ export function Dashboard({
       const root = document.documentElement;
       root.style.setProperty('--bg-color', bgHex);
       root.style.setProperty('--bg-base', bgHex);
+      root.style.setProperty('--theme-color', bgHex);
       root.style.backgroundColor = bgHex;
-      let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-      if (!meta) {
-         meta = document.createElement('meta');
+      if (document.body) document.body.style.backgroundColor = bgHex;
+      /*
+       * Update *every* <meta name="theme-color">, including any with a
+       * media= attribute, then ensure exactly one canonical unqualified
+       * tag exists with the live color. iOS Safari picks the
+       * media-matching tag first, so leaving an old media-qualified tag
+       * with a stale color would freeze the Dynamic Island / status
+       * strip at that color regardless of what the unqualified tag
+       * says. (Caveat: in regular Safari tab mode the OS status bar is
+       * outside the web view; theme-color is best-effort and the theme
+       * image cannot be drawn into the OS status strip there. Only a
+       * standalone PWA with apple-mobile-web-app-status-bar-style
+       * black-translucent paints under that gutter.)
+       */
+      const allThemeMetas = document.querySelectorAll('meta[name="theme-color"]');
+      allThemeMetas.forEach((m) => { (m as HTMLMetaElement).content = bgHex; });
+      const unqualified = Array.from(allThemeMetas).find(
+         (m) => !(m as HTMLMetaElement).hasAttribute('media')
+      ) as HTMLMetaElement | undefined;
+      if (!unqualified) {
+         const meta = document.createElement('meta');
          meta.name = 'theme-color';
+         meta.content = bgHex;
          document.head.appendChild(meta);
       }
-      meta.content = bgHex;
    }, [_activePrimary, _isLightForBg]);
 
    if (!mounted) return null;
