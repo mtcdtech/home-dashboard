@@ -45,29 +45,66 @@
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
+/*
+ * iOS Safari + PWA safe-area background fix.
+ *
+ * With `viewport-fit=cover` and `apple-mobile-web-app-status-bar-style=
+ * black-translucent`, iOS paints the Dynamic Island / status bar area and
+ * the bottom URL-bar / home-indicator area using the html element's
+ * background. If only <body> is colored, those zones render black.
+ *
+ * We therefore mirror the theme background color onto <html> so the safe
+ * areas tint to match. Dashboard.tsx additionally sets this color on
+ * documentElement.style at runtime when the active theme changes, so the
+ * native chrome tracks the active dashboard theme.
+ */
+html {
+  background-color: var(--bg-color);
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   font-family: var(--font-family), 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--text);
   background-color: var(--bg-color);
+  /* 100dvh shrinks/grows with the iOS URL bar; 100svh as fallback. */
+  min-height: 100svh;
   min-height: 100dvh;
-  overflow-x: clip; 
+  overflow-x: clip;
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.5s ease, color 0.3s ease;
 }
 
+/*
+ * Default for the AmbientBackground wrapper (Dashboard.tsx). It references
+ * var(--bg-base); without a definition it would render transparent and the
+ * negative top/bottom offsets would let the page background (or worse,
+ * black on iOS) show through inside the safe areas.
+ */
+:root { --bg-base: var(--bg-color); }
+
 /* Background Gradients */
 .bg-gradient {
   position: fixed;
+  /*
+   * Use the *largest* viewport so this layer covers the area exposed when
+   * the iOS Safari URL bar collapses. inset:0 alone uses the small viewport
+   * on first paint and leaves a black strip behind the URL bar.
+   */
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100vw;
+  height: 100lvh;
   z-index: -1;
-  background: 
+  background-color: var(--bg-color);
+  background-image:
     radial-gradient(circle at 20% 20%, rgba(var(--primary-rgb), 0.2) 0%, transparent 40%),
     radial-gradient(circle at 80% 80%, rgba(var(--secondary-rgb), 0.2) 0%, transparent 40%);
+  pointer-events: none;
 }
 
 /* Typography */
@@ -359,10 +396,20 @@ a {
     border-radius: 16px !important;
   }
 
-  /* Theme background: ensure full coverage on mobile */
-  .ambient-background-layer { 
+  /*
+   * Theme background: ensure full coverage on mobile, including the iOS
+   * Safari safe-area gutters (Dynamic Island, bottom URL bar). Use the
+   * *large* viewport unit so this layer paints behind the URL bar even
+   * when it's expanded. inset:0 alone uses the small viewport.
+   */
+  .ambient-background-layer {
     position: fixed !important;
-    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100lvh !important;
     transform: none !important;
     overflow: hidden !important;
   }

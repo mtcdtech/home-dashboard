@@ -423,6 +423,55 @@ export function Dashboard({
       }
    };
 
+   /*
+    * iOS Safari + PWA safe-area background sync.
+    *
+    * iOS paints the Dynamic Island / status bar gutter and the bottom URL
+    * bar / home-indicator gutter using the html element's background, and
+    * tints the top status bar with <meta name="theme-color">. Both must
+    * track the active dashboard theme or those zones render black. We
+    * recompute the same color the dashboard derives for --bg-color and
+    * push it onto documentElement and the theme-color meta on every
+    * theme/tab change. This is duplicated logic by design — it has to
+    * happen before the early-return guard for hooks-rules compliance, and
+    * before --bg-color is rendered into the dynamic <style> tag.
+    */
+   const _activePrimary = (activeTab?.theme?.primaryColor && activeTab.theme.primaryColor !== '')
+      ? activeTab.theme.primaryColor
+      : activeTheme.primaryColor;
+   const _isLightForBg = theme === 'light';
+   useEffect(() => {
+      if (typeof document === 'undefined') return;
+      const parse = (h: string) => {
+         const c = (h || '').replace('#', '');
+         if (c.length !== 6) return null;
+         return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+      };
+      const targetHex = _isLightForBg ? '#ffffff' : '#000000';
+      const mixPct = _isLightForBg ? 0.08 : 0.15;
+      let bgHex = _isLightForBg ? '#eef2f7' : '#050505';
+      const p = parse(_activePrimary);
+      const t = parse(targetHex);
+      if (p && t) {
+         const r = Math.round(p[0] * mixPct + t[0] * (1 - mixPct));
+         const g = Math.round(p[1] * mixPct + t[1] * (1 - mixPct));
+         const b = Math.round(p[2] * mixPct + t[2] * (1 - mixPct));
+         const toHex = (n: number) => n.toString(16).padStart(2, '0');
+         bgHex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      }
+      const root = document.documentElement;
+      root.style.setProperty('--bg-color', bgHex);
+      root.style.setProperty('--bg-base', bgHex);
+      root.style.backgroundColor = bgHex;
+      let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+      if (!meta) {
+         meta = document.createElement('meta');
+         meta.name = 'theme-color';
+         document.head.appendChild(meta);
+      }
+      meta.content = bgHex;
+   }, [_activePrimary, _isLightForBg]);
+
    if (!mounted) return null;
 
    const hexToRgb = (hex: string) => {
@@ -462,6 +511,31 @@ export function Dashboard({
    const glassBg = `rgba(${mixR}, ${mixG}, ${mixB}, ${cardAlpha})`;
    const glassBorder = `rgba(${mixR}, ${mixG}, ${mixB}, ${Math.min(1, cardAlpha + 0.15)})`;
 
+   // Plain-color fallback for the iOS safe-area / native chrome tint. We
+   // can't rely on color-mix here (some iOS versions still have spotty
+   // support inside the html element's painted safe-area), so compute an
+   // approximate hex value in JS and apply it directly to documentElement
+   // in the effect below.
+   const safeAreaBgHex = (() => {
+      const targetHex = isLight ? '#ffffff' : '#000000';
+      const mixPct = isLight ? 0.08 : 0.15;
+      const parse = (h: string) => {
+         const c = h.replace('#', '');
+         return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+      };
+      try {
+         const [pr, pg, pb] = parse(effectivePrimaryColor);
+         const [tr, tg, tb] = parse(targetHex);
+         const r = Math.round(pr * mixPct + tr * (1 - mixPct));
+         const g = Math.round(pg * mixPct + tg * (1 - mixPct));
+         const b = Math.round(pb * mixPct + tb * (1 - mixPct));
+         const toHex = (n: number) => n.toString(16).padStart(2, '0');
+         return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      } catch {
+         return isLight ? '#eef2f7' : '#050505';
+      }
+   })();
+
    const dynamicCSS = `
     :root, [data-theme='dark'], [data-theme='light'] {
       --primary: ${effectivePrimaryColor};
@@ -472,6 +546,7 @@ export function Dashboard({
       --glass-blur: 0px;
       --glass-saturate: 100%;
       --bg-color: color-mix(in srgb, ${effectivePrimaryColor} ${isLight ? '8%' : '15%'}, ${isLight ? '#ffffff' : '#000000'});
+      --bg-base: ${safeAreaBgHex};
       --modal-bg: ${isLight
          ? `linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), rgba(${hexToRgb(effectivePrimaryColor)}, 0.1)`
          : `linear-gradient(rgba(10, 10, 10, 0.75), rgba(10, 10, 10, 0.75)), rgba(${hexToRgb(effectivePrimaryColor)}, 0.2)`};
@@ -520,6 +595,17 @@ export function Dashboard({
       .dashboard-main-content {
         padding: 0.5rem !important;
       }
+    }
+
+    /*
+     * iOS Safari paints the Dynamic Island / status bar gutter and the
+     * bottom URL-bar / home-indicator gutter using the html element's
+     * background color. Mirror the active theme onto html so those native
+     * chrome regions tint to match the dashboard rather than rendering
+     * black. The body color is inherited via --bg-color already.
+     */
+    html, body {
+      background-color: var(--bg-color);
     }
   `;
 
@@ -1229,8 +1315,18 @@ function AmbientBackground({ theme, isLight }: { theme?: Theme | null; isLight?:
    // responds immediately when the user toggles light/dark mode.
    const isDark = isLight === undefined ? theme.darkMode : !isLight;
 
+   /*
+    * iOS Safari + viewport-fit=cover safe-area fix:
+    * - We use top:0/left:0 with width:100vw and height:100lvh so the layer
+    *   covers the *largest* viewport (URL bar collapsed). With negative
+    *   offsets alone the bottom edge slipped above the URL-bar gutter and
+    *   exposed black behind it.
+    * - background falls back to var(--bg-base), which Dashboard sets to a
+    *   solid theme-derived hex so safe-area zones tint correctly even
+    *   before the radial/image children paint.
+    */
    return (
-      <div style={{ position: 'fixed', top: '-100px', bottom: '-100px', left: 0, right: 0, zIndex: -1, overflow: 'hidden', background: 'var(--bg-base)', pointerEvents: 'none' }}>
+      <div className="ambient-background-layer" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100lvh', zIndex: -1, overflow: 'hidden', background: 'var(--bg-base)', pointerEvents: 'none' }}>
          <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '80%', height: '80%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(100px)', opacity: 0.8, animation: 'float 20s infinite alternate linear' }} />
          <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '70%', height: '70%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(120px)', opacity: 0.6, animation: 'float 25s infinite alternate-reverse linear' }} />
          {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 0}px)`, transform: 'scale(1.05)', opacity: 0.9 }} />}
