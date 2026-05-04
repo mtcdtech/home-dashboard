@@ -397,18 +397,14 @@ a {
   }
 
   /*
-   * Theme background on mobile: extend BEYOND the layout viewport with
-   * negative top/bottom offsets so the AmbientBackground image (and its
-   * solid backstop child) covers the iOS Safari safe-area gutters
-   * (Dynamic Island in standalone PWA mode, bottom URL bar in tab
-   * mode). Width/height use 100vw and the implicit height from
-   * top/bottom so the layer also catches the area exposed when the URL
-   * bar collapses. We deliberately do NOT override the inline style
-   * here; the inline style already uses top:-200px/bottom:-200px. We
-   * just enforce overflow:hidden on mobile and strip the scale(1.05)
-   * transform on the image child (the negative offsets already
-   * provide overscan, so the scale is redundant on mobile and can
-   * trigger compositing bugs in mobile Safari).
+   * Theme background on mobile: the inline style already uses
+   * width:100vw / height:100lvh which fills the largest viewport
+   * (covers area exposed when the iOS URL bar collapses). The html
+   * background tints the Dynamic Island / home-indicator gutters at
+   * the document level. Here we only enforce overflow:hidden so the
+   * scale(1.05) on the image child can't cause horizontal overflow,
+   * and strip the transform itself (it can trigger mobile Safari
+   * compositing bugs that hide the image).
    */
   .ambient-background-layer {
     overflow: hidden !important;
