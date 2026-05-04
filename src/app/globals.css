@@ -67,14 +67,22 @@ body {
   margin: 0;
   font-family: var(--font-family), 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--text);
-  background-color: var(--bg-color);
+  /*
+   * Body must stay transparent so the AmbientBackground layer
+   * (position:fixed, z-index:-1) can paint through. The fallback color
+   * lives on <html> above so iOS safe-area gutters and the area behind
+   * the AmbientBackground (before the image loads) are still tinted.
+   * Setting an opaque background-color on body paints OVER the
+   * negative-z-index ambient layer and hides the theme image.
+   */
+  background-color: transparent;
   /* 100dvh shrinks/grows with the iOS URL bar; 100svh as fallback. */
   min-height: 100svh;
   min-height: 100dvh;
   overflow-x: clip;
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.5s ease, color 0.3s ease;
+  transition: color 0.3s ease;
 }
 
 /*
