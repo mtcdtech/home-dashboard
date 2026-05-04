@@ -1336,42 +1336,27 @@ function AmbientBackground({ theme, isLight }: { theme?: Theme | null; isLight?:
 
    /*
     * iOS Safari + viewport-fit=cover safe-area:
-    * - The outer layer uses negative top/bottom (-200px) so the image and
-    *   gradients extend BEYOND the layout viewport into the area that iOS
-    *   exposes when the URL bar collapses or when running in a PWA with
-    *   apple-mobile-web-app-status-bar-style=black-translucent (page
-    *   paints under the Dynamic Island / home-indicator gutters).
-    * - left/right are pinned to 0, and we let the height be implicit
-    *   (top:-200px + bottom:-200px). overflow:hidden clips the overscan
-    *   to the layer's box, but content sized to viewport units (100lvh
-    *   children) still appears anchored relative to it.
+    * - Use explicit top:0/left:0 with width:100vw and height:100lvh
+    *   (largest viewport) so the layer reliably fills the visible area
+    *   on every browser. Earlier iterations used implicit height via
+    *   negative top/bottom offsets, which iOS Safari sometimes resolved
+    *   to zero, collapsing the image element and leaving only the html
+    *   background showing through. The html background already tints
+    *   the iOS Dynamic Island / home-indicator gutters (set in
+    *   globals.css and synced via documentElement.style on theme
+    *   change), so the ambient layer does not need to overscan to cover
+    *   safe areas — the gutters are handled at the html level.
     * - The container background is transparent so it does NOT flatten
-    *   the image painted by the children. The solid theme-derived
-    *   backstop is the FIRST child (inset:0) so it covers the same
-    *   overscan region as the image, but always paints UNDER the image.
-    *   That guarantees: image visible when present, solid color visible
-    *   when no image.
-    *
-    * Top OS status bar limitation: in iPhone Safari (non-standalone tab
-    * mode), the OS status bar is not part of the web view's painting
-    * area. It is tinted by <meta name="theme-color"> on a best-effort
-    * basis only — the theme image cannot be shown there. Only an
-    * installed PWA (Add to Home Screen) running in standalone mode with
-    * the black-translucent status-bar-style lets the page paint into
-    * that gutter, and even then the OS still draws the clock/icons on
-    * top. For Safari tab mode we therefore fall back to the solid
-    * theme-color hex (synced via documentElement.style and the
-    * theme-color meta tag in the dashboard effect above); this is by
-    * design, not a CSS bug.
+    *   the image painted by the children.
+    * - The image is rendered as the FIRST child when present, with the
+    *   solid backstop only as a no-image fallback. Putting the backstop
+    *   above the image (DOM order) used to cover it in some Safari
+    *   compositing paths; restricting backstop to the no-image case
+    *   avoids that ambiguity and guarantees the image paints on top of
+    *   the radial glows.
     */
    return (
-      <div className="ambient-background-layer" style={{ position: 'fixed', top: '-200px', bottom: '-200px', left: 0, right: 0, zIndex: -1, overflow: 'hidden', background: 'transparent', pointerEvents: 'none' }}>
-         {/* Solid theme backstop. Only visible when no image, or through
-             the partial transparency of the overlays above. Sits below
-             the radial glows and the image so the image is never
-             flattened. inset:0 fills the same overscanned box as the
-             image so safe-area gutters get tinted. */}
-         <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-base)' }} />
+      <div className="ambient-background-layer" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100lvh', zIndex: -1, overflow: 'hidden', background: bgImg ? 'transparent' : 'var(--bg-base)', pointerEvents: 'none' }}>
          <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '80%', height: '80%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(100px)', opacity: 0.8, animation: 'float 20s infinite alternate linear' }} />
          <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '70%', height: '70%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(120px)', opacity: 0.6, animation: 'float 25s infinite alternate-reverse linear' }} />
          {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 0}px)`, transform: 'scale(1.05)', opacity: 0.9 }} />}
