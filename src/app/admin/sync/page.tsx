@@ -42,8 +42,8 @@ export default async function SyncPage() {
 
   const filteredTabs = allTabs.filter(tab => {
     if (isLocalAdmin) return true;
-    if (!tab.isReadOnlySync) return true;
-    return tab.owners.some(o => o.id === user.id);
+    if (!tab.isReadOnlySync && tab.isLibraryItem) return true;
+    return tab.owners.some((o: any) => o.id === user.id);
   });
 
   return <SyncClient allTabs={JSON.parse(JSON.stringify(filteredTabs))} users={JSON.parse(JSON.stringify(allUsers))} departments={departments} />;

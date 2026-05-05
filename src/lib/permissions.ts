@@ -128,8 +128,8 @@ function pushSource(rule: PushRule): AccessSource {
 
 export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision {
   if (ctx.isAdminView) {
-    if (tab.isReadOnlySync && !ctx.isLocalAdmin) {
-      // For imported workspaces, normal admins don't automatically get owner access.
+    if ((tab.isReadOnlySync || !tab.isLibraryItem) && !ctx.isLocalAdmin) {
+      // For imported and private workspaces, normal admins don't automatically get owner access.
       // They must fall through to standard explicit checks (owner/editor/viewer).
     } else {
       return { role: "owner", source: "admin", pushed: false, locked: false, inherited: false };
