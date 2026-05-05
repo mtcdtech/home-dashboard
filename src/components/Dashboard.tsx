@@ -137,19 +137,22 @@ export function Dashboard({
       const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
       return (yiq >= 128) ? '#000000' : '#ffffff';
    };
-   const [activeTabId, setActiveTabId] = useState<string>("");
+   const [activeTabId, setActiveTabId] = useState<string>(() => {
+      if (initialTabs.length > 0) {
+         return initialTabs[0].id;
+      }
+      return "";
+   });
 
    useEffect(() => {
       if (typeof window !== "undefined") {
          const urlParams = new URLSearchParams(window.location.search);
          const tabParam = urlParams.get('tab');
-         if (tabParam && tabs.some((t: any) => t.id === tabParam)) {
+         if (tabParam && initialTabs.some((t: any) => t.id === tabParam)) {
             setActiveTabId(tabParam);
-         } else if (tabs.length > 0) {
-            setActiveTabId(tabs[0].id);
          }
       }
-   }, [tabs]);
+   }, []);
 
    useEffect(() => {
       if (typeof window !== "undefined" && activeTabId) {
@@ -389,9 +392,12 @@ export function Dashboard({
 
    useEffect(() => {
       setTabs(initialTabs);
-      if (!initialTabs.find(t => t.id === activeTabId) && initialTabs.length > 0) {
-         setActiveTabId(initialTabs[0].id);
-      }
+      setActiveTabId((current) => {
+         if (current && initialTabs.some(t => t.id === current)) {
+            return current;
+         }
+         return initialTabs.length > 0 ? initialTabs[0].id : "";
+      });
    }, [initialTabs]);
 
    const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
