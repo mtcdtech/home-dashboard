@@ -146,8 +146,8 @@ export default function SyncPermissionMatrix({ syncedTabs, users, departments }:
                                   };
                                 }));
                                 try { await actions.updateTabUserRole(tab.id, user.id, newRole); } catch (e) { console.error(e); }
-                              }} style={{ width: '100%', opacity: 0, cursor: user.isAdmin ? 'default' : 'pointer', height: '100%', position: 'absolute', inset: 0, zIndex: 2 }}>
-                                {user.isAdmin ? <option value="owner">Owner (Admin)</option> : (
+                              }} style={{ width: '100%', opacity: 0, cursor: isLocalAdmin ? 'default' : 'pointer', height: '100%', position: 'absolute', inset: 0, zIndex: 2 }}>
+                                {isLocalAdmin ? <option value="owner">Owner (Admin)</option> : (
                                   <>
                                     <option value="inherited">Inherited</option>
                                     <option value="viewer">Viewer</option>
