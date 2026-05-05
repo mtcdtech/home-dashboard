@@ -99,6 +99,7 @@ model Tab {
   syncToken   String?      @unique // Token to allow exporting this workspace
   syncSourceUrl String?    // URL to pull updates from (if this is an imported workspace)
   isReadOnlySync Boolean   @default(false) // True if this is an imported workspace
+  singleSectionColumns Int[] @default([]) // Array of column indices that allow only a single expanded section
   pushToNewUsers Boolean   @default(false) // Legacy - migrated to pushRules
   pushRules     TabPushRule[]
   createdAt   DateTime     @default(now())

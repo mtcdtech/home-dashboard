@@ -44,6 +44,7 @@ export interface Section {
    editors?: { id: string }[];
    allowedUsers?: { id: string }[];
    departmentAccess?: any[];
+   isReadOnlySync?: boolean;
 }
 
 export interface Theme {
@@ -76,6 +77,9 @@ export interface Tab {
    owners: { id: string }[];
    editors: { id: string }[];
    allowedUsers: { id: string }[];
+   singleSectionColumns?: number[];
+   isReadOnlySync?: boolean;
+   departmentAccess?: any[];
 }
 
 export interface DashboardProps {
@@ -415,7 +419,23 @@ export function Dashboard({
    const toggleSection = async (tabId: string, sectionId: string, defaultCollapsed: boolean = false) => {
       const key = `${tabId}_${sectionId}`;
       const newState = collapsedSections[key] === undefined ? !defaultCollapsed : !collapsedSections[key];
-      setCollapsedSections(prev => ({ ...prev, [key]: newState }));
+      
+      const updates = { [key]: newState };
+      
+      const tab = tabs.find(t => t.id === tabId);
+      if (tab && !newState && tab.singleSectionColumns) {
+         const section = tab.sections.find(s => s.id === sectionId);
+         if (section && tab.singleSectionColumns.includes(section.column || 0)) {
+            // Collapse all other sections in this column
+            tab.sections.forEach(s => {
+               if ((s.column || 0) === (section.column || 0) && s.id !== sectionId) {
+                  updates[`${tabId}_${s.id}`] = true;
+               }
+            });
+         }
+      }
+      
+      setCollapsedSections(prev => ({ ...prev, ...updates }));
 
       // Optimistically save personal preference if logged in
       if (currentUserId) {
@@ -1004,6 +1024,47 @@ export function Dashboard({
                                  handleSectionDrop(e, undefined, tab.id, colIdx);
                               }}
                            >
+                              {showEditControls && hasTabEditAccess(tab) && (
+                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '0.25rem', paddingRight: '0.5rem', color: 'var(--text)', opacity: 0.8, fontSize: '0.8rem' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                                       <input 
+                                          type="checkbox" 
+                                          checked={tab.singleSectionColumns?.includes(colIdx) || false}
+                                          onChange={async (e) => {
+                                             const enabled = e.target.checked;
+                                             await actions.toggleSingleSectionColumn(tab.id, colIdx, enabled);
+                                             
+                                             // Optimistically update UI
+                                             const newCols = enabled 
+                                                ? [...(tab.singleSectionColumns || []), colIdx] 
+                                                : (tab.singleSectionColumns || []).filter(c => c !== colIdx);
+                                                
+                                             setTabs(prev => prev.map(t => {
+                                                if (t.id === tab.id) {
+                                                   const newTab = { ...t, singleSectionColumns: newCols };
+                                                   // Auto collapse logic locally
+                                                   if (enabled) {
+                                                      const sectionsInCol = t.sections.filter(s => s.column === colIdx).sort((a, b) => (a.order || 0) - (b.order || 0));
+                                                      if (sectionsInCol.length > 0) {
+                                                         const firstId = sectionsInCol[0].id;
+                                                         newTab.sections = t.sections.map(s => {
+                                                            if (s.column === colIdx) {
+                                                               return { ...s, defaultCollapsed: s.id !== firstId };
+                                                            }
+                                                            return s;
+                                                         });
+                                                      }
+                                                   }
+                                                   return newTab;
+                                                }
+                                                return t;
+                                             }));
+                                          }}
+                                       />
+                                       Single section open
+                                    </label>
+                                 </div>
+                              )}
                               {tab.sections
                                  .filter(s => (s.column ?? 0) === colIdx)
                                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))

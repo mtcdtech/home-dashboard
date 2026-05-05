@@ -376,14 +376,72 @@ export async function updateSectionLayout(sectionId: string, tabId: string, data
 
 export async function updateTabSectionCollapsed(sectionId: string, tabId: string, defaultCollapsed: boolean) {
   await requireSession();
-  await prisma.$transaction(
-    [{ sectionId, tabId, defaultCollapsed }].map(update =>
-      (prisma as any).tabSection.updateMany({
-        where: { tabId: update.tabId, sectionId: update.sectionId },
-        data: { defaultCollapsed: update.defaultCollapsed }
-      })
-    )
-  );
+  
+  // If we are setting this section to be expanded (defaultCollapsed = false)
+  if (!defaultCollapsed) {
+    const ts = await (prisma as any).tabSection.findUnique({
+      where: { tabId_sectionId: { tabId, sectionId } },
+      include: { tab: true }
+    });
+    
+    if (ts && ts.tab?.singleSectionColumns?.includes(ts.column)) {
+      // It's in a single section column, so collapse all other sections in this column
+      await (prisma as any).tabSection.updateMany({
+        where: { tabId, column: ts.column, sectionId: { not: sectionId } },
+        data: { defaultCollapsed: true }
+      });
+    }
+  }
+
+  await (prisma as any).tabSection.update({
+    where: { tabId_sectionId: { tabId, sectionId } },
+    data: { defaultCollapsed }
+  });
+  
+  revalidatePath("/");
+}
+
+export async function toggleSingleSectionColumn(tabId: string, colIndex: number, enabled: boolean) {
+  await requireSession();
+  const tab = await prisma.tab.findUnique({ where: { id: tabId } });
+  if (!tab) throw new Error("Tab not found");
+
+  const currentCols = (tab as any).singleSectionColumns || [];
+  let newCols = [...currentCols];
+
+  if (enabled && !newCols.includes(colIndex)) {
+    newCols.push(colIndex);
+    
+    // Auto-collapse all sections except the first one in this column
+    const sectionsInCol = await (prisma as any).tabSection.findMany({
+      where: { tabId, column: colIndex },
+      orderBy: { order: 'asc' }
+    });
+    
+    if (sectionsInCol.length > 0) {
+      const firstId = sectionsInCol[0].id;
+      // Ensure the first one is expanded
+      await (prisma as any).tabSection.update({
+        where: { id: firstId },
+        data: { defaultCollapsed: false }
+      });
+      // Collapse the rest
+      if (sectionsInCol.length > 1) {
+        await (prisma as any).tabSection.updateMany({
+          where: { tabId, column: colIndex, id: { not: firstId } },
+          data: { defaultCollapsed: true }
+        });
+      }
+    }
+  } else if (!enabled && newCols.includes(colIndex)) {
+    newCols = newCols.filter(c => c !== colIndex);
+  }
+
+  await prisma.tab.update({
+    where: { id: tabId },
+    data: { singleSectionColumns: newCols } as any
+  });
+
   revalidatePath("/");
 }
 
