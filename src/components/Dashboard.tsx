@@ -428,11 +428,13 @@ export function Dashboard({
     *
     * iOS paints the Dynamic Island / status bar gutter and the bottom URL
     * bar / home-indicator gutter using the html element's background, and
-    * tints the top status bar with <meta name="theme-color">. Both must
-    * track the active dashboard theme or those zones render black. We
-    * recompute the same color the dashboard derives for --bg-color and
-    * push it onto documentElement and the theme-color meta on every
-    * theme/tab change. This is duplicated logic by design — it has to
+    * tints the top status bar with <meta name="theme-color">. The html
+    * background uses --bg-color (matches the body), but theme-color uses a
+    * separate navTintHex that approximates the navbar's visible color
+    * (glassBg over bgHex). In iOS Safari tab mode the top OS strip sits
+    * outside the web view, so it can only follow theme-color — driving it
+    * from the body color leaves the strip looking off versus the navbar
+    * directly under it. This is duplicated logic by design — it has to
     * happen before the early-return guard for hooks-rules compliance, and
     * before --bg-color is rendered into the dynamic <style> tag.
     */
@@ -440,6 +442,8 @@ export function Dashboard({
       ? activeTab.theme.primaryColor
       : activeTheme.primaryColor;
    const _isLightForBg = theme === 'light';
+   const _secOpac = activeTheme.sectionOpacity ?? 0.7;
+   const _glsOpac = activeTheme.glassOpacity ?? 0.12;
    useEffect(() => {
       if (typeof document === 'undefined') return;
       const parse = (h: string) => {
@@ -447,22 +451,44 @@ export function Dashboard({
          if (c.length !== 6) return null;
          return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
       };
+      const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
       const targetHex = _isLightForBg ? '#ffffff' : '#000000';
       const mixPct = _isLightForBg ? 0.08 : 0.15;
       let bgHex = _isLightForBg ? '#eef2f7' : '#050505';
       const p = parse(_activePrimary);
       const t = parse(targetHex);
+      let bgRgb: [number, number, number] | null = null;
       if (p && t) {
          const r = Math.round(p[0] * mixPct + t[0] * (1 - mixPct));
          const g = Math.round(p[1] * mixPct + t[1] * (1 - mixPct));
          const b = Math.round(p[2] * mixPct + t[2] * (1 - mixPct));
-         const toHex = (n: number) => n.toString(16).padStart(2, '0');
+         bgRgb = [r, g, b];
          bgHex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      }
+      /*
+       * navTintHex approximates the visible color at the very top of the
+       * page — the navbar (rgba `glassBg`) composited over `bgHex`. iOS
+       * Safari (non-PWA) tints the URL/Dynamic-Island gutter from
+       * <meta name="theme-color">, so the gutter looks correct only if
+       * theme-color matches the navbar, not the body. Mirrors the
+       * mixR/mixG/mixB + cardAlpha math in the render path.
+       */
+      let navTintHex = bgHex;
+      if (p && bgRgb) {
+         const targetRGBNav = _isLightForBg ? [230, 230, 230] : [25, 25, 25];
+         const navR = p[0] + (targetRGBNav[0] - p[0]) * _secOpac;
+         const navG = p[1] + (targetRGBNav[1] - p[1]) * _secOpac;
+         const navB = p[2] + (targetRGBNav[2] - p[2]) * _secOpac;
+         const cardAlpha = 0.4 + _glsOpac * 0.5;
+         const r = navR * cardAlpha + bgRgb[0] * (1 - cardAlpha);
+         const g = navG * cardAlpha + bgRgb[1] * (1 - cardAlpha);
+         const b = navB * cardAlpha + bgRgb[2] * (1 - cardAlpha);
+         navTintHex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
       }
       const root = document.documentElement;
       root.style.setProperty('--bg-color', bgHex);
       root.style.setProperty('--bg-base', bgHex);
-      root.style.setProperty('--theme-color', bgHex);
+      root.style.setProperty('--theme-color', navTintHex);
       root.style.backgroundColor = bgHex;
       /*
        * Do NOT set document.body.style.backgroundColor. An opaque body
@@ -486,17 +512,17 @@ export function Dashboard({
        * black-translucent paints under that gutter.)
        */
       const allThemeMetas = document.querySelectorAll('meta[name="theme-color"]');
-      allThemeMetas.forEach((m) => { (m as HTMLMetaElement).content = bgHex; });
+      allThemeMetas.forEach((m) => { (m as HTMLMetaElement).content = navTintHex; });
       const unqualified = Array.from(allThemeMetas).find(
          (m) => !(m as HTMLMetaElement).hasAttribute('media')
       ) as HTMLMetaElement | undefined;
       if (!unqualified) {
          const meta = document.createElement('meta');
          meta.name = 'theme-color';
-         meta.content = bgHex;
+         meta.content = navTintHex;
          document.head.appendChild(meta);
       }
-   }, [_activePrimary, _isLightForBg]);
+   }, [_activePrimary, _isLightForBg, _secOpac, _glsOpac]);
 
    if (!mounted) return null;
 
