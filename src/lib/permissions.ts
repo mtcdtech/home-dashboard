@@ -188,7 +188,8 @@ export function resolveTabAccess(tab: TabLike, ctx: UserContext): AccessDecision
   }
 
   // 8. Non-catalog fallback: if none of the explicit or push grants matched, it's hidden.
-  if (!tab.isLibraryItem) {
+  // Imported workspaces (isReadOnlySync) are also explicitly hidden here regardless of isLibraryItem.
+  if (!tab.isLibraryItem || tab.isReadOnlySync) {
     return NONE;
   }
 
