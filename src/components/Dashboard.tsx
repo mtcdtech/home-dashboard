@@ -461,11 +461,19 @@ export function Dashboard({
       if (!searchQuery.trim()) return [];
       const list: any[] = [];
       displayedTabs.forEach(tab => {
-         tab.sections.forEach(section => {
-            section.bookmarks.forEach(b => {
-               list.push(b);
-            });
-         });
+         const cols = tab.columns || 3;
+         for (let colIdx = 0; colIdx < cols; colIdx++) {
+            tab.sections
+               .filter(s => (s.column ?? 0) === colIdx)
+               .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+               .forEach(section => {
+                  section.bookmarks
+                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                     .forEach(b => {
+                        list.push(b);
+                     });
+               });
+         }
       });
       return list;
    }, [displayedTabs, searchQuery]);
@@ -503,7 +511,7 @@ export function Dashboard({
                window.location.href = targetUrl;
             } else {
                const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
-               const targetUrl = engineObj.url.replace("%s", encodeURIComponent(query));
+               const targetUrl = engineObj.url + encodeURIComponent(query);
                window.open(targetUrl, '_blank');
             }
          }
@@ -926,7 +934,7 @@ export function Dashboard({
                               window.location.href = targetUrl;
                            } else {
                               const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
-                              const targetUrl = engineObj.url.replace("%s", encodeURIComponent(query));
+                              const targetUrl = engineObj.url + encodeURIComponent(query);
                               window.open(targetUrl, '_blank');
                            }
                         }}
@@ -1258,7 +1266,7 @@ export function Dashboard({
                                        <div style={{ padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.1)', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                           <div onClick={() => toggleSection(tab.id, section.id, section.defaultCollapsed)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1, minWidth: 0 }}>
                                              <div style={{ flexShrink: 0, display: 'flex' }}>
-                                                {(collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                                                {(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
                                              </div>
                                              <div style={{ flexShrink: 0, display: 'flex' }}>
                                                 <IconComponent name={section.icon || "LayoutGrid"} size={18} />
@@ -1286,7 +1294,7 @@ export function Dashboard({
                                        </div>
 
                                        {/* Bookmarks */}
-                                       {!(collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) && (
+                                       {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
                                              {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => {
                                                 const isHighlighted = searchQuery.trim() !== "" && bookmarkRenderIndex === searchSelectedIndex;
