@@ -21,12 +21,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Get package version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: mtcdtech/homedashboard:latest,mtcdtech/homedashboard:abraham
+          tags: mtcdtech/homedashboard:latest,mtcdtech/homedashboard:abraham,mtcdtech/homedashboard:v${{ env.VERSION }}
           cache-from: type=registry,ref=mtcdtech/homedashboard:buildcache
           cache-to: type=registry,ref=mtcdtech/homedashboard:buildcache,mode=max
 

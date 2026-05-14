@@ -2,6 +2,7 @@ import os
 import re
 import time
 import requests
+import json
 from pathlib import Path
 
 def load_env():
@@ -44,6 +45,19 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
     except Exception as e:
         print(f"[{name}] Failed to fetch stack file from Portainer: {e}")
         return
+
+    # Extract version from package.json
+    app_version = None
+    try:
+        with open('package.json', 'r') as f:
+            pkg = json.load(f)
+            app_version = pkg.get('version')
+    except Exception as e:
+        print(f"[{name}] Warning: Could not read package.json version: {e}")
+
+    # Force explicit version tag if provided to bypass Portainer caching issues
+    if app_version:
+        content = re.sub(r'image:\s*mtcdtech/home-?dashboard:[^\s]+', f'image: mtcdtech/homedashboard:v{app_version}', content)
 
     # Replace REDEPLOY_DATE to trigger restart
     if 'REDEPLOY_DATE=' in content:
