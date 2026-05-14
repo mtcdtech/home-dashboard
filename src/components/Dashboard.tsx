@@ -1325,7 +1325,7 @@ export function Dashboard({
                                                                const tagDef = (globalSettings.customTags as any[]).find(t => t.id === tagId);
                                                                if (!tagDef) return null;
                                                                return (
-                                                                  <span key={tagId} style={{ background: tagDef.color, color: getContrastYIQ(tagDef.color), fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                                                  <span key={tagId} title={tagDef.description || ""} style={{ background: tagDef.color, color: getContrastYIQ(tagDef.color), fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                                                                      {tagDef.text}
                                                                   </span>
                                                                );
@@ -1340,7 +1340,7 @@ export function Dashboard({
                                                       </div>
                                                    )}
                                                 </div>
-                                             ))}
+                                             ); })}
 
                                           </div>
                                        )}
@@ -1380,6 +1380,7 @@ export function Dashboard({
                      </div>
                   </div>
                );
+            });
             })()}
          </div>
 

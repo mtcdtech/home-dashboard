@@ -9,7 +9,7 @@ export function CustomTagsClient({ initialTags }: { initialTags: any[] }) {
    const [isSaving, setIsSaving] = useState(false);
 
    const addTag = () => {
-      setTags([...tags, { id: Date.now().toString(), text: "New Tag", color: "#3b82f6" }]);
+      setTags([...tags, { id: Date.now().toString(), text: "New Tag", color: "#3b82f6", description: "" }]);
    };
 
    const updateTag = (id: string, field: string, value: string) => {
@@ -41,12 +41,15 @@ export function CustomTagsClient({ initialTags }: { initialTags: any[] }) {
          </p>
          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
             {tags.map(tag => (
-               <div key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0,0,0,0.05)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                  <input type="color" value={tag.color} onChange={e => updateTag(tag.id, 'color', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer' }} />
-                  <input type="text" value={tag.text} onChange={e => updateTag(tag.id, 'text', e.target.value)} className="glass form-input" style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '6px' }} placeholder="Tag text" />
-                  <button onClick={() => removeTag(tag.id)} className="btn" style={{ padding: '0.5rem', color: '#ef4444', background: 'transparent', border: 'none' }}>
-                     <X size={18} />
-                  </button>
+               <div key={tag.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(0,0,0,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                     <input type="color" value={tag.color} onChange={e => updateTag(tag.id, 'color', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer' }} />
+                     <input type="text" value={tag.text} onChange={e => updateTag(tag.id, 'text', e.target.value)} className="glass form-input" style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '6px' }} placeholder="Tag text" />
+                     <button onClick={() => removeTag(tag.id)} className="btn" style={{ padding: '0.5rem', color: '#ef4444', background: 'transparent', border: 'none' }}>
+                        <X size={18} />
+                     </button>
+                  </div>
+                  <input type="text" value={tag.description || ""} onChange={e => updateTag(tag.id, 'description', e.target.value)} className="glass form-input" style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem' }} placeholder="Optional description (shows on hover)" />
                </div>
             ))}
             {tags.length === 0 && <div style={{ fontSize: '0.85rem', opacity: 0.5, textAlign: 'center', padding: '1rem' }}>No tags defined yet.</div>}
