@@ -1232,12 +1232,12 @@ export function Dashboard({
                                                          {bookmark.description ? <span style={{ fontSize: '0.8rem', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{bookmark.description}</span> : null}
                                                       </div>
                                                       {bookmark.tags && bookmark.tags.length > 0 && globalSettings?.customTags && (
-                                                         <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', marginLeft: 'auto', flexShrink: 0 }}>
+                                                         <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', marginLeft: 'auto', flexShrink: 0, marginRight: (showEditControls && hasSectionEditAccess(section, tab)) ? '3.5rem' : '0' }}>
                                                             {bookmark.tags.map((tagId: string) => {
                                                                const tagDef = (globalSettings.customTags as any[]).find(t => t.id === tagId);
                                                                if (!tagDef) return null;
                                                                return (
-                                                                  <span key={tagId} style={{ background: tagDef.color, color: '#fff', fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                                                  <span key={tagId} style={{ background: tagDef.color, color: getContrastYIQ(tagDef.color), fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                                                                      {tagDef.text}
                                                                   </span>
                                                                );
