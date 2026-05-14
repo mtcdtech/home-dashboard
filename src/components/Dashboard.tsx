@@ -15,6 +15,8 @@ import ThemeModal from "@/components/ThemeModal";
 import { TabModal } from "./TabModal";
 import { SectionModal } from "./SectionModal";
 import { BookmarkModal } from "./BookmarkModal";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export interface Bookmark {
    id: string;
@@ -1366,7 +1368,15 @@ export function Dashboard({
                                                                e.stopPropagation();
                                                                setViewingBookmarkInfo(bookmark);
                                                             }}
-                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5, marginLeft: '0.25rem', padding: '0.25rem' }}
+                                                            onMouseEnter={e => {
+                                                               e.currentTarget.style.opacity = '1';
+                                                               e.currentTarget.style.background = 'rgba(128,128,128,0.2)';
+                                                            }}
+                                                            onMouseLeave={e => {
+                                                               e.currentTarget.style.opacity = '0.5';
+                                                               e.currentTarget.style.background = 'none';
+                                                            }}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5, marginLeft: '0', padding: '0.3rem', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                                          >
                                                             <Info size={16} />
                                                          </button>
@@ -1599,8 +1609,10 @@ export function Dashboard({
                      </div>
                      <button onClick={() => setViewingBookmarkInfo(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
                   </div>
-                  <div style={{ padding: '1.5rem', overflowY: 'auto', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.95rem' }}>
-                     {viewingBookmarkInfo.longDescription}
+                  <div style={{ padding: '1.5rem', overflowY: 'auto', lineHeight: '1.6', fontSize: '0.95rem' }} className="markdown-body">
+                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {viewingBookmarkInfo.longDescription}
+                     </ReactMarkdown>
                   </div>
                </div>
             </div>
