@@ -208,6 +208,11 @@ export function Dashboard({
 
    // Bookmark Edit
    const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
+   const [isBulkTagModalOpen, setIsBulkTagModalOpen] = useState(false);
+   const [bulkSelectedTags, setBulkSelectedTags] = useState<string[]>([]);
+   const [isBulkSaving, setIsBulkSaving] = useState(false);
+   const [selectedBookmarks, setSelectedBookmarks] = useState<string[]>([]);
+   const [viewingBookmarkInfo, setViewingBookmarkInfo] = useState<any | null>(null);
    const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
    const [targetSectionIdForBookmark, setTargetSectionIdForBookmark] = useState<string>("");
 
@@ -856,7 +861,7 @@ export function Dashboard({
 
                   {/* Edit Toggle (Available to all logged-in users) */}
                   {currentUserId && (
-                     <button className="nav-menu-btn" title="Toggle Edit Mode" onClick={() => setShowEditControls(!showEditControls)} style={{ background: showEditControls ? 'var(--primary)' : 'transparent', color: showEditControls ? 'white' : 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', marginLeft: '0.25rem' }}>
+                     <button className="nav-menu-btn" title="Toggle Edit Mode" onClick={() => { setShowEditControls(!showEditControls); setSelectedBookmarks([]); }} style={{ background: showEditControls ? 'var(--primary)' : 'transparent', color: showEditControls ? 'white' : 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', marginLeft: '0.25rem' }}>
                         <Edit2 size={18} /> <span className="mobile-menu-text">Edit Dashboard</span>
                      </button>
                   )}
@@ -1310,10 +1315,32 @@ export function Dashboard({
                                                       onMouseLeave={e => {
                                                          if (!isHighlighted) e.currentTarget.style.background = 'transparent';
                                                       }}
-                                                      onClick={() => { if (!showEditControls) fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: bookmark.id, bookmarkTitle: bookmark.title, bookmarkUrl: bookmark.url }) }).catch(() => { }); }}
+                                                      onClick={(e) => {
+                                                         if (showEditControls && hasSectionEditAccess(section, tab)) {
+                                                            e.preventDefault();
+                                                            setEditingBookmark(bookmark); setModalMode("edit"); setIsBookmarkModalOpen(true);
+                                                         } else if (!showEditControls) {
+                                                            fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: bookmark.id, bookmarkTitle: bookmark.title, bookmarkUrl: bookmark.url }) }).catch(() => { });
+                                                         }
+                                                      }}
                                                    >
-                                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', flexShrink: 0 }}>
-                                                         <IconComponent name={bookmark.icon} size={28} />
+                                                      <div 
+                                                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', flexShrink: 0, position: 'relative', cursor: showEditControls ? 'pointer' : 'default' }}
+                                                         onClick={(e) => {
+                                                            if (showEditControls && hasSectionEditAccess(section, tab)) {
+                                                               e.preventDefault();
+                                                               e.stopPropagation();
+                                                               setSelectedBookmarks(prev => prev.includes(bookmark.id) ? prev.filter(id => id !== bookmark.id) : [...prev, bookmark.id]);
+                                                            }
+                                                         }}
+                                                      >
+                                                         {showEditControls && selectedBookmarks.includes(bookmark.id) ? (
+                                                            <div style={{ position: 'absolute', inset: 0, background: 'var(--primary)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                                                               <Check size={20} />
+                                                            </div>
+                                                         ) : (
+                                                            <IconComponent name={bookmark.icon} size={28} />
+                                                         )}
                                                       </div>
                                                       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: '1 1 auto', minWidth: 0 }}>
                                                          <span style={{ fontWeight: 600, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{bookmark.title}</span>
@@ -1325,17 +1352,28 @@ export function Dashboard({
                                                                const tagDef = (globalSettings.customTags as any[]).find(t => t.id === tagId);
                                                                if (!tagDef) return null;
                                                                return (
-                                                                  <span key={tagId} title={tagDef.description || ""} style={{ background: tagDef.color, color: getContrastYIQ(tagDef.color), fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                                                  <span key={tagId} title={tagDef.description || ""} style={{ background: tagDef.opacity !== undefined ? `rgba(${hexToRgb(tagDef.color)}, ${tagDef.opacity})` : tagDef.color, color: getContrastYIQ(tagDef.color), fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                                                                      {tagDef.text}
                                                                   </span>
                                                                );
                                                             })}
                                                          </div>
                                                       )}
+                                                      {!showEditControls && bookmark.longDescription && (
+                                                         <button 
+                                                            onClick={(e) => {
+                                                               e.preventDefault();
+                                                               e.stopPropagation();
+                                                               setViewingBookmarkInfo(bookmark);
+                                                            }}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5, marginLeft: '0.25rem', padding: '0.25rem' }}
+                                                         >
+                                                            <Info size={16} />
+                                                         </button>
+                                                      )}
                                                    </a>
                                                    {showEditControls && hasSectionEditAccess(section, tab) && (
                                                       <div style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '0.25rem', background: 'var(--glass-bg)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                                                         <button onClick={(e) => { e.preventDefault(); setEditingBookmark(bookmark); setModalMode("edit"); setIsBookmarkModalOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><Edit2 size={14} /></button>
                                                          <button onClick={(e) => { e.preventDefault(); if (confirm('Delete app?')) actions.deleteBookmark(bookmark.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff4444' }}><Trash2 size={14} /></button>
                                                       </div>
                                                    )}
@@ -1549,61 +1587,104 @@ export function Dashboard({
                onSaved={() => { setIsTabModalOpen(false); router.refresh(); }}
             />
          )}
-
-         {/* Lock Info Popup */}
-         {lockInfoTarget && (
-            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(12px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }} onClick={() => setLockInfoTarget(null)}>
-               <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '420px', borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)' }} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                     <Lock size={18} style={{ opacity: 0.5 }} />
-                     <div>
-                        <div style={{ fontSize: '1rem', fontWeight: 700 }}>{lockInfoTarget.title}</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>Who can edit this {lockInfoTarget.type.toLowerCase()}</div>
+         
+         {/* More Info Modal */}
+         {viewingBookmarkInfo && (
+            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(12px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }} onClick={() => setViewingBookmarkInfo(null)}>
+               <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '600px', borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'space-between' }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Info size={18} style={{ color: 'var(--primary)' }} />
+                        <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{viewingBookmarkInfo.title}</div>
                      </div>
+                     <button onClick={() => setViewingBookmarkInfo(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
                   </div>
-                  <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                     {(() => {
-                        const ownerIds = new Set(lockInfoTarget.owners.map((u: any) => u.id));
-                        const editorIds = new Set(lockInfoTarget.editors.map((u: any) => u.id));
-                        const extraAdmins = adminUsers.filter((u: any) => !ownerIds.has(u.id) && !editorIds.has(u.id));
-                        const renderUser = (u: any, badge?: string) => (
-                           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0' }}>
-                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: u.avatarColor || 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.6rem', fontWeight: 800 }}>
-                                 {(u.name || u.email || "U").trim().split(/\s+/).map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                              </div>
-                              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{u.name || u.email}</span>
-                              {badge && <span style={{ fontSize: '0.55rem', fontWeight: 800, background: 'rgba(59,130,246,0.1)', color: '#3b82f6', padding: '0.1rem 0.35rem', borderRadius: '4px', textTransform: 'uppercase' }}>{badge}</span>}
-                           </div>
-                        );
-                        return (
-                           <>
-                              {lockInfoTarget.owners.length > 0 && (
-                                 <div>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.4, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Owners</div>
-                                    {lockInfoTarget.owners.map((u: any) => renderUser(u))}
-                                 </div>
-                              )}
-                              {lockInfoTarget.editors.length > 0 && (
-                                 <div>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.4, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Editors</div>
-                                    {lockInfoTarget.editors.map((u: any) => renderUser(u))}
-                                 </div>
-                              )}
-                              {extraAdmins.length > 0 && (
-                                 <div>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.4, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Global Admins</div>
-                                    {extraAdmins.map((u: any) => renderUser(u, 'Admin'))}
-                                 </div>
-                              )}
-                              {lockInfoTarget.owners.length === 0 && lockInfoTarget.editors.length === 0 && extraAdmins.length === 0 && (
-                                 <div style={{ opacity: 0.5, fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>No specific users assigned. Contact an admin.</div>
-                              )}
-                           </>
-                        );
-                     })()}
+                  <div style={{ padding: '1.5rem', overflowY: 'auto', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.95rem' }}>
+                     {viewingBookmarkInfo.longDescription}
                   </div>
-                  <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end' }}>
-                     <button onClick={() => setLockInfoTarget(null)} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem', borderRadius: '10px', fontWeight: 600 }}>Close</button>
+               </div>
+            </div>
+         )}
+         
+         {/* Bulk Tag Floating Bar */}
+         {showEditControls && selectedBookmarks.length > 0 && (
+            <div className="fade-in" style={{ position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', background: 'var(--glass-bg)', backdropFilter: 'blur(12px)', padding: '0.75rem 1.5rem', borderRadius: '16px', border: '1px solid rgba(var(--primary-rgb), 0.3)', display: 'flex', gap: '1rem', alignItems: 'center', zIndex: 1000, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+               <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{selectedBookmarks.length} selected</span>
+               <div style={{ width: '1px', height: '24px', background: 'var(--glass-border)' }} />
+               <button onClick={() => setIsBulkTagModalOpen(true)} className="btn btn-primary" style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem' }}>Apply Tags</button>
+               <button onClick={() => setSelectedBookmarks([])} className="btn" style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: 'transparent', border: 'none', color: '#ff4444', fontSize: '0.85rem', fontWeight: 600 }}>Clear</button>
+            </div>
+         )}
+         
+         {/* Bulk Tag Modal */}
+         {isBulkTagModalOpen && (
+            <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(12px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+               <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '500px', borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(var(--primary-rgb), 0.15)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                     <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Apply Tags to {selectedBookmarks.length} apps</h2>
+                     <button onClick={() => { setIsBulkTagModalOpen(false); setBulkSelectedTags([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={20} /></button>
+                  </div>
+                  <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     {globalSettings?.customTags && (globalSettings.customTags as any[]).length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                           {(globalSettings.customTags as any[]).map(tag => {
+                              const isSelected = bulkSelectedTags.includes(tag.id);
+                              return (
+                                 <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => {
+                                       if (isSelected) {
+                                          setBulkSelectedTags(bulkSelectedTags.filter(id => id !== tag.id));
+                                       } else {
+                                          setBulkSelectedTags([...bulkSelectedTags, tag.id]);
+                                       }
+                                    }}
+                                    style={{
+                                       padding: '0.25rem 0.75rem',
+                                       borderRadius: '999px',
+                                       fontSize: '0.8rem',
+                                       fontWeight: 600,
+                                       border: `1px solid ${tag.color}`,
+                                       background: isSelected ? tag.color : 'transparent',
+                                       color: isSelected ? '#fff' : tag.color,
+                                       cursor: 'pointer',
+                                       transition: 'all 0.2s ease'
+                                    }}
+                                 >
+                                    {tag.text}
+                                 </button>
+                              );
+                           })}
+                        </div>
+                     ) : (
+                        <div style={{ opacity: 0.5, fontStyle: 'italic' }}>No custom tags defined in Admin portal.</div>
+                     )}
+                  </div>
+                  <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', background: 'rgba(var(--primary-rgb), 0.03)' }}>
+                     <button onClick={() => { setIsBulkTagModalOpen(false); setBulkSelectedTags([]); }} className="btn" style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--glass-border)', padding: '0.75rem 1.5rem', borderRadius: '12px', fontWeight: 600 }}>Cancel</button>
+                     <button 
+                        onClick={async () => {
+                           setIsBulkSaving(true);
+                           try {
+                              for (const id of selectedBookmarks) {
+                                 await actions.updateBookmark(id, { tags: bulkSelectedTags });
+                              }
+                              setSelectedBookmarks([]);
+                              setIsBulkTagModalOpen(false);
+                              setBulkSelectedTags([]);
+                              router.refresh();
+                           } catch (e) {
+                              console.error(e);
+                           }
+                           setIsBulkSaving(false);
+                        }} 
+                        disabled={isBulkSaving} 
+                        className="btn btn-primary" 
+                        style={{ padding: '0.75rem 2rem', borderRadius: '12px', fontWeight: 600, opacity: isBulkSaving ? 0.5 : 1 }}
+                     >
+                        {isBulkSaving ? "Saving..." : "Apply"}
+                     </button>
                   </div>
                </div>
             </div>

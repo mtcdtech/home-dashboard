@@ -20,6 +20,8 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
   const [title, setTitle] = useState(bookmark?.title || "");
   const [url, setUrl] = useState(bookmark?.url || "");
   const [description, setDescription] = useState(bookmark?.description || "");
+  const [longDescription, setLongDescription] = useState(bookmark?.longDescription || "");
+  const [showMoreInfo, setShowMoreInfo] = useState(!!bookmark?.longDescription);
   const [icon, setIcon] = useState(bookmark?.icon || "");
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
@@ -31,9 +33,9 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
     setSaving(true);
     try {
       if (modalMode === "edit" && bookmark?.id) {
-        await actions.updateBookmark(bookmark.id, { title, url, description, icon, tags: selectedTags } as any);
+        await actions.updateBookmark(bookmark.id, { title, url, description, longDescription, icon, tags: selectedTags } as any);
       } else {
-        await actions.createBookmark({ title, url, description, icon, tags: selectedTags, sectionId: targetSectionId, order: 999, openInNewTab: true } as any);
+        await actions.createBookmark({ title, url, description, longDescription, icon, tags: selectedTags, sectionId: targetSectionId, order: 999, openInNewTab: true } as any);
       }
       onSaved();
     } catch (err) {
@@ -88,6 +90,24 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
                       className="glass"
                       style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '1rem', boxSizing: 'border-box' }}
                    />
+                </div>
+                
+                <div>
+                   <div 
+                      onClick={() => setShowMoreInfo(!showMoreInfo)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: 'var(--primary)', marginBottom: showMoreInfo ? '0.5rem' : '0' }}
+                   >
+                      {showMoreInfo ? '▼' : '▶'} More Info (Markdown supported)
+                   </div>
+                   {showMoreInfo && (
+                      <textarea
+                         value={longDescription}
+                         onChange={(e) => setLongDescription(e.target.value)}
+                         placeholder="Detailed instructions, credentials, or context..."
+                         className="glass"
+                         style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '0.95rem', minHeight: '120px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                      />
+                   )}
                 </div>
              </div>
 
