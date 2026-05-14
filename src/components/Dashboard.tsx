@@ -680,6 +680,7 @@ export function Dashboard({
     .desktop-nav-group { display: flex; }
     .mobile-menu-btn { display: none; }
     .mobile-menu-text { display: none; }
+    .search-help-text { display: block; }
     @media (max-width: 768px) {
       .desktop-nav-group { display: none !important; }
       .desktop-nav-group.open {
@@ -841,19 +842,27 @@ export function Dashboard({
                   </div>
                   <input
                      ref={searchInputRef}
+                     autoFocus
                      type="text"
                      className="search-input"
-                     placeholder="Search all apps & tools..."
+                     placeholder="Search apps, or web / paste URL..."
                      value={searchQuery}
                      onChange={e => setSearchQuery(e.target.value)}
                      onKeyDown={handleSearchKeyDown}
                      style={{
-                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '7rem', paddingLeft: '2.8rem',
+                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '15rem', paddingLeft: '2.8rem',
                         background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '999px',
                         color: 'var(--text)', outline: 'none', boxSizing: 'border-box',
                         transition: 'all 0.2s ease', backdropFilter: 'blur(10px)'
                      }}
                   />
+                  {searchQuery.trim() !== "" && (
+                     <div className="search-help-text" style={{ position: 'absolute', right: '7.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.75rem', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                        {/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(searchQuery.trim()) 
+                           ? "Press enter to visit this URL" 
+                           : "Press enter to search"}
+                     </div>
+                  )}
                   <select
                      value={searchEngine}
                      onChange={(e) => {
