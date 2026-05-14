@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { Plus, X, Tag } from "lucide-react";
 import { updateGlobalSettings } from "./actions";
+import { IconPicker, IconComponent } from "@/components/IconPicker";
 
 export function CustomTagsClient({ initialTags }: { initialTags: any[] }) {
    const [tags, setTags] = useState(initialTags || []);
    const [isSaving, setIsSaving] = useState(false);
+   const [activeTagForIcon, setActiveTagForIcon] = useState<string | null>(null);
+   const [iconSearchQuery, setIconSearchQuery] = useState("");
 
    const addTag = () => {
       setTags([...tags, { id: Date.now().toString(), text: "New Tag", color: "#3b82f6", description: "", opacity: 1 }]);
@@ -45,7 +48,15 @@ export function CustomTagsClient({ initialTags }: { initialTags: any[] }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                      <input type="color" value={tag.color} onChange={e => updateTag(tag.id, 'color', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', flexShrink: 0 }} />
                      <input type="text" value={tag.text} onChange={e => updateTag(tag.id, 'text', e.target.value)} className="glass form-input" style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '6px', minWidth: '100px' }} placeholder="Tag text" />
-                     <input type="text" value={tag.icon || ""} onChange={e => updateTag(tag.id, 'icon', e.target.value)} className="glass form-input" style={{ width: '120px', padding: '0.5rem 0.75rem', borderRadius: '6px' }} placeholder="Icon (e.g. Shield)" />
+                     <button
+                        type="button"
+                        onClick={() => setActiveTagForIcon(tag.id)}
+                        className="glass form-input"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '36px', padding: 0, borderRadius: '6px', cursor: 'pointer', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)' }}
+                        title="Pick Icon"
+                     >
+                        {tag.icon ? <IconComponent name={tag.icon} size={16} /> : <Tag size={16} opacity={0.5} />}
+                     </button>
                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', opacity: 0.8, whiteSpace: 'nowrap', padding: '0 0.5rem' }}>
                         <span>Opacity:</span>
                         <input type="range" min="0.1" max="1" step="0.05" value={tag.opacity ?? 1} onChange={e => updateTag(tag.id, 'opacity', e.target.value)} style={{ width: '80px', accentColor: tag.color }} />
@@ -63,6 +74,28 @@ export function CustomTagsClient({ initialTags }: { initialTags: any[] }) {
          <button onClick={handleSave} className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', fontWeight: 600 }} disabled={isSaving}>
             {isSaving ? "Saving..." : "Save Tags"}
          </button>
+
+         {activeTagForIcon && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+               <div className="glass glass-card" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Select Icon</h3>
+                     <button onClick={() => setActiveTagForIcon(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><X size={24} /></button>
+                  </div>
+                  <IconPicker
+                     currentIcon={tags.find(t => t.id === activeTagForIcon)?.icon || ""}
+                     setIcon={(newIcon) => updateTag(activeTagForIcon, 'icon', newIcon)}
+                     query={iconSearchQuery}
+                     setQuery={setIconSearchQuery}
+                     iconRegistry={[]}
+                     onUpload={async () => {}}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                     <button onClick={() => setActiveTagForIcon(null)} className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: 600 }}>Done</button>
+                  </div>
+               </div>
+            </div>
+         )}
       </div>
    );
 }

@@ -1352,21 +1352,8 @@ export function Dashboard({
                                                          <span style={{ fontWeight: 600, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{bookmark.title}</span>
                                                          {bookmark.description ? <span style={{ fontSize: '0.8rem', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{bookmark.description}</span> : null}
                                                       </div>
-                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginLeft: 'auto', flexShrink: 0, marginRight: (showEditControls && hasSectionEditAccess(section, tab)) ? '3.5rem' : '0' }}>
-                                                         {bookmark.tags && bookmark.tags.length > 0 && globalSettings?.customTags && (
-                                                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                                                               {bookmark.tags.map((tagId: string) => {
-                                                                  const tagDef = (globalSettings.customTags as any[]).find(t => t.id === tagId);
-                                                                  if (!tagDef) return null;
-                                                                  return (
-                                                                     <span key={tagId} title={tagDef.description || tagDef.text || ""} style={{ background: tagDef.opacity !== undefined ? `rgba(${hexToRgb(tagDef.color)}, ${tagDef.opacity})` : tagDef.color, color: getContrastYIQ(tagDef.color), fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                        {tagDef.icon ? <IconComponent name={tagDef.icon} size={12} /> : tagDef.text}
-                                                                     </span>
-                                                                  );
-                                                               })}
-                                                            </div>
-                                                         )}
-                                                         {!showEditControls && bookmark.longDescription && (
+                                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', marginLeft: 'auto', flexShrink: 0, alignSelf: 'stretch', gap: '0.25rem', marginRight: (showEditControls && hasSectionEditAccess(section, tab)) ? '3.5rem' : '0' }}>
+                                                         {!showEditControls && bookmark.longDescription ? (
                                                             <button 
                                                                onClick={(e) => {
                                                                   e.preventDefault();
@@ -1381,10 +1368,23 @@ export function Dashboard({
                                                                   e.currentTarget.style.opacity = '0.5';
                                                                   e.currentTarget.style.background = 'none';
                                                                }}
-                                                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5, padding: '0.3rem', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5, padding: '0.2rem', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', marginTop: '-0.2rem', marginRight: '-0.2rem' }}
                                                             >
                                                                <Info size={16} />
                                                             </button>
+                                                         ) : <div />}
+                                                         {bookmark.tags && bookmark.tags.length > 0 && globalSettings?.customTags && (
+                                                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', marginTop: 'auto' }}>
+                                                               {bookmark.tags.map((tagId: string) => {
+                                                                  const tagDef = (globalSettings.customTags as any[]).find(t => t.id === tagId);
+                                                                  if (!tagDef) return null;
+                                                                  return (
+                                                                     <span key={tagId} title={tagDef.description || tagDef.text || ""} style={{ background: tagDef.opacity !== undefined ? `rgba(${hexToRgb(tagDef.color)}, ${tagDef.opacity})` : tagDef.color, color: getContrastYIQ(tagDef.color), fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                        {tagDef.icon ? <IconComponent name={tagDef.icon} size={12} /> : tagDef.text}
+                                                                     </span>
+                                                                  );
+                                                               })}
+                                                            </div>
                                                          )}
                                                       </div>
                                                    </a>
