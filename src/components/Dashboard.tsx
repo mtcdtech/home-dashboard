@@ -180,6 +180,8 @@ export function Dashboard({
       { id: 'yahoo', name: 'Yahoo', url: 'https://search.yahoo.com/search?p=' }
    ];
 
+   const URL_PATTERN = /^(https?:\/\/)?(localhost|(\d{1,3}\.){3}\d{1,3}|([\da-z\.-]+)\.([a-z\.]{2,6}))(:\d+)?([\/\w \.-]*)*\/?$/i;
+
    useEffect(() => {
       const savedEngine = localStorage.getItem("preferredSearchEngine");
       if (savedEngine) {
@@ -495,15 +497,10 @@ export function Dashboard({
          if (searchSelectedIndex < maxIndex) {
             const b = flatMatchedBookmarks[searchSelectedIndex];
             fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
-            if (b.openInNewTab) {
-               window.open(b.url, '_blank');
-            } else {
-               window.location.href = b.url;
-            }
+            window.location.href = b.url;
          } else {
             const query = searchQuery.trim();
-            const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
-            if (urlPattern.test(query)) {
+            if (URL_PATTERN.test(query)) {
                let targetUrl = query;
                if (!query.startsWith('http://') && !query.startsWith('https://')) {
                   targetUrl = 'https://' + query;
@@ -512,7 +509,7 @@ export function Dashboard({
             } else {
                const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
                const targetUrl = engineObj.url + encodeURIComponent(query);
-               window.open(targetUrl, '_blank');
+               window.location.href = targetUrl;
             }
          }
       }
@@ -916,7 +913,7 @@ export function Dashboard({
                      <div className="search-help-text" style={{ position: 'absolute', right: '15.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.75rem', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
                         {searchSelectedIndex < flatMatchedBookmarks.length 
                            ? `Press enter to open ${flatMatchedBookmarks[searchSelectedIndex].title}`
-                           : (/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(searchQuery.trim()) 
+                           : (URL_PATTERN.test(searchQuery.trim()) 
                               ? "Press enter to visit this URL" 
                               : "Press enter to search")}
                      </div>
@@ -925,8 +922,7 @@ export function Dashboard({
                      <button
                         onClick={() => {
                            const query = searchQuery.trim();
-                           const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
-                           if (urlPattern.test(query)) {
+                           if (URL_PATTERN.test(query)) {
                               let targetUrl = query;
                               if (!query.startsWith('http://') && !query.startsWith('https://')) {
                                  targetUrl = 'https://' + query;
@@ -935,7 +931,7 @@ export function Dashboard({
                            } else {
                               const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
                               const targetUrl = engineObj.url + encodeURIComponent(query);
-                              window.open(targetUrl, '_blank');
+                              window.location.href = targetUrl;
                            }
                         }}
                         style={{
@@ -947,7 +943,7 @@ export function Dashboard({
                            transition: 'all 0.2s ease',
                         }}
                      >
-                        {/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(searchQuery.trim()) 
+                        {URL_PATTERN.test(searchQuery.trim()) 
                            ? "Visit URL ⏎" 
                            : "Web Search ⏎"}
                      </button>
@@ -1310,7 +1306,7 @@ export function Dashboard({
                                                    onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleBookmarkDrop(e, bookmark.id, section.id); }}
                                                    style={{ position: 'relative', width: '100%', boxSizing: 'border-box', minWidth: 0, opacity: draggedBookmarkId === bookmark.id ? 0.45 : 1, borderTop: dragOverBookmarkId === bookmark.id ? '2px solid var(--primary)' : '2px solid transparent' }}
                                                 >
-                                                   <a href={showEditControls ? "#" : bookmark.url} target={showEditControls ? "_self" : (bookmark.openInNewTab !== false ? "_blank" : "_self")} style={{
+                                                   <a href={showEditControls ? "#" : bookmark.url} target={showEditControls || searchQuery.trim() !== "" ? "_self" : (bookmark.openInNewTab !== false ? "_blank" : "_self")} style={{
                                                       display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', borderRadius: '12px', width: '100%', boxSizing: 'border-box', minWidth: 0,
                                                       textDecoration: 'none', color: 'var(--text)', transition: 'background 0.2s', ...(!showEditControls ? { cursor: 'pointer' } : { cursor: 'grab' }),
                                                       background: isHighlighted ? 'rgba(var(--primary-rgb), 0.15)' : 'transparent',
