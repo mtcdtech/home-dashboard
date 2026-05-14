@@ -44,7 +44,8 @@ export function CustomTagsClient({ initialTags }: { initialTags: any[] }) {
                <div key={tag.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(0,0,0,0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                      <input type="color" value={tag.color} onChange={e => updateTag(tag.id, 'color', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: 'none', borderRadius: '6px', cursor: 'pointer', flexShrink: 0 }} />
-                     <input type="text" value={tag.text} onChange={e => updateTag(tag.id, 'text', e.target.value)} className="glass form-input" style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '6px', minWidth: '120px' }} placeholder="Tag text" />
+                     <input type="text" value={tag.text} onChange={e => updateTag(tag.id, 'text', e.target.value)} className="glass form-input" style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '6px', minWidth: '100px' }} placeholder="Tag text" />
+                     <input type="text" value={tag.icon || ""} onChange={e => updateTag(tag.id, 'icon', e.target.value)} className="glass form-input" style={{ width: '120px', padding: '0.5rem 0.75rem', borderRadius: '6px' }} placeholder="Icon (e.g. Shield)" />
                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', opacity: 0.8, whiteSpace: 'nowrap', padding: '0 0.5rem' }}>
                         <span>Opacity:</span>
                         <input type="range" min="0.1" max="1" step="0.05" value={tag.opacity ?? 1} onChange={e => updateTag(tag.id, 'opacity', e.target.value)} style={{ width: '80px', accentColor: tag.color }} />
