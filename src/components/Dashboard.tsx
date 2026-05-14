@@ -188,23 +188,11 @@ export function Dashboard({
       }
    }, []);
 
-   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter' && searchQuery.trim() !== '') {
-         const query = searchQuery.trim();
-         
-         const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
-         if (urlPattern.test(query)) {
-            let targetUrl = query;
-            if (!query.startsWith('http://') && !query.startsWith('https://')) {
-               targetUrl = 'https://' + query;
-            }
-            window.location.href = targetUrl;
-         } else {
-            const engine = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
-            window.open(engine.url + encodeURIComponent(query), '_blank');
-         }
-      }
-   };
+   const [searchSelectedIndex, setSearchSelectedIndex] = useState(0);
+
+   useEffect(() => {
+      setSearchSelectedIndex(0);
+   }, [searchQuery]);
 
    const [showEditControls, setShowEditControls] = useState(false);
    const [lockInfoTarget, setLockInfoTarget] = useState<{ type: string; title: string; owners: any[]; editors: any[] } | null>(null);
@@ -461,6 +449,59 @@ export function Dashboard({
    }, [tabs, activeTab, searchQuery]);
 
    const displayedTabs = searchQuery.trim() ? filteredTabs : ([activeTab].filter(Boolean) as Tab[]);
+
+   const flatMatchedBookmarks = useMemo(() => {
+      if (!searchQuery.trim()) return [];
+      const list: any[] = [];
+      displayedTabs.forEach(tab => {
+         tab.sections.forEach(section => {
+            section.bookmarks.forEach(b => {
+               list.push(b);
+            });
+         });
+      });
+      return list;
+   }, [displayedTabs, searchQuery]);
+
+   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!searchQuery.trim()) return;
+
+      const maxIndex = flatMatchedBookmarks.length;
+
+      if (e.key === 'ArrowDown') {
+         e.preventDefault();
+         setSearchSelectedIndex(prev => (prev + 1) > maxIndex ? 0 : prev + 1);
+      } else if (e.key === 'ArrowUp') {
+         e.preventDefault();
+         setSearchSelectedIndex(prev => (prev - 1) < 0 ? maxIndex : prev - 1);
+      } else if (e.key === 'Enter') {
+         e.preventDefault();
+         
+         if (searchSelectedIndex < maxIndex) {
+            const b = flatMatchedBookmarks[searchSelectedIndex];
+            fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
+            if (b.openInNewTab) {
+               window.open(b.url, '_blank');
+            } else {
+               window.location.href = b.url;
+            }
+         } else {
+            const query = searchQuery.trim();
+            const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+            if (urlPattern.test(query)) {
+               let targetUrl = query;
+               if (!query.startsWith('http://') && !query.startsWith('https://')) {
+                  targetUrl = 'https://' + query;
+               }
+               window.location.href = targetUrl;
+            } else {
+               const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
+               const targetUrl = engineObj.url.replace("%s", encodeURIComponent(query));
+               window.open(targetUrl, '_blank');
+            }
+         }
+      }
+   };
 
    const toggleSection = async (tabId: string, sectionId: string, defaultCollapsed: boolean = false) => {
       const key = `${tabId}_${sectionId}`;
@@ -857,11 +898,44 @@ export function Dashboard({
                      }}
                   />
                   {searchQuery.trim() !== "" && (
-                     <div className="search-help-text" style={{ position: 'absolute', right: '7.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.75rem', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-                        {/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(searchQuery.trim()) 
-                           ? "Press enter to visit this URL" 
-                           : "Press enter to search"}
+                     <div className="search-help-text" style={{ position: 'absolute', right: '15.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.75rem', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                        {searchSelectedIndex < flatMatchedBookmarks.length 
+                           ? `Press enter to open ${flatMatchedBookmarks[searchSelectedIndex].title}`
+                           : (/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(searchQuery.trim()) 
+                              ? "Press enter to visit this URL" 
+                              : "Press enter to search")}
                      </div>
+                  )}
+                  {searchQuery.trim() !== "" && (
+                     <button
+                        onClick={() => {
+                           const query = searchQuery.trim();
+                           const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+                           if (urlPattern.test(query)) {
+                              let targetUrl = query;
+                              if (!query.startsWith('http://') && !query.startsWith('https://')) {
+                                 targetUrl = 'https://' + query;
+                              }
+                              window.location.href = targetUrl;
+                           } else {
+                              const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
+                              const targetUrl = engineObj.url.replace("%s", encodeURIComponent(query));
+                              window.open(targetUrl, '_blank');
+                           }
+                        }}
+                        style={{
+                           position: 'absolute', right: '7.5rem', top: '50%', transform: 'translateY(-50%)',
+                           fontSize: '0.75rem', whiteSpace: 'nowrap', fontWeight: 600,
+                           padding: '0.35rem 0.6rem', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--glass-border)',
+                           background: searchSelectedIndex === flatMatchedBookmarks.length ? 'var(--primary)' : 'rgba(150,150,150,0.1)',
+                           color: searchSelectedIndex === flatMatchedBookmarks.length ? '#fff' : 'var(--text)',
+                           transition: 'all 0.2s ease',
+                        }}
+                     >
+                        {/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(searchQuery.trim()) 
+                           ? "Visit URL ⏎" 
+                           : "Web Search ⏎"}
+                     </button>
                   )}
                   <select
                      value={searchEngine}
@@ -1056,7 +1130,9 @@ export function Dashboard({
 
          {/* Main Content Area */}
          <div className="dashboard-main-content" style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: activeTabObj ? `${Math.max(1600, activeTabObj.columns * 400)}px` : '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden' }}>
-            {displayedTabs.map(tab => {
+            {(() => {
+               let bookmarkRenderIndex = 0;
+               return displayedTabs.map(tab => {
                const isShared = tab.isLibraryItem || tab.organization || (tab.allowedUsers && tab.allowedUsers.length > 0) || (tab.departmentAccess && tab.departmentAccess.length > 0);
                return (
                   <div key={tab.id} style={{ marginBottom: '2rem' }}>
@@ -1205,7 +1281,10 @@ export function Dashboard({
                                        {/* Bookmarks */}
                                        {!(collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) && (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
-                                             {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => (
+                                             {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => {
+                                                const isHighlighted = searchQuery.trim() !== "" && bookmarkRenderIndex === searchSelectedIndex;
+                                                const currentBookmarkIndex = bookmarkRenderIndex++;
+                                                return (
                                                 <div
                                                    key={bookmark.id}
                                                    draggable={showEditControls && hasTabEditAccess(tab)}
@@ -1218,10 +1297,19 @@ export function Dashboard({
                                                 >
                                                    <a href={showEditControls ? "#" : bookmark.url} target={showEditControls ? "_self" : (bookmark.openInNewTab !== false ? "_blank" : "_self")} style={{
                                                       display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', borderRadius: '12px', width: '100%', boxSizing: 'border-box', minWidth: 0,
-                                                      textDecoration: 'none', color: 'var(--text)', transition: 'background 0.2s', ...(!showEditControls ? { cursor: 'pointer' } : { cursor: 'grab' })
+                                                      textDecoration: 'none', color: 'var(--text)', transition: 'background 0.2s', ...(!showEditControls ? { cursor: 'pointer' } : { cursor: 'grab' }),
+                                                      background: isHighlighted ? 'rgba(var(--primary-rgb), 0.15)' : 'transparent',
+                                                      border: isHighlighted ? '1px solid rgba(var(--primary-rgb), 0.5)' : '1px solid transparent'
                                                    }}
-                                                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(150,150,150,0.1)'}
-                                                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                      onMouseEnter={e => {
+                                                         if (searchQuery.trim() === "") {
+                                                            e.currentTarget.style.background = 'rgba(150,150,150,0.1)';
+                                                         }
+                                                         setSearchSelectedIndex(currentBookmarkIndex);
+                                                      }}
+                                                      onMouseLeave={e => {
+                                                         if (!isHighlighted) e.currentTarget.style.background = 'transparent';
+                                                      }}
                                                       onClick={() => { if (!showEditControls) fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: bookmark.id, bookmarkTitle: bookmark.title, bookmarkUrl: bookmark.url }) }).catch(() => { }); }}
                                                    >
                                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', flexShrink: 0 }}>
@@ -1292,7 +1380,7 @@ export function Dashboard({
                      </div>
                   </div>
                );
-            })}
+            })()}
          </div>
 
 
