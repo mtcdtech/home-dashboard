@@ -166,6 +166,46 @@ export function Dashboard({
 
    const activeTabObj = tabs.find((t: any) => t.id === activeTabId);
    const [searchQuery, setSearchQuery] = useState("");
+   
+   const [searchEngine, setSearchEngine] = useState<string>("google");
+   const searchInputRef = useRef<HTMLInputElement>(null);
+
+   const SEARCH_ENGINES = [
+      { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=' },
+      { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=' },
+      { id: 'duckduckgo', name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=' },
+      { id: 'brave', name: 'Brave', url: 'https://search.brave.com/search?q=' },
+      { id: 'yahoo', name: 'Yahoo', url: 'https://search.yahoo.com/search?p=' }
+   ];
+
+   useEffect(() => {
+      const savedEngine = localStorage.getItem("preferredSearchEngine");
+      if (savedEngine) {
+         setSearchEngine(savedEngine);
+      }
+      if (searchInputRef.current) {
+         searchInputRef.current.focus();
+      }
+   }, []);
+
+   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && searchQuery.trim() !== '') {
+         const query = searchQuery.trim();
+         
+         const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+         if (urlPattern.test(query)) {
+            let targetUrl = query;
+            if (!query.startsWith('http://') && !query.startsWith('https://')) {
+               targetUrl = 'https://' + query;
+            }
+            window.location.href = targetUrl;
+         } else {
+            const engine = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
+            window.open(engine.url + encodeURIComponent(query), '_blank');
+         }
+      }
+   };
+
    const [showEditControls, setShowEditControls] = useState(false);
    const [lockInfoTarget, setLockInfoTarget] = useState<{ type: string; title: string; owners: any[]; editors: any[] } | null>(null);
    const adminBypass = isAdmin && !impersonating;
@@ -795,23 +835,51 @@ export function Dashboard({
 
             {/* 2. Search Bar Row with inline Theme/Catalog buttons */}
             <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
-               <div style={{ flex: 1, position: 'relative' }}>
+               <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
                      <Search size={18} />
                   </div>
                   <input
+                     ref={searchInputRef}
                      type="text"
                      className="search-input"
                      placeholder="Search all apps & tools..."
                      value={searchQuery}
                      onChange={e => setSearchQuery(e.target.value)}
+                     onKeyDown={handleSearchKeyDown}
                      style={{
-                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '1rem', paddingLeft: '2.8rem',
+                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '7rem', paddingLeft: '2.8rem',
                         background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '999px',
                         color: 'var(--text)', outline: 'none', boxSizing: 'border-box',
                         transition: 'all 0.2s ease', backdropFilter: 'blur(10px)'
                      }}
                   />
+                  <select
+                     value={searchEngine}
+                     onChange={(e) => {
+                        setSearchEngine(e.target.value);
+                        localStorage.setItem("preferredSearchEngine", e.target.value);
+                     }}
+                     style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        color: 'var(--text)',
+                        border: 'none',
+                        outline: 'none',
+                        fontSize: '0.85rem',
+                        opacity: 0.7,
+                        cursor: 'pointer'
+                     }}
+                  >
+                     {SEARCH_ENGINES.map(engine => (
+                        <option key={engine.id} value={engine.id} style={{ background: 'var(--bg-color)', color: 'var(--text)' }}>
+                           {engine.name}
+                        </option>
+                     ))}
+                  </select>
                </div>
                {showEditControls && canEditContent && hasTabEditAccess(activeTabObj) && (
                   <button
