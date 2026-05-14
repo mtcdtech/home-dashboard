@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { LayoutGrid, Bookmark, Library, Settings, MousePointerClick, Users, LogIn, Activity, Clock } from "lucide-react";
 import { GlobalDefaultTab } from "./GlobalDefaultTab";
 import { RecentActivityClient } from "./RecentActivityClient";
+import { CustomTagsClient } from "./CustomTagsClient";
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,9 @@ export default async function AdminPage() {
             </div>
           </div>
         </div>
+
+        {/* Custom Tags */}
+        <CustomTagsClient initialTags={(globalSettings?.customTags as any[]) || []} />
 
         {/* Activity Feed */}
         <RecentActivityClient initialFeed={activityFeed} />

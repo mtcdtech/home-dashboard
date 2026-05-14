@@ -186,6 +186,7 @@ model Bookmark {
   order         Int      @default(0)
   sectionId     String
   section       Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  tags          String[] @default([]) // Array of custom tag IDs applied to this bookmark
   clicks        ClickEvent[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -263,5 +264,6 @@ model GlobalSettings {
   systemThemeColor String @default("#3b82f6")
   defaultTabId  String?   // System-wide default workspace tab
   loginThemeId  String?   // Optional theme for the login page
+  customTags    Json?     // Array of { id, text, color } for global custom tags
   updatedAt     DateTime @updatedAt
 }

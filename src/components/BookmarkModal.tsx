@@ -13,15 +13,17 @@ export interface BookmarkModalProps {
   onSaved: () => void;
   iconRegistry?: { selfhost: any[], walkx: any[] };
   onUploadIcon?: (file: File) => Promise<void>;
+  globalTags?: any[];
 }
 
-export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, onSaved, iconRegistry, onUploadIcon }: BookmarkModalProps) {
+export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, onSaved, iconRegistry, onUploadIcon, globalTags = [] }: BookmarkModalProps) {
   const [title, setTitle] = useState(bookmark?.title || "");
   const [url, setUrl] = useState(bookmark?.url || "");
   const [description, setDescription] = useState(bookmark?.description || "");
   const [icon, setIcon] = useState(bookmark?.icon || "");
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>(bookmark?.tags || []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,9 +31,9 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
     setSaving(true);
     try {
       if (modalMode === "edit" && bookmark?.id) {
-        await actions.updateBookmark(bookmark.id, { title, url, description, icon } as any);
+        await actions.updateBookmark(bookmark.id, { title, url, description, icon, tags: selectedTags } as any);
       } else {
-        await actions.createBookmark({ title, url, description, icon, sectionId: targetSectionId, order: 999, openInNewTab: true } as any);
+        await actions.createBookmark({ title, url, description, icon, tags: selectedTags, sectionId: targetSectionId, order: 999, openInNewTab: true } as any);
       }
       onSaved();
     } catch (err) {
@@ -96,6 +98,44 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
                    <IconPicker currentIcon={icon} setIcon={setIcon} query={query} setQuery={setQuery} iconRegistry={iconRegistry} onUpload={onUploadIcon} />
                 </div>
              </div>
+
+             {/* Tags */}
+             {globalTags && globalTags.length > 0 && (
+                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', background: 'rgba(var(--primary-rgb), 0.05)' }}>
+                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '1rem' }}>Tags</label>
+                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {globalTags.map(tag => {
+                         const isSelected = selectedTags.includes(tag.id);
+                         return (
+                            <button
+                               key={tag.id}
+                               type="button"
+                               onClick={() => {
+                                  if (isSelected) {
+                                     setSelectedTags(selectedTags.filter(id => id !== tag.id));
+                                  } else {
+                                     setSelectedTags([...selectedTags, tag.id]);
+                                  }
+                               }}
+                               style={{
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '999px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  border: `1px solid ${tag.color}`,
+                                  background: isSelected ? tag.color : 'transparent',
+                                  color: isSelected ? '#fff' : tag.color,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease'
+                               }}
+                            >
+                               {tag.text}
+                            </button>
+                         )
+                      })}
+                   </div>
+                </div>
+             )}
           </div>
 
           {/* Footer */}
