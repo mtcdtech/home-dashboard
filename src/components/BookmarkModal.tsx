@@ -23,6 +23,7 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
   const [longDescription, setLongDescription] = useState(bookmark?.longDescription || "");
   const [showMoreInfo, setShowMoreInfo] = useState(!!bookmark?.longDescription);
   const [icon, setIcon] = useState(bookmark?.icon || "");
+  const [keywords, setKeywords] = useState(bookmark?.keywords || "");
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>(bookmark?.tags || []);
@@ -33,9 +34,9 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
     setSaving(true);
     try {
       if (modalMode === "edit" && bookmark?.id) {
-        await actions.updateBookmark(bookmark.id, { title, url, description, longDescription, icon, tags: selectedTags } as any);
+        await actions.updateBookmark(bookmark.id, { title, url, description, longDescription, icon, keywords, tags: selectedTags } as any);
       } else {
-        await actions.createBookmark({ title, url, description, longDescription, icon, tags: selectedTags, sectionId: targetSectionId, order: 999, openInNewTab: true } as any);
+        await actions.createBookmark({ title, url, description, longDescription, icon, keywords, tags: selectedTags, sectionId: targetSectionId, order: 999, openInNewTab: true } as any);
       }
       onSaved();
     } catch (err) {
@@ -87,6 +88,16 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Brief info about this app"
+                      className="glass"
+                      style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '1rem', boxSizing: 'border-box' }}
+                   />
+                </div>
+                <div>
+                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Hidden Search Keywords (optional)</label>
+                   <input
+                      value={keywords}
+                      onChange={(e) => setKeywords(e.target.value)}
+                      placeholder="e.g. settings, admin, database"
                       className="glass"
                       style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '1rem', boxSizing: 'border-box' }}
                    />

@@ -446,7 +446,12 @@ export function Dashboard({
       const sq = searchQuery.toLowerCase();
       return tabs.map(tab => {
          const matchedSections = tab.sections.map(section => {
-            const matchedBookmarks = section.bookmarks.filter(b => b.title.toLowerCase().includes(sq) || (b.description || "").toLowerCase().includes(sq));
+            const matchedBookmarks = section.bookmarks.filter(b => 
+               b.title.toLowerCase().includes(sq) || 
+               (b.description || "").toLowerCase().includes(sq) || 
+               (b.url || "").toLowerCase().includes(sq) || 
+               (b.keywords || "").toLowerCase().includes(sq)
+            );
             if (matchedBookmarks.length > 0 || section.title.toLowerCase().includes(sq)) {
                return { ...section, bookmarks: matchedBookmarks };
             }
