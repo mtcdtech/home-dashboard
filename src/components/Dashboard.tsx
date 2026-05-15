@@ -908,49 +908,52 @@ export function Dashboard({
                      onChange={e => setSearchQuery(e.target.value)}
                      onKeyDown={handleSearchKeyDown}
                      style={{
-                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '15rem', paddingLeft: '2.8rem',
+                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '14rem', paddingLeft: '2.8rem',
                         background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '999px',
                         color: 'var(--text)', outline: 'none', boxSizing: 'border-box',
                         transition: 'all 0.2s ease', backdropFilter: 'blur(10px)'
                      }}
                   />
                   {searchQuery.trim() !== "" && (
-                     <div className="search-help-text" style={{ position: 'absolute', right: '15.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.75rem', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-                        {searchSelectedIndex < flatMatchedBookmarks.length 
-                           ? `Press enter to open ${flatMatchedBookmarks[searchSelectedIndex].title}`
-                           : (URL_PATTERN.test(searchQuery.trim()) 
-                              ? "Press enter to visit this URL" 
-                              : "Press enter to search")}
-                     </div>
-                  )}
-                  {searchQuery.trim() !== "" && (
                      <button
+                        title={searchSelectedIndex < flatMatchedBookmarks.length ? `Open ${flatMatchedBookmarks[searchSelectedIndex].title}` : undefined}
                         onClick={() => {
-                           const query = searchQuery.trim();
-                           if (URL_PATTERN.test(query)) {
-                              let targetUrl = query;
-                              if (!query.startsWith('http://') && !query.startsWith('https://')) {
-                                 targetUrl = 'https://' + query;
-                              }
-                              window.location.href = targetUrl;
+                           if (searchSelectedIndex < flatMatchedBookmarks.length) {
+                              const b = flatMatchedBookmarks[searchSelectedIndex];
+                              fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
+                              window.location.href = b.url;
                            } else {
-                              const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
-                              const targetUrl = engineObj.url + encodeURIComponent(query);
-                              window.location.href = targetUrl;
+                              const query = searchQuery.trim();
+                              if (URL_PATTERN.test(query)) {
+                                 let targetUrl = query;
+                                 if (!query.startsWith('http://') && !query.startsWith('https://')) {
+                                    targetUrl = 'https://' + query;
+                                 }
+                                 window.location.href = targetUrl;
+                              } else {
+                                 const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
+                                 const targetUrl = engineObj.url + encodeURIComponent(query);
+                                 window.location.href = targetUrl;
+                              }
                            }
                         }}
                         style={{
                            position: 'absolute', right: '7.5rem', top: '50%', transform: 'translateY(-50%)',
                            fontSize: '0.75rem', whiteSpace: 'nowrap', fontWeight: 600,
-                           padding: '0.35rem 0.6rem', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--glass-border)',
-                           background: searchSelectedIndex === flatMatchedBookmarks.length ? 'var(--primary)' : 'rgba(150,150,150,0.1)',
-                           color: searchSelectedIndex === flatMatchedBookmarks.length ? '#fff' : 'var(--text)',
+                           padding: '0.35rem 0.6rem', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--primary)',
+                           background: 'var(--primary)',
+                           color: '#fff',
                            transition: 'all 0.2s ease',
+                           maxWidth: '180px',
+                           overflow: 'hidden',
+                           textOverflow: 'ellipsis'
                         }}
                      >
-                        {URL_PATTERN.test(searchQuery.trim()) 
-                           ? "Visit URL ⏎" 
-                           : "Web Search ⏎"}
+                        {searchSelectedIndex < flatMatchedBookmarks.length 
+                           ? `Open: ${flatMatchedBookmarks[searchSelectedIndex].title} ⏎`
+                           : (URL_PATTERN.test(searchQuery.trim()) 
+                              ? "Visit URL ⏎" 
+                              : "Web Search ⏎")}
                      </button>
                   )}
                   <select
