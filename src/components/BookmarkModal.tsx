@@ -2,8 +2,31 @@
 
 import React, { useState } from "react";
 import { X } from "lucide-react";
-import { IconPicker } from "./IconPicker";
+import { IconComponent, IconPicker } from "./IconPicker";
 import * as actions from "@/app/admin/actions";
+
+const hexToRgb = (hex: string) => {
+   if (!hex) return "99, 102, 241";
+   if (hex.startsWith('rgb')) return hex;
+   const cleanHex = hex.replace('#', '');
+   if (cleanHex.length !== 6) return "99, 102, 241";
+   const r = parseInt(cleanHex.slice(0, 2), 16);
+   const g = parseInt(cleanHex.slice(2, 4), 16);
+   const b = parseInt(cleanHex.slice(4, 6), 16);
+   return `${r}, ${g}, ${b}`;
+};
+
+const getContrastYIQ = (hexcolor: string) => {
+   if (!hexcolor) return 'var(--text)';
+   hexcolor = hexcolor.replace("#", "");
+   if (hexcolor.length === 3) hexcolor = hexcolor.split('').map(c => c + c).join('');
+   if (hexcolor.length !== 6) return 'var(--text)';
+   const r = parseInt(hexcolor.substr(0, 2), 16);
+   const g = parseInt(hexcolor.substr(2, 2), 16);
+   const b = parseInt(hexcolor.substr(4, 2), 16);
+   const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+   return (yiq >= 128) ? '#000000' : '#ffffff';
+};
 
 export interface BookmarkModalProps {
   bookmark: any | null;
@@ -138,30 +161,38 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
                       {globalTags.map(tag => {
                          const isSelected = selectedTags.includes(tag.id);
                          return (
-                            <button
-                               key={tag.id}
-                               type="button"
-                               onClick={() => {
-                                  if (isSelected) {
-                                     setSelectedTags(selectedTags.filter(id => id !== tag.id));
-                                  } else {
-                                     setSelectedTags([...selectedTags, tag.id]);
-                                  }
-                               }}
-                               style={{
-                                  padding: '0.25rem 0.75rem',
-                                  borderRadius: '999px',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600,
-                                  border: `1px solid ${tag.color}`,
-                                  background: isSelected ? tag.color : 'transparent',
-                                  color: isSelected ? '#fff' : tag.color,
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s ease'
-                               }}
-                            >
-                               {tag.text}
-                            </button>
+                             <button
+                                key={tag.id}
+                                title={tag.description || tag.text || ""}
+                                type="button"
+                                onClick={() => {
+                                   if (isSelected) {
+                                      setSelectedTags(selectedTags.filter(id => id !== tag.id));
+                                   } else {
+                                      setSelectedTags([...selectedTags, tag.id]);
+                                   }
+                                }}
+                                style={{
+                                   background: tag.opacity !== undefined ? `rgba(${hexToRgb(tag.color)}, ${tag.opacity})` : tag.color,
+                                   color: getContrastYIQ(tag.color),
+                                   fontSize: '0.65rem',
+                                   padding: '0.25rem 0.5rem', // Slightly larger for tap target in modal
+                                   borderRadius: '4px',
+                                   fontWeight: 600,
+                                   textTransform: 'uppercase',
+                                   whiteSpace: 'nowrap',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center',
+                                   border: isSelected ? `1px solid ${getContrastYIQ(tag.color)}` : '1px solid transparent',
+                                   cursor: 'pointer',
+                                   transition: 'all 0.2s ease',
+                                   opacity: isSelected ? 1 : 0.4,
+                                   transform: isSelected ? 'scale(1.05)' : 'scale(1)'
+                                }}
+                             >
+                                {tag.icon ? <IconComponent name={tag.icon} size={14} /> : tag.text}
+                             </button>
                          )
                       })}
                    </div>

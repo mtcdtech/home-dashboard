@@ -1655,6 +1655,7 @@ export function Dashboard({
                               return (
                                  <button
                                     key={tag.id}
+                                    title={tag.description || tag.text || ""}
                                     type="button"
                                     onClick={() => {
                                        if (isSelected) {
@@ -1664,19 +1665,22 @@ export function Dashboard({
                                        }
                                     }}
                                     style={{
-                                       padding: '0.25rem 0.75rem',
-                                       borderRadius: '999px',
-                                       fontSize: '0.8rem',
+                                       background: tag.opacity !== undefined ? `rgba(${hexToRgb(tag.color)}, ${tag.opacity})` : tag.color,
+                                       color: getContrastYIQ(tag.color),
+                                       fontSize: '0.65rem',
+                                       padding: '0.25rem 0.5rem',
+                                       borderRadius: '4px',
                                        fontWeight: 600,
-                                       border: `1px solid ${tag.color}`,
-                                       background: isSelected ? tag.color : 'transparent',
-                                       color: isSelected ? '#fff' : tag.color,
-                                       cursor: 'pointer',
-                                       transition: 'all 0.2s ease',
+                                       textTransform: 'uppercase',
+                                       whiteSpace: 'nowrap',
                                        display: 'flex',
                                        alignItems: 'center',
-                                       gap: '0.25rem',
-                                       justifyContent: 'center'
+                                       justifyContent: 'center',
+                                       border: isSelected ? `1px solid ${getContrastYIQ(tag.color)}` : '1px solid transparent',
+                                       cursor: 'pointer',
+                                       transition: 'all 0.2s ease',
+                                       opacity: isSelected ? 1 : 0.4,
+                                       transform: isSelected ? 'scale(1.05)' : 'scale(1)'
                                     }}
                                  >
                                     {tag.icon ? <IconComponent name={tag.icon} size={14} /> : tag.text}
