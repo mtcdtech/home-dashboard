@@ -172,12 +172,28 @@ export function Dashboard({
    const [searchEngine, setSearchEngine] = useState<string>("google");
    const searchInputRef = useRef<HTMLInputElement>(null);
 
-   const SEARCH_ENGINES = [
+   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+
+   useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+         if (e.ctrlKey || e.metaKey) setIsCtrlPressed(true);
+      };
+      const handleKeyUp = (e: KeyboardEvent) => {
+         if (!e.ctrlKey && !e.metaKey) setIsCtrlPressed(false);
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+      return () => {
+         window.removeEventListener('keydown', handleKeyDown);
+         window.removeEventListener('keyup', handleKeyUp);
+      };
+   }, []);
+
+   const SEARCH_ENGINES = (globalSettings?.searchEngines as any[]) || [
       { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=' },
       { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=' },
-      { id: 'duckduckgo', name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=' },
-      { id: 'brave', name: 'Brave', url: 'https://search.brave.com/search?q=' },
-      { id: 'yahoo', name: 'Yahoo', url: 'https://search.yahoo.com/search?p=' }
+      { id: 'chatgpt', name: 'ChatGPT', url: 'https://chatgpt.com/?q=' },
+      { id: 'perplexity', name: 'Perplexity', url: 'https://www.perplexity.ai/search?q=' }
    ];
 
    const URL_PATTERN = /^(https?:\/\/)?(localhost|(\d{1,3}\.){3}\d{1,3}|([\da-z\.-]+)\.([a-z\.]{2,6}))(:\d+)?([\/\w \.-]*)*\/?$/i;
@@ -498,11 +514,15 @@ export function Dashboard({
          setSearchSelectedIndex(prev => (prev - 1) < 0 ? maxIndex : prev - 1);
       } else if (e.key === 'Enter') {
          e.preventDefault();
+         const openUrl = (url: string) => {
+            if (e.ctrlKey || e.metaKey) window.open(url, '_blank');
+            else window.location.href = url;
+         };
          
          if (searchSelectedIndex < maxIndex) {
             const b = flatMatchedBookmarks[searchSelectedIndex];
             fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
-            window.location.href = b.url;
+            openUrl(b.url);
          } else {
             const query = searchQuery.trim();
             if (URL_PATTERN.test(query)) {
@@ -510,11 +530,11 @@ export function Dashboard({
                if (!query.startsWith('http://') && !query.startsWith('https://')) {
                   targetUrl = 'https://' + query;
                }
-               window.location.href = targetUrl;
+               openUrl(targetUrl);
             } else {
                const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
                const targetUrl = engineObj.url + encodeURIComponent(query);
-               window.location.href = targetUrl;
+               openUrl(targetUrl);
             }
          }
       }
@@ -917,11 +937,16 @@ export function Dashboard({
                   {searchQuery.trim() !== "" && (
                      <button
                         title={searchSelectedIndex < flatMatchedBookmarks.length ? `Open ${flatMatchedBookmarks[searchSelectedIndex].title}` : undefined}
-                        onClick={() => {
+                        onClick={(e) => {
+                           const isCtrl = e.ctrlKey || e.metaKey || isCtrlPressed;
+                           const openUrl = (url: string) => {
+                              if (isCtrl) window.open(url, '_blank');
+                              else window.location.href = url;
+                           };
                            if (searchSelectedIndex < flatMatchedBookmarks.length) {
                               const b = flatMatchedBookmarks[searchSelectedIndex];
                               fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
-                              window.location.href = b.url;
+                              openUrl(b.url);
                            } else {
                               const query = searchQuery.trim();
                               if (URL_PATTERN.test(query)) {
@@ -929,11 +954,11 @@ export function Dashboard({
                                  if (!query.startsWith('http://') && !query.startsWith('https://')) {
                                     targetUrl = 'https://' + query;
                                  }
-                                 window.location.href = targetUrl;
+                                 openUrl(targetUrl);
                               } else {
                                  const engineObj = SEARCH_ENGINES.find(se => se.id === searchEngine) || SEARCH_ENGINES[0];
                                  const targetUrl = engineObj.url + encodeURIComponent(query);
-                                 window.location.href = targetUrl;
+                                 openUrl(targetUrl);
                               }
                            }
                         }}
@@ -950,10 +975,10 @@ export function Dashboard({
                         }}
                      >
                         {searchSelectedIndex < flatMatchedBookmarks.length 
-                           ? `Open: ${flatMatchedBookmarks[searchSelectedIndex].title} ⏎`
+                           ? `Open: ${flatMatchedBookmarks[searchSelectedIndex].title} ${isCtrlPressed ? '⧉' : '⏎'}`
                            : (URL_PATTERN.test(searchQuery.trim()) 
-                              ? "Visit URL ⏎" 
-                              : "Web Search ⏎")}
+                              ? `Visit URL ${isCtrlPressed ? '⧉' : '⏎'}` 
+                              : `Web Search ${isCtrlPressed ? '⧉' : '⏎'}`)}
                      </button>
                   )}
                   <select

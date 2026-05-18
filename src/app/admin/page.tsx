@@ -3,6 +3,7 @@ import { LayoutGrid, Bookmark, Library, Settings, MousePointerClick, Users, LogI
 import { GlobalDefaultTab } from "./GlobalDefaultTab";
 import { RecentActivityClient } from "./RecentActivityClient";
 import { CustomTagsClient } from "./CustomTagsClient";
+import { SearchEnginesClient } from "./SearchEnginesClient";
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +90,9 @@ export default async function AdminPage() {
 
         {/* Custom Tags */}
         <CustomTagsClient initialTags={(globalSettings?.customTags as any[]) || []} />
+
+        {/* Search Engines */}
+        <SearchEnginesClient initialEngines={(globalSettings?.searchEngines as any[]) || []} />
 
         {/* Activity Feed */}
         <RecentActivityClient initialFeed={activityFeed} />
