@@ -45,7 +45,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install Prisma CLI for migration at runtime
 RUN apk add --no-cache libc6-compat
-RUN npm install prisma@7.6.0 effect
+RUN npm install prisma@7.6.0 @prisma/config effect
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -65,6 +65,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 # Copy and prepare entrypoint
