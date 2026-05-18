@@ -26,12 +26,7 @@ export async function POST(req: NextRequest) {
     const path = join(uploadDir, filename);
     await writeFile(path, buffer);
     
-    // Return base64 so it stores directly in DB and works across Synology instances
-    const mimeType = file.type || "image/png";
-    const base64Data = buffer.toString('base64');
-    const dataUrl = `data:${mimeType};base64,${base64Data}`;
-    
-    return NextResponse.json({ url: dataUrl });
+    return NextResponse.json({ url: `/api/uploads/${filename}` });
   } catch (err: any) {
     console.error("API Upload Error:", err);
     return NextResponse.json({ error: err.message || "Manifestation failure" }, { status: 500 });
