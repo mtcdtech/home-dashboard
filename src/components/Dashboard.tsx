@@ -173,7 +173,8 @@ export function Dashboard({
    const searchInputRef = useRef<HTMLInputElement>(null);
 
    const [isCtrlPressed, setIsCtrlPressed] = useState(false);
-
+   const [gridFocus, setGridFocus] = useState<{ sectionId: string, bookmarkId: string | null } | null>(null);
+   const [isGridFocused, setIsGridFocused] = useState(false);
    useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
          if (e.ctrlKey || e.metaKey) setIsCtrlPressed(true);
@@ -827,6 +828,91 @@ export function Dashboard({
    const catBtnBg = isCatalogOpen ? effectivePrimaryColor : effectivePrimaryColor + 'CC';
    const drawerBg = `color-mix(in srgb, ${effectivePrimaryColor} 15%, ${isLight ? 'rgba(255,255,255,0.9)' : 'rgba(18,18,18,0.9)'})`;
 
+   const sortedSections = activeTabObj ? [...activeTabObj.sections].sort((a, b) => {
+      if (a.column !== b.column) return (a.column || 0) - (b.column || 0);
+      return (a.order || 0) - (b.order || 0);
+   }) : [];
+
+   const handleGridKeyDown = (e: React.KeyboardEvent) => {
+      if (!activeTabObj || sortedSections.length === 0) return;
+      if (e.key === 'Tab' && !e.shiftKey) {
+         e.preventDefault();
+         searchInputRef.current?.focus();
+         return;
+      }
+      if (!gridFocus) return;
+
+      const currentSectionIndex = sortedSections.findIndex(s => s.id === gridFocus.sectionId);
+      const currentSection = sortedSections[currentSectionIndex];
+      
+      if (e.key === 'ArrowRight') {
+         e.preventDefault();
+         const nextIndex = Math.min(currentSectionIndex + 1, sortedSections.length - 1);
+         setGridFocus({ sectionId: sortedSections[nextIndex].id, bookmarkId: null });
+      } else if (e.key === 'ArrowLeft') {
+         e.preventDefault();
+         const prevIndex = Math.max(currentSectionIndex - 1, 0);
+         setGridFocus({ sectionId: sortedSections[prevIndex].id, bookmarkId: null });
+      } else if (e.key === 'ArrowDown') {
+         e.preventDefault();
+         if (!currentSection) return;
+         const sortedBookmarks = [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+         const isCollapsed = searchQuery.trim() === "" ? (collapsedSections[`${activeTabObj.id}_${currentSection.id}`] ?? currentSection.defaultCollapsed) : false;
+         if (sortedBookmarks.length === 0 || isCollapsed) return;
+         
+         if (gridFocus.bookmarkId === null) {
+            setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[0].id });
+         } else {
+            const bIdx = sortedBookmarks.findIndex(b => b.id === gridFocus.bookmarkId);
+            if (bIdx >= 0 && bIdx < sortedBookmarks.length - 1) {
+               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[bIdx + 1].id });
+            }
+         }
+      } else if (e.key === 'ArrowUp') {
+         e.preventDefault();
+         if (!currentSection) return;
+         const sortedBookmarks = [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+         if (gridFocus.bookmarkId !== null) {
+            const bIdx = sortedBookmarks.findIndex(b => b.id === gridFocus.bookmarkId);
+            if (bIdx > 0) {
+               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[bIdx - 1].id });
+            } else {
+               setGridFocus({ sectionId: currentSection.id, bookmarkId: null });
+            }
+         }
+      } else if (e.key === 'Enter' || e.key === ' ') {
+         e.preventDefault();
+         if (gridFocus.bookmarkId) {
+            const b = currentSection?.bookmarks.find(b => b.id === gridFocus.bookmarkId);
+            if (b) {
+               fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
+               if (b.openInNewTab !== false) window.open(b.url, '_blank');
+               else window.location.href = b.url;
+            }
+         } else {
+            if (currentSection) {
+               toggleSection(activeTabObj.id, currentSection.id, currentSection.defaultCollapsed);
+            }
+         }
+      }
+   };
+
+   const handleTabsKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+         e.preventDefault();
+         const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+         if (currentIndex === -1) return;
+         let newIndex = currentIndex;
+         if (e.key === 'ArrowRight') newIndex = (currentIndex + 1) % tabs.length;
+         if (e.key === 'ArrowLeft') newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+         setActiveTabId(tabs[newIndex].id);
+         setTimeout(() => {
+            const btn = document.getElementById(`workspace-tab-${tabs[newIndex].id}`);
+            btn?.focus();
+         }, 0);
+      }
+   };
+
    return (
       <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', maxWidth: '100vw' }}>
          <style dangerouslySetInnerHTML={{ __html: dynamicCSS }} />
@@ -996,6 +1082,8 @@ export function Dashboard({
                         setSearchEngine(e.target.value);
                         localStorage.setItem("preferredSearchEngine", e.target.value);
                      }}
+                     onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary)'; e.currentTarget.style.borderRadius = '4px'; }}
+                     onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
                      style={{
                         position: 'absolute',
                         right: '1rem',
@@ -1055,13 +1143,15 @@ export function Dashboard({
          {/* Tab Selection */}
          {(tabs.length > 1 || showEditControls) && !searchQuery.trim() && (
             <div className="tabs-container tab-scroll-container" style={{ width: '100%', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid var(--glass-border)', background: 'transparent', position: 'relative' }}>
-               <div className="tabs-inner" style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: activeTabObj ? `${Math.max(1600, activeTabObj.columns * 400)}px` : '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+               <div className="tabs-inner" onKeyDown={handleTabsKeyDown} style={{ display: 'flex', padding: '1.2rem 1.5rem 0 1.5rem', gap: '0.2rem', maxWidth: activeTabObj ? `${Math.max(1600, activeTabObj.columns * 400)}px` : '1600px', margin: '0 auto', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
                   {tabs.map(tab => {
                      const tabPrimary = tab.theme?.primaryColor || baseActiveTheme.primaryColor;
                      const isActiveTab = activeTabId === tab.id;
                      const isDragOver = dragOverTabId === tab.id;
                      return (
                         <button
+                           id={`workspace-tab-${tab.id}`}
+                           tabIndex={isActiveTab ? 0 : -1}
                            key={tab.id}
                            className="workspace-tab-btn"
                            onClick={() => setActiveTabId(tab.id)}
@@ -1182,7 +1272,23 @@ export function Dashboard({
          )}
 
          {/* Main Content Area */}
-         <div className="dashboard-main-content" style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: activeTabObj ? `${Math.max(1600, activeTabObj.columns * 400)}px` : '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden' }}>
+         <div 
+            className="dashboard-main-content" 
+            tabIndex={0}
+            onFocus={() => {
+               setIsGridFocused(true);
+               if (!gridFocus && sortedSections.length > 0) {
+                  setGridFocus({ sectionId: sortedSections[0].id, bookmarkId: null });
+               }
+            }}
+            onBlur={(e) => {
+               if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setIsGridFocused(false);
+               }
+            }}
+            onKeyDown={handleGridKeyDown}
+            style={{ flex: 1, padding: '1.5rem', boxSizing: 'border-box', maxWidth: activeTabObj ? `${Math.max(1600, activeTabObj.columns * 400)}px` : '1600px', margin: '0 auto', width: '100%', overflowX: 'hidden', outline: 'none' }}
+         >
             {(() => {
                let bookmarkRenderIndex = 0;
                return displayedTabs.map(tab => {
@@ -1280,7 +1386,9 @@ export function Dashboard({
                               {tab.sections
                                  .filter(s => (s.column ?? 0) === colIdx)
                                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-                                 .map(section => (
+                                 .map(section => {
+                                    const isSectionFocused = isGridFocused && gridFocus?.sectionId === section.id;
+                                    return (
                                     <div
                                        key={section.id}
                                        draggable={showEditControls && hasTabEditAccess(tab)}
@@ -1291,7 +1399,8 @@ export function Dashboard({
                                        onDrop={(e) => { if (showEditControls && hasTabEditAccess(tab)) handleSectionDrop(e, section.id, tab.id, colIdx); }}
                                        style={{
                                           background: 'var(--glass-bg)', borderRadius: '16px',
-                                          border: dragOverSectionId === section.id ? '2px dashed var(--primary)' : '1px solid var(--glass-border)',
+                                          border: isSectionFocused ? '2px solid var(--primary)' : (dragOverSectionId === section.id ? '2px dashed var(--primary)' : '1px solid var(--glass-border)'),
+                                          boxShadow: isSectionFocused ? '0 0 10px rgba(var(--primary-rgb), 0.3)' : 'none',
                                           overflow: 'hidden', display: 'flex', flexDirection: 'column',
                                           height: 'fit-content', minWidth: 0, width: '100%', boxSizing: 'border-box',
                                           opacity: draggedSectionId === section.id ? 0.45 : 1,
@@ -1345,7 +1454,8 @@ export function Dashboard({
                                        {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
                                              {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => {
-                                                const isHighlighted = searchQuery.trim() !== "" && bookmarkRenderIndex === searchSelectedIndex;
+                                                const isBookmarkFocused = isGridFocused && gridFocus?.sectionId === section.id && gridFocus?.bookmarkId === bookmark.id;
+                                                const isHighlighted = (searchQuery.trim() !== "" && bookmarkRenderIndex === searchSelectedIndex) || isBookmarkFocused;
                                                 const currentBookmarkIndex = bookmarkRenderIndex++;
                                                 return (
                                                 <div
@@ -1451,7 +1561,7 @@ export function Dashboard({
                                           </div>
                                        )}
                                     </div>
-                                 ))}
+                                 ); })}
 
                               {/* Drop placeholder (ghost area) inside column when dragging */}
                               {draggedSectionId && dragOverColIdx === colIdx && !dragOverSectionId && (
