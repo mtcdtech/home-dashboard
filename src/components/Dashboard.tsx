@@ -969,16 +969,16 @@ export function Dashboard({
                            background: 'var(--primary)',
                            color: '#fff',
                            transition: 'all 0.2s ease',
-                           maxWidth: '180px',
+                           maxWidth: '260px',
                            overflow: 'hidden',
                            textOverflow: 'ellipsis'
                         }}
                      >
                         {searchSelectedIndex < flatMatchedBookmarks.length 
-                           ? `Open: ${flatMatchedBookmarks[searchSelectedIndex].title} ${isCtrlPressed ? '⧉' : '⏎'}`
+                           ? `Open: ${flatMatchedBookmarks[searchSelectedIndex].title} ${isCtrlPressed ? '(new window)' : '⏎'}`
                            : (URL_PATTERN.test(searchQuery.trim()) 
-                              ? `Visit URL ${isCtrlPressed ? '⧉' : '⏎'}` 
-                              : `Web Search ${isCtrlPressed ? '⧉' : '⏎'}`)}
+                              ? (isCtrlPressed ? 'Visit URL (in new window)' : 'Visit URL (press Ctrl for new window)') 
+                              : (isCtrlPressed ? 'Web Search (in new window)' : 'Web Search (press Ctrl for new window)'))}
                      </button>
                   )}
                   <select
