@@ -177,6 +177,14 @@ export function Dashboard({
    useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
          if (e.ctrlKey || e.metaKey) setIsCtrlPressed(true);
+
+         // Capture typing for search
+         if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && e.key !== ' ') {
+            const target = e.target as HTMLElement;
+            if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+               searchInputRef.current?.focus();
+            }
+         }
       };
       const handleKeyUp = (e: KeyboardEvent) => {
          if (!e.ctrlKey && !e.metaKey) setIsCtrlPressed(false);
@@ -936,6 +944,7 @@ export function Dashboard({
                   />
                   {searchQuery.trim() !== "" && (
                      <button
+                        tabIndex={-1}
                         title={searchSelectedIndex < flatMatchedBookmarks.length ? `Open ${flatMatchedBookmarks[searchSelectedIndex].title}` : undefined}
                         onClick={(e) => {
                            const isCtrl = e.ctrlKey || e.metaKey || isCtrlPressed;
@@ -978,7 +987,7 @@ export function Dashboard({
                            ? `Open: ${flatMatchedBookmarks[searchSelectedIndex].title} ${isCtrlPressed ? '(new window)' : '⏎'}`
                            : (URL_PATTERN.test(searchQuery.trim()) 
                               ? (isCtrlPressed ? 'Visit URL (in new window)' : 'Visit URL (press Ctrl for new window)') 
-                              : (isCtrlPressed ? 'Web Search (in new window)' : 'Web Search (press Ctrl for new window)'))}
+                              : (isCtrlPressed ? 'Web Search (in new window)' : 'Web Search in Current Window (hold Ctrl for new window)'))}
                      </button>
                   )}
                   <select
@@ -1293,7 +1302,17 @@ export function Dashboard({
                                     >
                                        {/* Section Header */}
                                        <div style={{ padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.1)', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                          <div onClick={() => toggleSection(tab.id, section.id, section.defaultCollapsed)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                                          <div 
+                                             onClick={() => toggleSection(tab.id, section.id, section.defaultCollapsed)} 
+                                             tabIndex={0}
+                                             onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                   e.preventDefault();
+                                                   toggleSection(tab.id, section.id, section.defaultCollapsed);
+                                                }
+                                             }}
+                                             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1, minWidth: 0, outline: 'none' }}
+                                          >
                                              <div style={{ flexShrink: 0, display: 'flex' }}>
                                                 {(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
                                              </div>
