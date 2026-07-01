@@ -1314,12 +1314,16 @@ export function Dashboard({
                         className="dashboard-grid"
                         style={{ '--desktop-cols': tab.columns || 3 } as React.CSSProperties}
                      >
-                        {Array.from({ length: tab.columns || 3 }, (_, colIdx) => (
+                        {Array.from({ length: tab.columns || 3 }, (_, colIdx) => {
+                           const sectionsInCol = tab.sections.filter(s => (s.column ?? 0) === colIdx);
+                           if (searchQuery.trim() !== "" && sectionsInCol.length === 0) return null;
+                           
+                           return (
                            <div
                               key={colIdx}
                               style={{
                                  display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0,
-                                 minHeight: '150px',
+                                 minHeight: showEditControls ? '150px' : 'auto',
                                  background: dragOverColIdx === colIdx && !dragOverSectionId ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
                                  borderRadius: '16px',
                                  transition: 'all 0.2s',
@@ -1383,8 +1387,7 @@ export function Dashboard({
                                     </label>
                                  </div>
                               )}
-                              {tab.sections
-                                 .filter(s => (s.column ?? 0) === colIdx)
+                              {sectionsInCol
                                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                                  .map(section => {
                                     const isSectionFocused = isGridFocused && gridFocus?.sectionId === section.id;
@@ -1592,7 +1595,8 @@ export function Dashboard({
                                  </div>
                               )}
                            </div>
-                        ))}
+                           );
+                        })}
                      </div>
                   </div>
                );
