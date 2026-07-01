@@ -156,9 +156,9 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
           </div>
         )}
 
-        {(hasAuthentikMs || hasAuthentikPco || hasAuthentikCc) && (
+        {hasAuthentikMs && (
           <button 
-            onClick={() => signIn(hasAuthentikMs ? "authentik-ms" : hasAuthentikPco ? "authentik-pco" : "authentik-cc", { callbackUrl: "/" })}
+            onClick={() => signIn("authentik-ms", { callbackUrl: "/" })}
             style={{ 
               width: '100%',
               padding: '1.1rem', 
@@ -187,7 +187,77 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
             }}
           >
             <ShieldCheck size={24} />
-            Sign In Securely
+            Sign In with Microsoft (Secure)
+          </button>
+        )}
+
+        {hasAuthentikPco && (
+          <button 
+            onClick={() => signIn("authentik-pco", { callbackUrl: "/" })}
+            style={{ 
+              width: '100%',
+              padding: '1.1rem', 
+              borderRadius: '16px', 
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '1rem',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              marginBottom: '1rem',
+              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.3)';
+            }}
+          >
+            <ShieldCheck size={24} />
+            Sign In with Planning Center
+          </button>
+        )}
+
+        {hasAuthentikCc && (
+          <button 
+            onClick={() => signIn("authentik-cc", { callbackUrl: "/" })}
+            style={{ 
+              width: '100%',
+              padding: '1.1rem', 
+              borderRadius: '16px', 
+              background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)', 
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '1rem',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              marginBottom: '1rem',
+              boxShadow: '0 4px 15px rgba(244, 63, 94, 0.3)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(244, 63, 94, 0.4)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(244, 63, 94, 0.3)';
+            }}
+          >
+            <ShieldCheck size={24} />
+            Sign In with Church Center (OTP)
           </button>
         )}
 
