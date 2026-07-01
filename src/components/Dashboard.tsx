@@ -1022,9 +1022,9 @@ export function Dashboard({
                      onChange={e => setSearchQuery(e.target.value)}
                      onKeyDown={handleSearchKeyDown}
                      style={{
-                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem', paddingRight: '14rem', paddingLeft: '2.8rem',
-                        background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '999px',
-                        color: 'var(--text)', outline: 'none', boxSizing: 'border-box',
+                        width: '100%', paddingTop: '0.7rem', paddingBottom: '0.7rem',
+                        background: 'rgba(255,255,255,0.06)', borderRadius: '999px',
+                        color: 'var(--text)', boxSizing: 'border-box',
                         transition: 'all 0.2s ease', backdropFilter: 'blur(10px)'
                      }}
                   />
@@ -1057,16 +1057,9 @@ export function Dashboard({
                               }
                            }
                         }}
+                        className="search-action-btn"
                         style={{
-                           position: 'absolute', right: '7.5rem', top: '50%', transform: 'translateY(-50%)',
-                           fontSize: '0.75rem', whiteSpace: 'nowrap', fontWeight: 600,
-                           padding: '0.35rem 0.6rem', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--primary)',
-                           background: 'var(--primary)',
-                           color: '#fff',
-                           transition: 'all 0.2s ease',
-                           maxWidth: '260px',
-                           overflow: 'hidden',
-                           textOverflow: 'ellipsis'
+                           maxWidth: searchSelectedIndex < flatMatchedBookmarks.length ? '260px' : 'none'
                         }}
                      >
                         {searchSelectedIndex < flatMatchedBookmarks.length 
@@ -1078,25 +1071,13 @@ export function Dashboard({
                   )}
                   <select
                      value={searchEngine}
+                     className="search-engine-select"
                      onChange={(e) => {
                         setSearchEngine(e.target.value);
                         localStorage.setItem("preferredSearchEngine", e.target.value);
                      }}
                      onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary)'; e.currentTarget.style.borderRadius = '4px'; }}
                      onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
-                     style={{
-                        position: 'absolute',
-                        right: '1rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'transparent',
-                        color: 'var(--text)',
-                        border: 'none',
-                        outline: 'none',
-                        fontSize: '0.85rem',
-                        opacity: 0.7,
-                        cursor: 'pointer'
-                     }}
                   >
                      {SEARCH_ENGINES.map(engine => (
                         <option key={engine.id} value={engine.id} style={{ background: 'var(--bg-color)', color: 'var(--text)' }}>

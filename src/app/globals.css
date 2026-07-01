@@ -190,6 +190,42 @@ a {
 .search-input {
   outline: none;
   border: 1px solid var(--glass-border);
+  padding-left: 2.8rem;
+  padding-right: 14rem;
+}
+
+.search-action-btn {
+  position: absolute;
+  right: 7.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  font-weight: 600;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  transition: all 0.2s ease;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-engine-select {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  color: var(--text);
+  border: none;
+  outline: none;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  cursor: pointer;
 }
 
 .search-input::placeholder {
@@ -382,6 +418,24 @@ a {
   .dashboard-header { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; margin-left: 0 !important; margin-right: 0 !important; }
   .tabs-container { width: 100% !important; max-width: 100% !important; padding: 0 !important; margin-left: 0 !important; margin-right: 0 !important; box-sizing: border-box !important; }
   .search-input, .mobile-tab-select select { max-width: 100% !important; box-sizing: border-box !important; }
+  
+  .search-input {
+    padding-left: 2.8rem !important; /* Ensure no overlap with magnifying glass */
+    padding-right: 8rem !important;  /* Give text more breathing room */
+  }
+  
+  .search-action-btn {
+    right: 4.5rem !important;
+    max-width: 100px !important;
+    font-size: 0.65rem !important;
+    padding: 0.25rem 0.4rem !important;
+  }
+  
+  .search-engine-select {
+    right: 0.5rem !important;
+    width: 3.5rem !important; /* truncate nicely */
+    font-size: 0.75rem !important;
+  }
   .dashboard-grid-wrapper { width: 100% !important; max-width: 100% !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box !important; overflow: clip !important; }
   main { width: 100% !important; max-width: 100% !important; padding: 0 !important; box-sizing: border-box !important; margin-left: 0 !important; margin-right: 0 !important; }
   .dashboard-sections-grid { grid-template-columns: 1fr !important; width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; padding: 0 !important; margin: 0 !important; }
