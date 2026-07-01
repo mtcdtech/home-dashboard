@@ -65,6 +65,10 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
     else:
         content = content.replace('environment:', f'environment:\n      - REDEPLOY_DATE={int(time.time())}')
 
+    # Inject npx prisma db push into the command ONLY for Church Synology
+    if "Church" in name:
+        content = re.sub(r'command:\s*node\s+server\.js', 'command: sh -c "npx prisma db push && node server.js"', content)
+
     # Merge current_env with global_secrets
     env_dict = {item["name"]: item["value"] for item in current_env}
     
@@ -133,11 +137,6 @@ def deploy():
             "name": "Church Synology",
             "url": "https://docker.server.mtcd.org/api/stacks/58?endpointId=2",
             "api_key": get_secret(env_vars, "PORTAINER_API_KEY_CHURCH") or get_secret(env_vars, "PORTAINER_API_KEY")
-        },
-        {
-            "name": "Abraham Synology",
-            "url": "https://docker.abraham16.com/api/stacks/75?endpointId=2",
-            "api_key": get_secret(env_vars, "PORTAINER_API_KEY_ABRAHAM")
         }
     ]
 
