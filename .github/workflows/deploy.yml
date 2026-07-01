@@ -29,7 +29,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: mtcdtech/homedashboard:latest,mtcdtech/homedashboard:v${{ env.VERSION }}
+          tags: mtcdtech/homedashboard:latest,mtcdtech/homedashboard:v${{ env.VERSION }},mtcdtech/homedashboard:${{ github.sha }}
           cache-from: type=registry,ref=mtcdtech/homedashboard:buildcache
           cache-to: type=registry,ref=mtcdtech/homedashboard:buildcache,mode=max
 
@@ -47,6 +47,7 @@ jobs:
         run: pip install requests
       - name: Trigger Portainer Updates
         env:
+          GITHUB_SHA: ${{ github.sha }}
           AUTH_MICROSOFT_ENTRA_ID_SECRET: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           PORTAINER_API_KEY_CHURCH: ${{ secrets.PORTAINER_API_KEY_CHURCH }}

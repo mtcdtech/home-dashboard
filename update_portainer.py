@@ -56,7 +56,10 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
         print(f"[{name}] Warning: Could not read package.json version: {e}")
 
     # Force explicit version tag if provided to bypass Portainer caching issues
-    if app_version:
+    github_sha = os.environ.get("GITHUB_SHA")
+    if github_sha:
+        content = re.sub(r'image:\s*mtcdtech/home-?dashboard:[^\s]+', f'image: mtcdtech/homedashboard:{github_sha}', content)
+    elif app_version:
         content = re.sub(r'image:\s*mtcdtech/home-?dashboard:[^\s]+', f'image: mtcdtech/homedashboard:v{app_version}', content)
 
     # Replace REDEPLOY_DATE to trigger restart
