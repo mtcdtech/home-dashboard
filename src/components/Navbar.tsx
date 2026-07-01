@@ -75,7 +75,7 @@ export function Navbar({ title = "Dashboard", logoIcon, logoUrl }: NavbarProps) 
             </button>
           </div>
         ) : (
-          <button onClick={() => signIn("microsoft-entra-id")} className="btn btn-primary">
+          <button onClick={() => signIn()} className="btn btn-primary">
             Sign In
           </button>
         )}
