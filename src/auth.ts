@@ -64,7 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
            isGroupAdmin = groups.includes("administrators");
            department = isGroupAdmin ? "Admin" : "Synology";
            console.log("Synology SSO Sign-in - User:", user.email, "isGroupAdmin:", isGroupAdmin);
-        } else if (account?.provider === "authentik-pco" || account?.provider === "authentik-ms") {
+        } else if (account?.provider === "authentik-pco" || account?.provider === "authentik-ms" || account?.provider === "authentik-cc") {
            // Authentik returns groups as an array of names from the property mapping
            isGroupAdmin =
              groups.includes("app-home-dashboard-global-admins") ||
@@ -82,17 +82,52 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               where: { email: user.email }
             });
 
+            let msName = existingUser?.msName || null;
+            let msImage = existingUser?.msImage || null;
+            let pcoName = existingUser?.pcoName || null;
+            let pcoImage = existingUser?.pcoImage || null;
+            let ccName = existingUser?.ccName || null;
+            let ccImage = existingUser?.ccImage || null;
+
+            if (account?.provider === "authentik-ms") {
+              msName = user.name || null;
+              msImage = user.image || null;
+            } else if (account?.provider === "authentik-pco") {
+              pcoName = user.name || null;
+              pcoImage = user.image || null;
+            } else if (account?.provider === "authentik-cc") {
+              ccName = user.name || null;
+              ccImage = user.image || null;
+            }
+
+            const finalName = msName || pcoName || ccName || user.name;
+            const finalImage = msImage || pcoImage || ccImage || user.image;
+
             const dbUser = await prisma.user.upsert({
               where: { email: user.email },
               update: { 
+                name: finalName,
+                image: finalImage,
+                msName,
+                msImage,
+                pcoName,
+                pcoImage,
+                ccName,
+                ccImage,
                 department,
                 ...(department && !existingUser?.dashboardGroup ? { dashboardGroup: department } : {}),
                 ...(isGroupAdmin ? { isAdmin: true } : {})
               },
               create: {
-                name: user.name,
+                name: finalName,
                 email: user.email,
-                image: user.image,
+                image: finalImage,
+                msName,
+                msImage,
+                pcoName,
+                pcoImage,
+                ccName,
+                ccImage,
                 department,
                 dashboardGroup: department || "General",
                 isAdmin: isGroupAdmin,
@@ -100,6 +135,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             });
             console.log("User upserted — department:", department, "dashboardGroup:", dbUser.dashboardGroup);
             user.id = dbUser.id;
+            user.name = dbUser.name;
+            user.image = dbUser.image;
             (user as any).isAdmin = dbUser.isAdmin;
             (user as any).iconSize = dbUser.iconSize;
             (user as any).canEditContent = dbUser.canEditContent;
@@ -156,6 +193,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.isAdmin = token.isAdmin;
         session.user.iconSize = token.iconSize;
         session.user.canEditContent = token.canEditContent;
+        if (token.name) session.user.name = token.name;
+        if (token.picture) session.user.image = token.picture;
         console.log("Session created for:", session.user.email, "isAdmin:", session.user.isAdmin);
       }
       return session;

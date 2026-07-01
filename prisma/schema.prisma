@@ -15,6 +15,12 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  msName        String?
+  msImage       String?
+  pcoName       String?
+  pcoImage      String?
+  ccName        String?
+  ccImage       String?
   password      String?   // For local admin/admin
   department    String?   // Maps to "Department" in MS profile
   departmentOverride String? // Admin-set group override — survives MS sync

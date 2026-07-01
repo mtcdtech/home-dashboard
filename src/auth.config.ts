@@ -53,6 +53,31 @@ if (process.env.AUTHENTIK_MS_CLIENT_ID) {
   });
 }
 
+// Authentik OIDC -> Church Center (auto-redirect via dedicated single-source flow)
+if (process.env.AUTHENTIK_CC_CLIENT_ID) {
+  providers.push({
+    id: "authentik-cc",
+    name: "Church Center",
+    type: "oidc",
+    issuer: process.env.AUTHENTIK_CC_ISSUER,             // https://auth.server.mtcd.org/application/o/home-dashboard-cc/
+    clientId: process.env.AUTHENTIK_CC_CLIENT_ID,
+    clientSecret: process.env.AUTHENTIK_CC_CLIENT_SECRET,
+    authorization: { params: { scope: "openid email profile groups" } },
+    checks: ["pkce", "state"],
+    allowDangerousEmailAccountLinking: true,
+    profile(profile: any) {
+      return {
+        id: profile.sub,
+        name: profile.name || profile.preferred_username,
+        email: profile.email,
+        image: profile.picture || null,
+        department: "",
+        isAdmin: false,
+      };
+    },
+  });
+}
+
 // Legacy Microsoft Entra ID provider — fallback when Authentik is not configured.
 // Activates only when all three legacy vars are set, so the login button is usable.
 if (

@@ -34,6 +34,7 @@ export default async function LoginPage() {
         hasSynology={!!process.env.SYNOLOGY_CLIENT_ID}
         hasAuthentikPco={!!process.env.AUTHENTIK_PCO_CLIENT_ID}
         hasAuthentikMs={!!process.env.AUTHENTIK_MS_CLIENT_ID}
+        hasAuthentikCc={!!process.env.AUTHENTIK_CC_CLIENT_ID}
       />
     </Suspense>
   );

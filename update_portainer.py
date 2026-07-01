@@ -76,7 +76,11 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
         
     # For Authentik, we push them if they exist in global_secrets AND it's Church Synology
     if "Church" in name:
-        for k in ["AUTHENTIK_PCO_CLIENT_ID", "AUTHENTIK_PCO_CLIENT_SECRET", "AUTHENTIK_PCO_ISSUER", "AUTHENTIK_MS_CLIENT_ID", "AUTHENTIK_MS_CLIENT_SECRET", "AUTHENTIK_MS_ISSUER"]:
+        for k in [
+            "AUTHENTIK_PCO_CLIENT_ID", "AUTHENTIK_PCO_CLIENT_SECRET", "AUTHENTIK_PCO_ISSUER",
+            "AUTHENTIK_MS_CLIENT_ID", "AUTHENTIK_MS_CLIENT_SECRET", "AUTHENTIK_MS_ISSUER",
+            "AUTHENTIK_CC_CLIENT_ID", "AUTHENTIK_CC_CLIENT_SECRET", "AUTHENTIK_CC_ISSUER"
+        ]:
             if k in global_secrets and global_secrets[k]:
                 env_dict[k] = global_secrets[k]
 
@@ -119,6 +123,9 @@ def deploy():
         "AUTHENTIK_MS_CLIENT_ID": get_secret(env_vars, "AUTHENTIK_MS_CLIENT_ID"),
         "AUTHENTIK_MS_CLIENT_SECRET": get_secret(env_vars, "AUTHENTIK_MS_CLIENT_SECRET"),
         "AUTHENTIK_MS_ISSUER": get_secret(env_vars, "AUTHENTIK_MS_ISSUER"),
+        "AUTHENTIK_CC_CLIENT_ID": get_secret(env_vars, "AUTHENTIK_CC_CLIENT_ID"),
+        "AUTHENTIK_CC_CLIENT_SECRET": get_secret(env_vars, "AUTHENTIK_CC_CLIENT_SECRET"),
+        "AUTHENTIK_CC_ISSUER": get_secret(env_vars, "AUTHENTIK_CC_ISSUER"),
     }
 
     targets = [

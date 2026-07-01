@@ -18,6 +18,9 @@ services:
       - AUTHENTIK_MS_CLIENT_ID=${AUTHENTIK_MS_CLIENT_ID}
       - AUTHENTIK_MS_CLIENT_SECRET=${AUTHENTIK_MS_CLIENT_SECRET}
       - AUTHENTIK_MS_ISSUER=${AUTHENTIK_MS_ISSUER:-https://auth.server.mtcd.org/application/o/home-dashboard-ms/}
+      - AUTHENTIK_CC_CLIENT_ID=${AUTHENTIK_CC_CLIENT_ID}
+      - AUTHENTIK_CC_CLIENT_SECRET=${AUTHENTIK_CC_CLIENT_SECRET}
+      - AUTHENTIK_CC_ISSUER=${AUTHENTIK_CC_ISSUER:-https://auth.server.mtcd.org/application/o/home-dashboard-cc/}
     volumes:
       - homedashboard_personal_uploads:/app/public/uploads
     depends_on:

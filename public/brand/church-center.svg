@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="none" viewBox="0 0 30 30">
+  <path fill="url(#church-center_svg__a)" d="M15.17.105c-12 0-15 3-15 15s3 15 15 15 15-3 15-15-3-15-15-15"></path>
+  <path fill="#fff" fill-rule="evenodd" d="M21.045 22.285c0 .282-.222.51-.499.51l-2.95-.026a.503.503 0 0 1-.509-.497s.008-.351.008-2.708c0-1.587-.818-2.91-1.927-3.974-1.107 1.065-1.925 2.387-1.925 3.974 0 2.357.007 2.708.007 2.708a.503.503 0 0 1-.51.497l-2.95.025a.504.504 0 0 1-.498-.51s-.365-9.723-.029-10.013h.004l5.394-4.656a.784.784 0 0 1 1.031 0l5.39 4.656q-.002 0-.006.002c.333.317-.032 10.012-.032 10.012" clip-rule="evenodd"></path>
+  <defs>
+    <linearGradient id="church-center_svg__a" x1="-8.818" x2="15.158" y1="15.094" y2="39.069" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#42A5F5"></stop>
+      <stop offset="1" stop-color="#66BB6A"></stop>
+    </linearGradient>
+  </defs>
+</svg>
