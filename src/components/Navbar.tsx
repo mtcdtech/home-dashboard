@@ -14,7 +14,7 @@ interface NavbarProps {
 
 export function Navbar({ title = "Dashboard", logoIcon, logoUrl }: NavbarProps) {
   const { data: session } = useSession();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   const IconComponent = ({ name, size = 20 }: { name: string; size?: number }) => {
@@ -28,7 +28,7 @@ export function Navbar({ title = "Dashboard", logoIcon, logoUrl }: NavbarProps) 
   }, []);
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   if (!mounted) return null;
@@ -48,7 +48,7 @@ export function Navbar({ title = "Dashboard", logoIcon, logoUrl }: NavbarProps) 
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
         <button onClick={toggleTheme} className="btn" style={{ background: 'transparent', border: 'none', color: 'inherit', padding: '0.5rem' }}>
-          {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+          {resolvedTheme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
         </button>
 
         {session ? (

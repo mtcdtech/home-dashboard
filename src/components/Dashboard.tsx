@@ -450,7 +450,7 @@ export function Dashboard({
    };
 
    const mounted = useMounted();
-   const { theme, setTheme } = useTheme();
+   const { theme, resolvedTheme, setTheme } = useTheme();
 
    useEffect(() => {
       setTabs(initialTabs);
@@ -594,7 +594,7 @@ export function Dashboard({
    const _activePrimary = (activeTab?.theme?.primaryColor && activeTab.theme.primaryColor !== '')
       ? activeTab.theme.primaryColor
       : activeTheme.primaryColor;
-   const _isLightForBg = theme === 'light';
+   const _isLightForBg = resolvedTheme === 'light';
    const _secOpac = activeTheme.sectionOpacity ?? 0.7;
    const _glsOpac = activeTheme.glassOpacity ?? 0.12;
    useEffect(() => {
@@ -690,7 +690,7 @@ export function Dashboard({
       return `${r}, ${g}, ${b}`;
    };
 
-   const isLight = theme === 'light';
+   const isLight = resolvedTheme === 'light';
    const secOpac = activeTheme.sectionOpacity ?? 0.7;
    const glsOpac = activeTheme.glassOpacity ?? 0.12;
 
@@ -938,7 +938,7 @@ export function Dashboard({
                {/* 1. Workspace Name */}
                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0, flexShrink: 1 }}>
                   {globalSettings?.logoUrlLight && (
-                     <img src={theme === "light" ? globalSettings.logoUrlLight : (globalSettings.logoUrlDark || globalSettings.logoUrlLight)} alt="Logo" className="nav-logo" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+                     <img src={resolvedTheme === "light" ? globalSettings.logoUrlLight : (globalSettings.logoUrlDark || globalSettings.logoUrlLight)} alt="Logo" className="nav-logo" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
                   )}
                   <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                      {activeTab?.title ? `${activeTab.title} Dashboard` : (activeTheme.dashboardTitle || "Dashboard")}
@@ -1000,8 +1000,8 @@ export function Dashboard({
                   )}
 
                   {/* 5. Light/Dark Mode */}
-                  <button className="nav-menu-btn" title="Toggle Theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text)', padding: '0.5rem', display: 'flex', alignItems: 'center' }}>
-                     {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} <span className="mobile-menu-text">Toggle Dark Mode</span>
+                  <button className="nav-menu-btn" title="Toggle Theme" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text)', padding: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                     {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} <span className="mobile-menu-text">Toggle Dark Mode</span>
                   </button>
                </div>
             </div>
