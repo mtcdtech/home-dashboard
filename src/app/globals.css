@@ -189,8 +189,10 @@ a {
 
 .search-input {
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
   border: 1px solid var(--glass-border);
-  padding-left: 2.8rem;
+  padding-left: 3.5rem;
   padding-right: 14rem;
 }
 
@@ -420,7 +422,7 @@ a {
   .search-input, .mobile-tab-select select { max-width: 100% !important; box-sizing: border-box !important; }
   
   .search-input {
-    padding-left: 2.8rem !important; /* Ensure no overlap with magnifying glass */
+    padding-left: 3.5rem !important; /* Fixed overlap with magnifying glass */
     padding-right: 8rem !important;  /* Give text more breathing room */
   }
   
