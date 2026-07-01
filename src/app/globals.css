@@ -451,7 +451,7 @@ a {
     align-items: center !important;
     gap: 0.5rem !important;
     margin-bottom: 0.75rem !important;
-    padding: 0.5rem !important;
+    padding: calc(0.5rem + env(safe-area-inset-top)) 0.5rem 0.5rem 0.5rem !important;
   }
   .admin-header h1, .admin-header h2 { font-size: 0.95rem !important; margin: 0 !important; }
   .admin-header-right { 
@@ -562,8 +562,8 @@ a {
   .modal-content h2 { font-size: 0.9rem !important; margin-bottom: 0.5rem !important; }
   .modal-content label { font-size: 0.68rem !important; }
   .modal-content input, .modal-content select, .modal-content textarea {
-    padding: 0.4rem 0.6rem !important;
-    font-size: 16px !important;
+    padding: 0.35rem 0.5rem !important;
+    font-size: 14px !important;
   }
   .modal-content .btn { padding: 0.4rem 0.75rem !important; font-size: 0.72rem !important; }
   .modal-content .glass-card { padding: 0.6rem !important; }
@@ -583,8 +583,8 @@ a {
   /* Input fields compact */
   input[type="text"], input[type="email"], input[type="url"],
   input[type="password"], select, textarea {
-    padding: 0.45rem 0.65rem !important;
-    font-size: 16px !important; /* prevent iOS zoom */
+    padding: 0.35rem 0.5rem !important;
+    font-size: 14px !important; /* using 14px since it is an ios webapp */
     border-radius: 8px !important;
   }
 

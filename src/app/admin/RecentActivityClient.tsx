@@ -84,7 +84,7 @@ export function RecentActivityClient({ initialFeed }: { initialFeed: any[] }) {
         </select>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0', flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0', flex: 1, maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
         {filteredFeed.length === 0 && (
           <p style={{ opacity: 0.4, fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>No activity found</p>
         )}
