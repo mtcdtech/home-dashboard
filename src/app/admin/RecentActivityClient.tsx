@@ -7,7 +7,10 @@ export function RecentActivityClient({ initialFeed }: { initialFeed: any[] }) {
   const [feed] = useState(initialFeed);
   const [filterUser, setFilterUser] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterSearch, setFilterSearch] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const uniqueUsers = Array.from(new Set(feed.map(entry => entry.userName || "Anonymous"))).sort();
 
   const typeLabel: Record<string, string> = {
     login: "Logged in",
@@ -28,31 +31,48 @@ export function RecentActivityClient({ initialFeed }: { initialFeed: any[] }) {
   };
 
   const filteredFeed = feed.filter((entry) => {
-    if (filterUser && !(entry.userName || "Anonymous").toLowerCase().includes(filterUser.toLowerCase())) return false;
+    if (filterUser && (entry.userName || "Anonymous") !== filterUser) return false;
     if (filterType && entry.type !== filterType) return false;
+    if (filterSearch) {
+      const s = filterSearch.toLowerCase();
+      if (!((entry.userName || "").toLowerCase().includes(s) || (entry.detail || "").toLowerCase().includes(s) || (typeLabel[entry.type] || entry.type).toLowerCase().includes(s))) {
+        return false;
+      }
+    }
     return true;
   });
 
   return (
-    <div className="glass glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0', minWidth: 0, overflow: 'hidden' }}>
+    <div className="glass glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0', minWidth: 0, overflow: 'hidden', height: '100%' }}>
       <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <Activity size={20} /> Recent Activity
       </h3>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <input 
           type="text" 
-          placeholder="Filter by user..." 
+          placeholder="Search activity..." 
+          className="input" 
+          value={filterSearch} 
+          onChange={(e) => setFilterSearch(e.target.value)} 
+          style={{ flex: 1, minWidth: '120px', padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)' }}
+        />
+        <select 
           className="input" 
           value={filterUser} 
           onChange={(e) => setFilterUser(e.target.value)} 
-          style={{ flex: 1, padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-        />
+          style={{ flex: 1, minWidth: '120px', padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)' }}
+        >
+          <option value="">All Users</option>
+          {uniqueUsers.map(user => (
+            <option key={user as string} value={user as string}>{user as string}</option>
+          ))}
+        </select>
         <select 
           className="input" 
           value={filterType} 
           onChange={(e) => setFilterType(e.target.value)}
-          style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)' }}
+          style={{ flex: 1, minWidth: '120px', padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)' }}
         >
           <option value="">All Activities</option>
           <option value="login">Logins</option>
@@ -64,7 +84,7 @@ export function RecentActivityClient({ initialFeed }: { initialFeed: any[] }) {
         </select>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0', maxHeight: '280px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0', flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
         {filteredFeed.length === 0 && (
           <p style={{ opacity: 0.4, fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>No activity found</p>
         )}

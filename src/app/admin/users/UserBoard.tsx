@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef } from "react";
 import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X } from "lucide-react";
-import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup } from "../actions";
+import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser } from "../actions";
 
 export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers: any[]; allTabs?: { id: string; title: string }[] }) {
   const [users, setUsers] = useState(initialUsers);
@@ -34,6 +34,16 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
       body: JSON.stringify({ userId })
     });
     window.open('/', '_blank');
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (confirm(`Are you sure you want to completely delete user "${userName}"? This cannot be undone.`)) {
+      setUsers(u => u.filter(x => x.id !== userId));
+      await deleteUser(userId).catch((err) => {
+        alert(err.message || "Failed to delete user");
+        // Could technically revert UI here but page refresh will fix
+      });
+    }
   };
 
   const handleCreateGroup = () => {
@@ -357,24 +367,43 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
                         </select>
                       </td>
 
-                      {/* Impersonate */}
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <button
-                          onClick={() => handleImpersonate(user.id)}
-                          title={`View dashboard as ${user.name || user.email}`}
-                          style={{
-                            background: 'rgba(var(--primary-rgb), 0.08)',
-                            color: 'var(--primary)',
-                            border: '1px solid rgba(var(--primary-rgb), 0.2)',
-                            borderRadius: '8px', padding: '0.35rem 0.6rem',
-                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
-                            gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(var(--primary-rgb), 0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                        >
-                          <Eye size={13} /> Preview
-                        </button>
+                      {/* Actions */}
+                      <td style={{ ...tdStyle, textAlign: 'center', minWidth: '150px' }}>
+                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => handleImpersonate(user.id)}
+                            title={`View dashboard as ${user.name || user.email}`}
+                            style={{
+                              background: 'rgba(var(--primary-rgb), 0.08)',
+                              color: 'var(--primary)',
+                              border: '1px solid rgba(var(--primary-rgb), 0.2)',
+                              borderRadius: '8px', padding: '0.35rem 0.6rem',
+                              cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+                              gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(var(--primary-rgb), 0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                          >
+                            <Eye size={13} /> Preview
+                          </button>
+                          
+                          <button
+                            onClick={() => handleDeleteUser(user.id, user.name || user.email)}
+                            title="Delete User"
+                            style={{
+                              background: 'transparent',
+                              color: '#ef4444',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              borderRadius: '8px', padding: '0.35rem 0.5rem',
+                              cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ef4444'; }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

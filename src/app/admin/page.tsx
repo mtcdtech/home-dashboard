@@ -67,7 +67,7 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '1.5rem' }}>
+      <div className="admin-overview-grid">
         {/* Quick Settings */}
         <div className="glass glass-card">
           <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

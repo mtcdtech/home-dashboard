@@ -754,6 +754,21 @@ export async function updateUserDashboardGroup(id: string, dashboardGroup: strin
   revalidatePath("/admin/users");
 }
 
+export async function deleteUser(id: string) {
+  await requireAdmin();
+  const session = await auth();
+  if (!(session?.user as any)?.isAdmin) throw new Error("Unauthorized");
+  
+  // Local admins cannot be deleted
+  const user = await prisma.user.findUnique({ where: { id }, select: { email: true, name: true } });
+  if (user?.email === "admin@local" || user?.name === "Local Admin") {
+    throw new Error("Local admin cannot be deleted");
+  }
+
+  await prisma.user.delete({ where: { id } });
+  revalidatePath("/admin/users");
+}
+
 export async function toggleUserEditContent(id: string, canEditContent: boolean) {
   await requireAdmin();
   await prisma.user.update({ where: { id }, data: { canEditContent } });
