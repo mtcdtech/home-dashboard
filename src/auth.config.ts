@@ -12,7 +12,7 @@ if (process.env.AUTHENTIK_PCO_CLIENT_ID) {
     issuer: process.env.AUTHENTIK_PCO_ISSUER,            // https://auth.server.mtcd.org/application/o/home-dashboard-pco/
     clientId: process.env.AUTHENTIK_PCO_CLIENT_ID,
     clientSecret: process.env.AUTHENTIK_PCO_CLIENT_SECRET,
-    authorization: { params: { scope: "openid email profile groups" } },
+    authorization: { params: { scope: "openid email profile groups", prompt: "login" } },
     checks: ["pkce", "state"],
     allowDangerousEmailAccountLinking: true,
     profile(profile: any) {
@@ -37,7 +37,7 @@ if (process.env.AUTHENTIK_MS_CLIENT_ID) {
     issuer: process.env.AUTHENTIK_MS_ISSUER,             // https://auth.server.mtcd.org/application/o/home-dashboard-ms/
     clientId: process.env.AUTHENTIK_MS_CLIENT_ID,
     clientSecret: process.env.AUTHENTIK_MS_CLIENT_SECRET,
-    authorization: { params: { scope: "openid email profile groups" } },
+    authorization: { params: { scope: "openid email profile groups", prompt: "login" } },
     checks: ["pkce", "state"],
     allowDangerousEmailAccountLinking: true,
     profile(profile: any) {
@@ -62,7 +62,7 @@ if (process.env.AUTHENTIK_CC_CLIENT_ID) {
     issuer: process.env.AUTHENTIK_CC_ISSUER,             // https://auth.server.mtcd.org/application/o/home-dashboard-cc/
     clientId: process.env.AUTHENTIK_CC_CLIENT_ID,
     clientSecret: process.env.AUTHENTIK_CC_CLIENT_SECRET,
-    authorization: { params: { scope: "openid email profile groups" } },
+    authorization: { params: { scope: "openid email profile groups", prompt: "login" } },
     checks: ["pkce", "state"],
     allowDangerousEmailAccountLinking: true,
     profile(profile: any) {
@@ -135,6 +135,7 @@ if (process.env.SYNOLOGY_CLIENT_ID) {
 }
 
 export const authConfig = {
+  debug: true,
   session: { strategy: "jwt" },
   trustHost: true,
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,

@@ -6,14 +6,28 @@ import { Providers } from "@/components/Providers";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
-export const metadata: Metadata = {
-  title: "Home Dashboard",
-  description: "A premium, customizable homepage dashboard",
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const isAbraham = process.env.NEXTAUTH_URL?.includes("abraham16.com") || process.env.AUTH_URL?.includes("abraham16.com");
+  const prefix = isAbraham ? "abraham" : "church";
+  
+  return {
+    title: "Home Dashboard",
+    description: "A premium, customizable homepage dashboard",
+    icons: {
+      icon: [
+        { url: `/${prefix}-favicon-32.png`, sizes: "32x32", type: "image/png" },
+        { url: `/${prefix}-favicon-192.png`, sizes: "192x192", type: "image/png" },
+      ],
+      apple: [
+        { url: `/${prefix}-apple-icon.png`, sizes: "180x180", type: "image/png" },
+      ],
+    },
+    other: {
+      "apple-mobile-web-app-capable": "yes",
+      "apple-mobile-web-app-status-bar-style": "black-translucent",
+    },
+  };
+}
 
 /*
  * Theme color is a single, non-media-qualified value on purpose.
