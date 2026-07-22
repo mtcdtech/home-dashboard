@@ -1835,15 +1835,58 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
     }
     const baseUrl = rawUrl.replace(/\/$/, "");
     const apiKey = (config.apiKey || process.env.PORTAINER_API_KEY || "").trim();
-    const endpointId = (config.endpointId || "2").trim();
+    let targetEndpointId = config.endpointId?.trim();
 
-    const fetchUrl = `${baseUrl}/api/endpoints/${endpointId}/docker/containers/json?all=1`;
-    const httpResp = await fetch(fetchUrl, {
+    // Auto-detect endpoint ID if not explicitly specified
+    if (!targetEndpointId) {
+      try {
+        const endpointsResp = await fetch(`${baseUrl}/api/endpoints`, {
+          headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+        });
+        if (endpointsResp.ok) {
+          const endpoints = await endpointsResp.json();
+          if (Array.isArray(endpoints) && endpoints.length > 0) {
+            targetEndpointId = String(endpoints[0].Id);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not auto-detect Portainer endpoint ID:", e);
+      }
+    }
+
+    if (!targetEndpointId) targetEndpointId = "2";
+
+    let fetchUrl = `${baseUrl}/api/endpoints/${targetEndpointId}/docker/containers/json?all=1`;
+    let httpResp = await fetch(fetchUrl, {
       headers: {
         "X-API-Key": apiKey,
         "Accept": "application/json"
       }
     });
+
+    // Fallback: If specified endpointId 404s, attempt auto-discovering from /api/endpoints
+    if (!httpResp.ok && httpResp.status === 404) {
+      try {
+        const endpointsResp = await fetch(`${baseUrl}/api/endpoints`, {
+          headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+        });
+        if (endpointsResp.ok) {
+          const endpoints = await endpointsResp.json();
+          if (Array.isArray(endpoints) && endpoints.length > 0) {
+            const fallbackId = String(endpoints[0].Id);
+            if (fallbackId !== targetEndpointId) {
+              targetEndpointId = fallbackId;
+              fetchUrl = `${baseUrl}/api/endpoints/${targetEndpointId}/docker/containers/json?all=1`;
+              httpResp = await fetch(fetchUrl, {
+                headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore fallback error
+      }
+    }
 
     if (!httpResp.ok) {
       throw new Error(`Portainer API returned status ${httpResp.status}`);
