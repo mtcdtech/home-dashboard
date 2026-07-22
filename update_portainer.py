@@ -165,10 +165,15 @@ def deploy_abraham_container(portainer_url, api_key, github_sha):
                 "PortBindings": {"4000/tcp": [{"HostPort": "4001"}]},
                 "Binds": ["/Users/benny2168/Dockers/dashboard-uploads:/app/public/uploads"],
                 "RestartPolicy": {"Name": "unless-stopped"},
-                "NetworkMode": "bridge",
-                "Links": ["dashboard-db:dashboard-db"],
+                "NetworkMode": "dashboard_default",
             },
             "ExposedPorts": {"4000/tcp": {}},
+            "NetworkingConfig": {
+                "EndpointsConfig": {
+                    "dashboard_default": {},
+                    "proxynet": {}
+                }
+            }
         }
         print(f"[{name}] Creating new dashboard-app container with {image_tag}...")
         r = requests.post(
