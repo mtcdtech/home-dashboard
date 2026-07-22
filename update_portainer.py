@@ -195,6 +195,9 @@ def deploy():
     entra_secret = get_secret(env_vars, "AUTH_MICROSOFT_ENTRA_ID_SECRET")
     auth_secret = get_secret(env_vars, "AUTH_SECRET")
     github_sha = os.environ.get("GITHUB_SHA")
+    branch = os.environ.get("GITHUB_REF_NAME", "main")
+
+    print(f"[deploy] Branch: {branch} | SHA: {github_sha}")
 
     global_secrets = {
         "AUTH_SECRET": auth_secret or "",
@@ -210,25 +213,31 @@ def deploy():
         "AUTHENTIK_CC_ISSUER": get_secret(env_vars, "AUTHENTIK_CC_ISSUER"),
     }
 
-    # --- MTCD Church Synology (stack-based) ---
-    if entra_secret and auth_secret:
-        church_key = get_secret(env_vars, "PORTAINER_API_KEY_CHURCH") or get_secret(env_vars, "PORTAINER_API_KEY")
-        deploy_to_portainer(
-            "Church Synology",
-            "https://docker.server.mtcd.org/api/stacks/58?endpointId=2",
-            church_key,
-            global_secrets
+    # --- MTCD Church Synology: only on main branch ---
+    if branch == "main":
+        if entra_secret and auth_secret:
+            church_key = get_secret(env_vars, "PORTAINER_API_KEY_CHURCH") or get_secret(env_vars, "PORTAINER_API_KEY")
+            deploy_to_portainer(
+                "Church Synology",
+                "https://docker.server.mtcd.org/api/stacks/58?endpointId=2",
+                church_key,
+                global_secrets
+            )
+        else:
+            print("[Church Synology] Skipping — missing AUTH_MICROSOFT_ENTRA_ID_SECRET or AUTH_SECRET")
+    else:
+        print(f"[Church Synology] Skipping — branch is '{branch}', not 'main'")
+
+    # --- Abraham Mac Mini: only on abraham-prod branch ---
+    if branch == "abraham-prod":
+        abraham_key = get_secret(env_vars, "PORTAINER_API_KEY_ABRAHAM")
+        deploy_abraham_container(
+            "https://docker.abraham16.com",
+            abraham_key,
+            github_sha
         )
     else:
-        print("[Church Synology] Skipping — missing AUTH_MICROSOFT_ENTRA_ID_SECRET or AUTH_SECRET")
-
-    # --- Abraham Mac Mini (container-based until multi-arch stack is registered) ---
-    abraham_key = get_secret(env_vars, "PORTAINER_API_KEY_ABRAHAM")
-    deploy_abraham_container(
-        "https://docker.abraham16.com",
-        abraham_key,
-        github_sha
-    )
+        print(f"[Abraham Mac Mini] Skipping — branch is '{branch}', not 'abraham-prod'")
 
 
 if __name__ == "__main__":

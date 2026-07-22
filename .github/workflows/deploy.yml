@@ -59,6 +59,7 @@ jobs:
           AUTHENTIK_MS_CLIENT_ID: ${{ secrets.AUTHENTIK_MS_CLIENT_ID }}
           AUTHENTIK_MS_CLIENT_SECRET: ${{ secrets.AUTHENTIK_MS_CLIENT_SECRET }}
           AUTHENTIK_MS_ISSUER: ${{ secrets.AUTHENTIK_MS_ISSUER }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           PORTAINER_API_KEY_ABRAHAM: ${{ secrets.PORTAINER_API_KEY_ABRAHAM }}
         run: python update_portainer.py
 
