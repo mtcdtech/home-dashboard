@@ -4,7 +4,7 @@ import UserBoard from "./UserBoard";
 export const dynamic = 'force-dynamic';
 
 export default async function AdminUsersPage() {
-  const [users, tabs] = await Promise.all([
+  const [users, tabs, globalSettings] = await Promise.all([
     prisma.user.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -14,7 +14,8 @@ export default async function AdminUsersPage() {
         managedSections: { select: { id: true, title: true } },
       }
     }),
-    prisma.tab.findMany({ orderBy: { order: "asc" }, select: { id: true, title: true } })
+    prisma.tab.findMany({ orderBy: { order: "asc" }, select: { id: true, title: true } }),
+    (prisma as any).globalSettings.findUnique({ where: { id: "global" } })
   ]);
 
   return (
@@ -26,7 +27,7 @@ export default async function AdminUsersPage() {
         </p>
       </div>
 
-      <UserBoard initialUsers={users as any[]} allTabs={tabs} />
+      <UserBoard initialUsers={users as any[]} allTabs={tabs} initialDisableLocalAdmin={globalSettings?.disableLocalAdmin ?? false} />
     </div>
   );
 }

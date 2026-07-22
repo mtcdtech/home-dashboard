@@ -1778,3 +1778,96 @@ export async function togglePushRuleLock(tabId: string, targetType: string, targ
   revalidatePath("/");
   revalidatePath("/admin/tabs");
 }
+
+// --- LOCAL ADMIN GOVERNANCE ---
+export async function updateLocalAdminSettings(data: { disableLocalAdmin?: boolean; password?: string }) {
+  await requireAdmin();
+  
+  if (data.disableLocalAdmin !== undefined) {
+    await (prisma as any).globalSettings.upsert({
+      where: { id: "global" },
+      update: { disableLocalAdmin: data.disableLocalAdmin },
+      create: { id: "global", disableLocalAdmin: data.disableLocalAdmin }
+    });
+  }
+
+  if (data.password && data.password.trim()) {
+    const adminUser = await prisma.user.findUnique({ where: { email: "admin@local.host" } });
+    if (adminUser) {
+      await prisma.user.update({
+        where: { id: adminUser.id },
+        data: { password: data.password.trim() }
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          name: "Local Admin",
+          email: "admin@local.host",
+          password: data.password.trim(),
+          isAdmin: true,
+          department: "IT",
+        }
+      });
+    }
+  }
+  revalidatePath("/");
+  revalidatePath("/admin/users");
+  revalidatePath("/login");
+  return { success: true };
+}
+
+export async function updateSectionWidgetConfig(sectionId: string, widgetConfig: any) {
+  await requireSectionRole(sectionId, "edit");
+  await prisma.section.update({
+    where: { id: sectionId },
+    data: { widgetConfig }
+  });
+  revalidatePath("/");
+}
+
+// --- PORTAINER WIDGET INTEGRATION ---
+export async function fetchPortainerContainers(config: { url?: string; apiKey?: string; endpointId?: string }) {
+  await requireSession();
+  try {
+    const baseUrl = (config.url || process.env.PORTAINER_URL || "https://docker.abraham16.com").replace(/\/$/, "");
+    const apiKey = config.apiKey || process.env.PORTAINER_API_KEY || "ptr_LAYVFvw5+DscmC2s2QsM+5aeO6iXGYcR4+KwjH7f/eU=";
+    const endpointId = config.endpointId || "5";
+
+    const fetchUrl = `${baseUrl}/api/endpoints/${endpointId}/docker/containers/json?all=1`;
+    const httpResp = await fetch(fetchUrl, {
+      headers: {
+        "X-API-Key": apiKey,
+        "Accept": "application/json"
+      }
+    });
+
+    if (!httpResp.ok) {
+      throw new Error(`Portainer API returned status ${httpResp.status}`);
+    }
+
+    const containers = await httpResp.json();
+
+    return {
+      success: true,
+      containers: (containers || []).map((c: any) => ({
+        id: c.Id,
+        name: (c.Names?.[0] || "").replace(/^\//, ""),
+        image: c.Image,
+        state: c.State, // "running", "exited", etc.
+        status: c.Status,
+        created: c.Created,
+        ports: (c.Ports || []).map((p: any) => ({
+          privatePort: p.PrivatePort,
+          publicPort: p.PublicPort,
+          type: p.Type
+        }))
+      }))
+    };
+  } catch (err: any) {
+    console.error("fetchPortainerContainers error:", err);
+    return {
+      success: false,
+      error: err.message || "Failed to connect to Portainer API"
+    };
+  }
+}

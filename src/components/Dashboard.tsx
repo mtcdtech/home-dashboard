@@ -15,6 +15,7 @@ import ThemeModal from "@/components/ThemeModal";
 import { TabModal } from "./TabModal";
 import { SectionModal } from "./SectionModal";
 import { BookmarkModal } from "./BookmarkModal";
+import { PortainerWidget } from "./widgets/PortainerWidget";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -273,7 +274,7 @@ export function Dashboard({
       return () => { document.body.style.overflow = 'auto'; };
    }, [isCatalogOpen]);
 
-   const [catalogTab, setCatalogTab] = useState<"workspaces" | "sections">("workspaces");
+   const [catalogTab, setCatalogTab] = useState<"workspaces" | "sections" | "widgets">("workspaces");
    const [catalogSearchQuery, setCatalogSearchQuery] = useState("");
 
    const hasTabAdminAccess = (tab?: Tab) => {
@@ -350,6 +351,27 @@ export function Dashboard({
          const catalogSectionId = srcId.replace("catalogSection:", "");
          try {
             await actions.addSectionToTab(catalogSectionId, currentTabId, colIdx);
+            router.refresh();
+         } catch (err: any) {
+            alert(err.message);
+         }
+         return;
+      }
+
+      if (srcId.startsWith("catalogWidget:")) {
+         const widgetType = srcId.replace("catalogWidget:", "");
+         try {
+            const title = widgetType === "portainer" ? "Portainer Docker Containers" : "Widget Section";
+            const icon = widgetType === "portainer" ? "Server" : "LayoutGrid";
+            const newSec = await actions.createSection({
+               title,
+               icon,
+               isWidget: true,
+               widgetType,
+               isGlobal: false,
+               isLibraryItem: false
+            } as any);
+            await actions.addSectionToTab(newSec.id, currentTabId, colIdx);
             router.refresh();
          } catch (err: any) {
             alert(err.message);
@@ -1434,8 +1456,16 @@ export function Dashboard({
                                           )}
                                        </div>
 
-                                       {/* Bookmarks */}
+                                       {/* Widget or Bookmarks */}
                                        {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
+                                          section.isWidget || section.widgetType === "portainer" ? (
+                                             <PortainerWidget 
+                                                section={section}
+                                                showEditControls={showEditControls}
+                                                hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                onRefresh={() => router.refresh()}
+                                             />
+                                          ) : (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
                                              {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => {
                                                 const isBookmarkFocused = isGridFocused && gridFocus?.sectionId === section.id && gridFocus?.bookmarkId === bookmark.id;
@@ -1543,6 +1573,7 @@ export function Dashboard({
                                              ); })}
 
                                           </div>
+                                         )
                                        )}
                                     </div>
                                  ); })}
@@ -1607,6 +1638,12 @@ export function Dashboard({
                         style={{ flex: 1, padding: '1rem', background: catalogTab === "sections" ? 'transparent' : 'rgba(0,0,0,0.05)', border: 'none', borderBottom: catalogTab === "sections" ? '2px solid var(--primary)' : '2px solid transparent', color: catalogTab === "sections" ? 'var(--primary)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
                      >
                         Sections
+                     </button>
+                     <button
+                        onClick={() => setCatalogTab("widgets")}
+                        style={{ flex: 1, padding: '1rem', background: catalogTab === "widgets" ? 'transparent' : 'rgba(0,0,0,0.05)', border: 'none', borderBottom: catalogTab === "widgets" ? '2px solid var(--primary)' : '2px solid transparent', color: catalogTab === "widgets" ? 'var(--primary)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+                     >
+                        Widgets
                      </button>
                   </div>
 
@@ -1689,6 +1726,79 @@ export function Dashboard({
                                  </div>
                               )
                            })
+                     )}
+
+                     {catalogTab === "widgets" && (
+                        (() => {
+                           const activeTabObj = tabs.find(t => t.id === activeTabId);
+                           const canDrag = hasTabEditAccess(activeTabObj);
+                           const widgets = [
+                              {
+                                 id: "portainer-widget",
+                                 type: "portainer",
+                                 title: "Portainer Docker Containers",
+                                 icon: "Server",
+                                 description: "Live interactive status, stats, and shortcuts for all active Docker containers via Portainer API."
+                              }
+                           ].filter(w => w.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || w.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
+
+                           return widgets.length === 0 ? (
+                              <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>No widgets match your search.</div>
+                           ) : (
+                              widgets.map(w => (
+                                 <div
+                                    key={w.id}
+                                    className="glass-card"
+                                    draggable={canDrag}
+                                    onDragStart={(e) => {
+                                       if (!canDrag) { e.preventDefault(); return; }
+                                       e.dataTransfer.effectAllowed = "all";
+                                       e.dataTransfer.setData("text/plain", `catalogWidget:${w.type}`);
+                                       setDraggedSectionId(`catalogWidget:${w.type}`);
+                                       setTimeout(() => setIsCatalogOpen(false), 50);
+                                    }}
+                                    onDragEnd={() => setDraggedSectionId(null)}
+                                    style={{ padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: canDrag ? 'grab' : 'default', background: 'rgba(var(--primary-rgb), 0.12)' }}
+                                 >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1rem', color: 'var(--primary)' }}>
+                                       {canDrag && <GripVertical size={16} style={{ opacity: 0.5 }} />}
+                                       <IconComponent name={w.icon} size={18} />
+                                       {w.title}
+                                       <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', background: 'rgba(var(--primary-rgb), 0.8)', color: '#ffffff', borderRadius: '4px', marginLeft: 'auto', textTransform: 'uppercase', fontWeight: 800 }}>Widget</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.85rem', opacity: 0.7, paddingLeft: canDrag ? '1.5rem' : '0' }}>
+                                       {w.description}
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', opacity: 0.5, paddingLeft: canDrag ? '1.5rem' : '0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                                       <span>{canDrag ? "Drag onto any dashboard column to add" : "Edit access required to add widget"}</span>
+                                       {canDrag && (
+                                          <button
+                                             type="button"
+                                             onClick={async () => {
+                                                if (activeTabObj) {
+                                                   const newSec = await actions.createSection({
+                                                      title: w.title,
+                                                      icon: w.icon,
+                                                      isWidget: true,
+                                                      widgetType: w.type,
+                                                      isGlobal: false,
+                                                      isLibraryItem: false
+                                                   } as any);
+                                                   await actions.addSectionToTab(newSec.id, activeTabObj.id, 0);
+                                                   setIsCatalogOpen(false);
+                                                   router.refresh();
+                                                }
+                                             }}
+                                             style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', background: 'var(--primary)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}
+                                          >
+                                             Add
+                                          </button>
+                                       )}
+                                    </div>
+                                 </div>
+                              ))
+                           );
+                        })()
                      )}
                   </div>
                </div>

@@ -1,15 +1,21 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X } from "lucide-react";
-import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser } from "../actions";
+import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X, Key, Lock, EyeOff } from "lucide-react";
+import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser, updateLocalAdminSettings } from "../actions";
 
-export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers: any[]; allTabs?: { id: string; title: string }[] }) {
+export default function UserTable({ initialUsers, allTabs = [], initialDisableLocalAdmin = false }: { initialUsers: any[]; allTabs?: { id: string; title: string }[]; initialDisableLocalAdmin?: boolean }) {
   const [users, setUsers] = useState(initialUsers);
   const [search, setSearch] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
   const [dragUserId, setDragUserId] = useState<string | null>(null);
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
+
+  const [disableLocalAdmin, setDisableLocalAdmin] = useState(initialDisableLocalAdmin);
+  const [showLocalAdminModal, setShowLocalAdminModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSavingLocalAdmin, setIsSavingLocalAdmin] = useState(false);
 
   const handleToggleAdmin = async (id: string, current: boolean) => {
     setUsers(u => u.map(x => x.id === id ? { ...x, isAdmin: !current } : x));
@@ -193,7 +199,103 @@ export default function UserTable({ initialUsers, allTabs = [] }: { initialUsers
         >
           <Plus size={15} /> New Group
         </button>
+
+        <button
+          onClick={() => setShowLocalAdminModal(true)}
+          className="btn glass"
+          style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700,
+                   display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap',
+                   background: disableLocalAdmin ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--primary-rgb), 0.1)',
+                   border: disableLocalAdmin ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--glass-border)',
+                   color: disableLocalAdmin ? '#ef4444' : 'var(--text)' }}
+        >
+          <Key size={15} /> Local Admin Settings {disableLocalAdmin ? "(Disabled)" : "(Active)"}
+        </button>
       </div>
+
+      {showLocalAdminModal && (
+        <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--glass-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Key size={20} style={{ color: 'var(--primary)' }} />
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>Local Admin Settings</h3>
+              </div>
+              <button onClick={() => setShowLocalAdminModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={18} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '12px', background: 'rgba(var(--primary-rgb), 0.05)', cursor: 'pointer', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Disable Local Admin Sign In</span>
+                  <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Hides the "Use Local Account" option on the login screen and blocks local admin credentials.</span>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={disableLocalAdmin}
+                  onChange={(e) => setDisableLocalAdmin(e.target.checked)}
+                  style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                />
+              </label>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Change Local Admin Password</span>
+                <input
+                  type="password"
+                  placeholder="New Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm New Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button 
+                onClick={() => setShowLocalAdminModal(false)}
+                className="btn glass"
+                style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600 }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isSavingLocalAdmin}
+                onClick={async () => {
+                  if (newPassword && newPassword !== confirmPassword) {
+                    return alert("Passwords do not match!");
+                  }
+                  setIsSavingLocalAdmin(true);
+                  try {
+                    await updateLocalAdminSettings({
+                      disableLocalAdmin,
+                      password: newPassword ? newPassword.trim() : undefined
+                    });
+                    alert("Local admin settings updated successfully!");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setShowLocalAdminModal(false);
+                  } catch (e: any) {
+                    alert("Failed to update local admin settings: " + (e.message || e));
+                  } finally {
+                    setIsSavingLocalAdmin(false);
+                  }
+                }}
+                className="btn btn-primary"
+                style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700 }}
+              >
+                {isSavingLocalAdmin ? "Saving..." : "Save Settings"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Grouped Table */}
       <div className="admin-table-wrap glass" style={{ borderRadius: '16px', overflow: 'auto', border: '1px solid var(--glass-border)' }}>

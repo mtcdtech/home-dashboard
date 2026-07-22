@@ -17,29 +17,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
         async authorize(credentials) {
           console.log("Credentials login attempt for:", credentials?.username);
-          if (credentials?.username === "admin" && credentials?.password === "admin") {
-            try {
-              let user = await prisma.user.findUnique({ where: { email: "admin@local.host" } });
-              if (!user) {
-                user = await prisma.user.create({
-                  data: {
-                    name: "Local Admin",
-                    email: "admin@local.host",
-                    password: "admin", 
-                    isAdmin: true,
-                    department: "IT",
-                  }
-                });
-              }
-              console.log("Local admin authorized successfully");
-              (prisma as any).activityLog.create({
-                data: { userId: user.id, userName: user.name, type: "login", detail: "via Local Admin Credentials" }
-              }).catch(() => {});
-              return user;
-            } catch (error) {
-              console.error("Local admin authorization failed:", error);
+          try {
+            const settings = await (prisma as any).globalSettings.findUnique({ where: { id: "global" } });
+            if (settings?.disableLocalAdmin) {
+              console.log("Local admin sign-in attempt rejected: disabled by administrator");
               return null;
             }
+
+            if (credentials?.username === "admin") {
+              let user = await prisma.user.findUnique({ where: { email: "admin@local.host" } });
+              const requiredPassword = user?.password || "admin";
+              
+              if (credentials?.password === requiredPassword) {
+                if (!user) {
+                  user = await prisma.user.create({
+                    data: {
+                      name: "Local Admin",
+                      email: "admin@local.host",
+                      password: "admin", 
+                      isAdmin: true,
+                      department: "IT",
+                    }
+                  });
+                }
+                console.log("Local admin authorized successfully");
+                (prisma as any).activityLog.create({
+                  data: { userId: user.id, userName: user.name, type: "login", detail: "via Local Admin Credentials" }
+                }).catch(() => {});
+                return user;
+              }
+            }
+          } catch (error) {
+            console.error("Local admin authorization failed:", error);
+            return null;
           }
           return null;
         }

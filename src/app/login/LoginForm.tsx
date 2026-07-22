@@ -11,7 +11,7 @@ const IconComponent = ({ name, size = 24, color = "currentColor" }: { name: stri
   return <Icon size={size} color={color} />;
 };
 
-export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicrosoft, hasSynology, hasAuthentikPco, hasAuthentikMs, hasAuthentikCc }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any, hasMicrosoft?: boolean, hasSynology?: boolean, hasAuthentikPco?: boolean, hasAuthentikMs?: boolean, hasAuthentikCc?: boolean }) {
+export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, disableLocalAdmin, hasMicrosoft, hasSynology, hasAuthentikPco, hasAuthentikMs, hasAuthentikCc }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any, disableLocalAdmin?: boolean, hasMicrosoft?: boolean, hasSynology?: boolean, hasAuthentikPco?: boolean, hasAuthentikMs?: boolean, hasAuthentikCc?: boolean }) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
@@ -268,24 +268,26 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, hasMicros
           </button>
         )}
 
-        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
-          <button 
-             onClick={() => setShowLocalLogin(!showLocalLogin)}
-             style={{ 
-               background: 'transparent', 
-               border: 'none', 
-               color: 'rgba(255,255,255,0.6)', 
-               fontSize: '0.8rem', 
-               cursor: 'pointer', 
-               padding: '0 1rem', 
-               textTransform: 'uppercase', 
-               letterSpacing: '0.1em' 
-             }}>
-             {showLocalLogin ? 'Hide Local Sign In' : 'Use Local Account'}
-          </button>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
-        </div>
+        {!disableLocalAdmin && (
+          <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
+            <button 
+               onClick={() => setShowLocalLogin(!showLocalLogin)}
+               style={{ 
+                 background: 'transparent', 
+                 border: 'none', 
+                 color: 'rgba(255,255,255,0.6)', 
+                 fontSize: '0.8rem', 
+                 cursor: 'pointer', 
+                 padding: '0 1rem', 
+                 textTransform: 'uppercase', 
+                 letterSpacing: '0.1em' 
+               }}>
+               {showLocalLogin ? 'Hide Local Sign In' : 'Use Local Account'}
+            </button>
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', flex: 1 }}></div>
+          </div>
+        )}
 
         {showLocalLogin && (
           <form 

@@ -143,6 +143,9 @@ model Section {
   isGlobal        Boolean      @default(true)
   isLibraryItem   Boolean      @default(false)
   isReadOnlySync  Boolean      @default(false)
+  isWidget        Boolean      @default(false)
+  widgetType      String?      // e.g. "portainer"
+  widgetConfig    Json?        // Stores Portainer endpoint, token, custom container URLs, icons, hidden state
   description     String?      // Description for the library
   tabSections     TabSection[] // new relation
   bookmarks       Bookmark[]
@@ -273,5 +276,6 @@ model GlobalSettings {
   loginThemeId  String?   // Optional theme for the login page
   customTags    Json?     // Array of { id, text, color } for global custom tags
   searchEngines Json?     // Array of custom search engines { id, name, url }
+  disableLocalAdmin Boolean @default(false)
   updatedAt     DateTime @updatedAt
 }
