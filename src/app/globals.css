@@ -741,12 +741,35 @@ a {
    SAFARI PERFORMANCE HACKS
    Safari's WebKit struggles with layered backdrop-filters and box-shadows.
    This uses a Safari-only feature query to downgrade effects.
+   The .glass class override handles CSS-class-based elements.
+   The [style*="backdrop"] selector catches inline backdropFilter styles
+   set by React components (modals, drawer, search bar, drop zones).
    ======================================== */
+@keyframes float {
+  from { transform: translateY(0) translateX(0); }
+  to   { transform: translateY(-3%) translateX(2%); }
+}
+
 @supports (background: -webkit-named-image(i)) {
+  /* Cover all CSS-class glass elements */
   .glass, .glass-card, .navbar {
     backdrop-filter: blur(4px) saturate(100%) !important;
     -webkit-backdrop-filter: blur(4px) saturate(100%) !important;
     box-shadow: none !important;
     background: rgba(var(--primary-rgb), 0.12) !important;
   }
+  /* Downgrade ambient glow blobs — filter:blur on large elements is very
+     expensive on WebKit; 60px is still visually effective but much faster */
+  .ambient-background-layer > div[style*="blur(100px)"],
+  .ambient-background-layer > div[style*="blur(120px)"] {
+    filter: blur(40px) !important;
+    opacity: 0.5 !important;
+  }
+  /* Downgrade inline backdrop-filter on modals, drawer, search bar */
+  .modal-overlay > div,
+  .modal-content {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
 }
+

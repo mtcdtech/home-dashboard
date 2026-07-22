@@ -84,9 +84,4 @@ ENV PORT=4000
 ENV HOSTNAME="0.0.0.0"
 
 ENTRYPOINT ["./entrypoint.sh"]
-LABEL build_time="Wed Apr 22 12:45:07 CDT 2026"
-LABEL build_time_2="Wed Apr 22 12:47:55 CDT 2026"
-LABEL build_time_3="Wed Apr 22 12:56:11 CDT 2026"
-LABEL build_time_4="Wed Apr 22 13:22:29 CDT 2026"
-LABEL build_time_5="Wed Apr 22 13:36:20 CDT 2026"
-LABEL build_time_6="Wed Apr 22 13:48:27 CDT 2026"
+

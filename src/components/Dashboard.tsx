@@ -1900,10 +1900,22 @@ function AmbientBackground({ theme, isLight }: { theme?: Theme | null; isLight?:
     *   the radial glows.
     */
    return (
-      <div className="ambient-background-layer" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100lvh', zIndex: -1, overflow: 'hidden', background: bgImg ? 'transparent' : 'var(--bg-base)', pointerEvents: 'none' }}>
-         <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '80%', height: '80%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(100px)', opacity: 0.8, animation: 'float 20s infinite alternate linear' }} />
-         <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '70%', height: '70%', background: 'radial-gradient(circle, var(--primary-glow) 0%, transparent 60%)', filter: 'blur(120px)', opacity: 0.6, animation: 'float 25s infinite alternate-reverse linear' }} />
-         {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 0}px)`, transform: 'scale(1.05)', opacity: 0.9 }} />}
+      <div
+         className="ambient-background-layer"
+         style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100lvh', zIndex: -1,
+            overflow: 'hidden', pointerEvents: 'none',
+            /* Safari perf: replace two animated filter:blur(100-120px) divs with a single
+               static radial-gradient background. Identical visual, zero per-frame repaint cost.
+               The gradient paints top-right and bottom-left glows in one GPU-cached layer. */
+            background: bgImg
+               ? 'transparent'
+               : `radial-gradient(ellipse 80% 80% at 90% -10%, var(--primary-glow), transparent),
+                  radial-gradient(ellipse 70% 70% at -10% 110%, var(--primary-glow), transparent),
+                  var(--bg-base)`,
+         }}
+      >
+         {bgImg && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${theme.backgroundBlur ?? 0}px)`, transform: 'scale(1.05)', opacity: 0.9, willChange: 'transform' }} />}
          <div style={{ position: 'absolute', inset: 0, background: 'var(--primary)', opacity: bgImg ? (theme.backgroundTint ?? 0.6) : 0.08, mixBlendMode: isDark ? 'soft-light' : 'overlay' }} />
          <div style={{ position: 'absolute', inset: 0, background: isDark ? '#000' : '#fff', opacity: isDark ? (0.2 + 0.6 * ((theme as any).backgroundWashBlack ?? (theme as any).backgroundWash ?? 0.0)) : (0.0 + 0.8 * ((theme as any).backgroundWashWhite ?? (theme as any).backgroundWash ?? 0.0)) }} />
          <div style={{ position: 'absolute', inset: 0, opacity: 0.03, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, pointerEvents: 'none' }} />

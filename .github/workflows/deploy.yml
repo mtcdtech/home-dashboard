@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - abraham-prod
 
 jobs:
   build-and-push:
@@ -29,6 +30,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: mtcdtech/homedashboard:latest,mtcdtech/homedashboard:v${{ env.VERSION }},mtcdtech/homedashboard:${{ github.sha }}
           cache-from: type=registry,ref=mtcdtech/homedashboard:buildcache
           cache-to: type=registry,ref=mtcdtech/homedashboard:buildcache,mode=max
@@ -57,5 +59,6 @@ jobs:
           AUTHENTIK_MS_CLIENT_ID: ${{ secrets.AUTHENTIK_MS_CLIENT_ID }}
           AUTHENTIK_MS_CLIENT_SECRET: ${{ secrets.AUTHENTIK_MS_CLIENT_SECRET }}
           AUTHENTIK_MS_ISSUER: ${{ secrets.AUTHENTIK_MS_ISSUER }}
+          PORTAINER_API_KEY_ABRAHAM: ${{ secrets.PORTAINER_API_KEY_ABRAHAM }}
         run: python update_portainer.py
 

@@ -68,8 +68,8 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
     else:
         content = content.replace('environment:', f'environment:\n      - REDEPLOY_DATE={int(time.time())}')
 
-    # Inject npx prisma db push into the command ONLY for Church Synology
-    if "Church" in name:
+    # Inject npx prisma db push into the command for Church Synology AND Abraham
+    if "Church" in name or "Abraham" in name:
         content = re.sub(r'command:\s*node\s+server\.js', 'command: sh -c "npx prisma db push && node server.js"', content)
 
     # Merge current_env with global_secrets
@@ -81,7 +81,8 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
     if "AUTH_MICROSOFT_ENTRA_ID_SECRET" in global_secrets:
         env_dict["AUTH_MICROSOFT_ENTRA_ID_SECRET"] = global_secrets["AUTH_MICROSOFT_ENTRA_ID_SECRET"]
         
-    # For Authentik, we push them if they exist in global_secrets AND it's Church Synology
+    # For Authentik, we push them if they exist in global_secrets AND it's Church Synology only
+    # Abraham uses Synology SSO — no Authentik secrets needed
     if "Church" in name:
         for k in [
             "AUTHENTIK_PCO_CLIENT_ID", "AUTHENTIK_PCO_CLIENT_SECRET", "AUTHENTIK_PCO_ISSUER",
@@ -111,19 +112,93 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
         if 'r_put' in locals():
             print(f"[{name}] Response:", r_put.text)
 
+
+def deploy_abraham_container(portainer_url, api_key, github_sha):
+    """Deploy Abraham dashboard by pulling new image and recreating the container.
+    Abraham runs dashboard-app as a standalone container (no Portainer stack).
+    Once a multi-arch image is available, this will be migrated to a stack."""
+    name = "Abraham Mac Mini"
+    if not api_key:
+        print(f"[{name}] Skipping deployment (Missing API Key)")
+        return
+
+    headers = {"X-API-Key": api_key}
+    docker_api = f"{portainer_url}/api/endpoints/3/docker"
+
+    # Build the image tag to use
+    image_tag = f"mtcdtech/homedashboard:{github_sha}" if github_sha else "mtcdtech/homedashboard:latest"
+
+    try:
+        # 1. Pull the new image
+        print(f"[{name}] Pulling image {image_tag}...")
+        r = requests.post(
+            f"{docker_api}/images/create?fromImage=mtcdtech/homedashboard&tag={github_sha or 'latest'}",
+            headers=headers, verify=False, timeout=300
+        )
+        print(f"[{name}] Pull status: {r.status_code}")
+
+        # 2. Stop and remove old container
+        for container in ["dashboard-app"]:
+            print(f"[{name}] Stopping {container}...")
+            requests.post(f"{docker_api}/containers/{container}/stop", headers=headers, verify=False, timeout=30)
+            print(f"[{name}] Removing {container}...")
+            requests.delete(f"{docker_api}/containers/{container}", headers=headers, verify=False, timeout=30)
+
+        # 3. Create new container with updated image
+        redeploy_date = int(time.time())
+        container_config = {
+            "Image": image_tag,
+            "Cmd": ["sh", "-c", "npx prisma db push && node server.js"],
+            "Env": [
+                "NODE_ENV=production",
+                "DATABASE_URL=postgresql://user:password@dashboard-db:5432/dashboard?schema=public",
+                "NEXTAUTH_URL=https://home.abraham16.com",
+                "AUTH_URL=https://home.abraham16.com",
+                "AUTH_TRUST_HOST=true",
+                "AUTH_SECRET=85Fa8SnqPbz5f7PDa8thsn+bGAAO0m/cjW0l6WZSrF4=",
+                "SYNOLOGY_CLIENT_ID=dc7539fab929d7fb6f1725ad64ce4a6f",
+                "SYNOLOGY_CLIENT_SECRET=U93mrDlkxacUmeBEJW5KHFa7W1Rq5mhv",
+                "SYNOLOGY_ISSUER=https://sso.abraham16.com/webman/sso",
+                f"REDEPLOY_DATE={redeploy_date}",
+            ],
+            "HostConfig": {
+                "PortBindings": {"4000/tcp": [{"HostPort": "4001"}]},
+                "Binds": ["/Users/benny2168/Dockers/dashboard-uploads:/app/public/uploads"],
+                "RestartPolicy": {"Name": "unless-stopped"},
+                "NetworkMode": "bridge",
+                "Links": ["dashboard-db:dashboard-db"],
+            },
+            "ExposedPorts": {"4000/tcp": {}},
+        }
+        print(f"[{name}] Creating new dashboard-app container with {image_tag}...")
+        r = requests.post(
+            f"{docker_api}/containers/create?name=dashboard-app",
+            headers=headers, json=container_config, verify=False, timeout=60
+        )
+        if r.status_code not in (200, 201):
+            print(f"[{name}] Container create failed: {r.status_code} {r.text[:300]}")
+            return
+        container_id = r.json().get("Id", "")
+        print(f"[{name}] Container created: {container_id[:12]}")
+
+        # 4. Start the new container
+        r = requests.post(f"{docker_api}/containers/{container_id}/start", headers=headers, verify=False, timeout=30)
+        print(f"[{name}] Start status: {r.status_code}")
+        print(f"[{name}] Deployment triggered successfully!")
+
+    except Exception as e:
+        print(f"[{name}] Deployment failed: {e}")
+
 def deploy():
     env_vars = load_env()
-    
+
     entra_secret = get_secret(env_vars, "AUTH_MICROSOFT_ENTRA_ID_SECRET")
     auth_secret = get_secret(env_vars, "AUTH_SECRET")
-    
-    if not entra_secret or not auth_secret:
-        print("Missing global AUTH secrets. Deployment aborted.")
-        return
-        
+    github_sha = os.environ.get("GITHUB_SHA")
+
     global_secrets = {
-        "AUTH_SECRET": auth_secret,
-        "AUTH_MICROSOFT_ENTRA_ID_SECRET": entra_secret,
+        "AUTH_SECRET": auth_secret or "",
+        "AUTH_MICROSOFT_ENTRA_ID_SECRET": entra_secret or "",
         "AUTHENTIK_PCO_CLIENT_ID": get_secret(env_vars, "AUTHENTIK_PCO_CLIENT_ID"),
         "AUTHENTIK_PCO_CLIENT_SECRET": get_secret(env_vars, "AUTHENTIK_PCO_CLIENT_SECRET"),
         "AUTHENTIK_PCO_ISSUER": get_secret(env_vars, "AUTHENTIK_PCO_ISSUER"),
@@ -135,20 +210,30 @@ def deploy():
         "AUTHENTIK_CC_ISSUER": get_secret(env_vars, "AUTHENTIK_CC_ISSUER"),
     }
 
-    targets = [
-        {
-            "name": "Church Synology",
-            "url": "https://docker.server.mtcd.org/api/stacks/58?endpointId=2",
-            "api_key": get_secret(env_vars, "PORTAINER_API_KEY_CHURCH") or get_secret(env_vars, "PORTAINER_API_KEY")
-        }
-    ]
+    # --- MTCD Church Synology (stack-based) ---
+    if entra_secret and auth_secret:
+        church_key = get_secret(env_vars, "PORTAINER_API_KEY_CHURCH") or get_secret(env_vars, "PORTAINER_API_KEY")
+        deploy_to_portainer(
+            "Church Synology",
+            "https://docker.server.mtcd.org/api/stacks/58?endpointId=2",
+            church_key,
+            global_secrets
+        )
+    else:
+        print("[Church Synology] Skipping — missing AUTH_MICROSOFT_ENTRA_ID_SECRET or AUTH_SECRET")
 
-    for target in targets:
-        deploy_to_portainer(target["name"], target["url"], target["api_key"], global_secrets)
+    # --- Abraham Mac Mini (container-based until multi-arch stack is registered) ---
+    abraham_key = get_secret(env_vars, "PORTAINER_API_KEY_ABRAHAM")
+    deploy_abraham_container(
+        "https://docker.abraham16.com",
+        abraham_key,
+        github_sha
+    )
+
 
 if __name__ == "__main__":
     # Disable insecure request warnings for self-signed certificates
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    
+
     deploy()
