@@ -1,23 +1,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Server, Activity, Power, RefreshCw, Eye, EyeOff, ExternalLink, Settings, X, Search, Check, AlertCircle } from "lucide-react";
+import { Server, Activity, Power, RefreshCw, Eye, EyeOff, ExternalLink, Settings, X, Search, Check, AlertCircle, Edit3 } from "lucide-react";
 import { fetchPortainerContainers, updateSectionWidgetConfig } from "@/app/admin/actions";
 import { IconComponent } from "../IconPicker";
+import { BookmarkModal } from "../BookmarkModal";
 
 export interface PortainerWidgetProps {
   section: any;
   showEditControls?: boolean;
   hasEditAccess?: boolean;
+  isAdmin?: boolean;
   onRefresh?: () => void;
 }
 
-export function PortainerWidget({ section, showEditControls, hasEditAccess, onRefresh }: PortainerWidgetProps) {
+export function PortainerWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh }: PortainerWidgetProps) {
   const [containers, setContainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  // Editing container via BookmarkModal
+  const [editingContainer, setEditingContainer] = useState<any | null>(null);
 
   // Widget Configuration from Section DB
   const rawConfig = typeof section?.widgetConfig === "string" 
@@ -28,8 +33,8 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
   const [apiKey, setApiKey] = useState(rawConfig.apiKey || "");
   const [endpointId, setEndpointId] = useState(rawConfig.endpointId || "5");
   
-  // Custom container settings: { [containerIdOrName]: { hidden?: boolean, customUrl?: string, icon?: string } }
-  const [containerSettings, setContainerSettings] = useState<Record<string, { hidden?: boolean; customUrl?: string; icon?: string }>>(rawConfig.containers || {});
+  // Custom container settings: { [containerIdOrName]: { hidden?: boolean, customUrl?: string, customName?: string, icon?: string, description?: string, keywords?: string } }
+  const [containerSettings, setContainerSettings] = useState<Record<string, { hidden?: boolean; customUrl?: string; customName?: string; icon?: string; description?: string; keywords?: string }>>(rawConfig.containers || {});
 
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -58,16 +63,17 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
     loadContainers();
   }, [section?.id]);
 
-  const handleSaveConfig = async () => {
+  const handleSaveConfig = async (newContainerSettings?: any) => {
     setSavingSettings(true);
     try {
       const updatedConfig = {
         url: portainerUrl.trim(),
         apiKey: apiKey.trim(),
         endpointId: endpointId.trim(),
-        containers: containerSettings
+        containers: newContainerSettings || containerSettings
       };
       await updateSectionWidgetConfig(section.id, updatedConfig);
+      if (newContainerSettings) setContainerSettings(newContainerSettings);
       setShowSettingsModal(false);
       await loadContainers();
       if (onRefresh) onRefresh();
@@ -81,7 +87,8 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
   const visibleContainers = containers.filter(c => {
     const setting = containerSettings[c.name] || containerSettings[c.id];
     if (setting?.hidden && !showSettingsModal) return false;
-    if (filter && !c.name.toLowerCase().includes(filter.toLowerCase()) && !c.image.toLowerCase().includes(filter.toLowerCase())) {
+    const nameToMatch = setting?.customName || c.name;
+    if (filter && !nameToMatch.toLowerCase().includes(filter.toLowerCase()) && !c.image.toLowerCase().includes(filter.toLowerCase())) {
       return false;
     }
     return true;
@@ -118,10 +125,10 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
-          {hasEditAccess && (
+          {isAdmin && (
             <button 
               onClick={() => setShowSettingsModal(true)} 
-              title="Configure Portainer Widget"
+              title="Configure Portainer Widget Connection"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.7, padding: '0.2rem', display: 'flex' }}
             >
               <Settings size={14} />
@@ -163,21 +170,43 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
               }
             }
 
+            const displayName = setting.customName || c.name;
+
+            const handleCardClick = () => {
+              if (showEditControls && hasEditAccess) {
+                // In edit mode: open BookmarkModal to edit container settings
+                setEditingContainer({
+                  id: c.id,
+                  name: c.name,
+                  title: displayName,
+                  url: openUrl || "",
+                  description: setting.description || c.status || c.state,
+                  icon: setting.icon || "",
+                  keywords: setting.keywords || "",
+                });
+              } else if (openUrl) {
+                // Outside edit mode: open launch URL
+                window.open(openUrl, "_blank");
+              }
+            };
+
             return (
               <div
                 key={c.id}
+                onClick={handleCardClick}
                 style={{
                   padding: '0.65rem 0.75rem',
                   borderRadius: '10px',
                   background: isRunning ? 'rgba(var(--primary-rgb), 0.05)' : 'rgba(0,0,0,0.1)',
-                  border: setting.hidden ? '1px dashed rgba(239,68,68,0.4)' : '1px solid var(--glass-border)',
+                  border: setting.hidden ? '1px dashed rgba(239,68,68,0.4)' : (showEditControls && hasEditAccess ? '1px dashed var(--primary)' : '1px solid var(--glass-border)'),
                   opacity: setting.hidden ? 0.6 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '0.5rem',
                   transition: 'all 0.2s',
-                  position: 'relative'
+                  position: 'relative',
+                  cursor: (showEditControls && hasEditAccess) || openUrl ? 'pointer' : 'default'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
@@ -190,24 +219,22 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)' }}>
-                      {c.name}
+                      {displayName}
                     </span>
                     <span style={{ fontSize: '0.65rem', opacity: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {c.status || c.state}
+                      {setting.description || c.status || c.state}
                     </span>
                   </div>
                 </div>
 
-                {openUrl ? (
-                  <a
-                    href={openUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ padding: '0.3rem', borderRadius: '6px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', textDecoration: 'none' }}
-                    title={`Open ${openUrl}`}
-                  >
+                {showEditControls && hasEditAccess ? (
+                  <div style={{ padding: '0.3rem', borderRadius: '6px', background: 'rgba(var(--primary-rgb), 0.15)', color: 'var(--primary)', display: 'flex', alignItems: 'center' }} title="Edit Container Settings">
+                    <Edit3 size={13} />
+                  </div>
+                ) : openUrl ? (
+                  <div style={{ padding: '0.3rem', borderRadius: '6px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center' }} title={`Open ${openUrl}`}>
                     <ExternalLink size={13} />
-                  </a>
+                  </div>
                 ) : null}
               </div>
             );
@@ -215,21 +242,58 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
         </div>
       )}
 
-      {/* Portainer Configuration Modal */}
-      {showSettingsModal && (
+      {/* Editing Container via BookmarkModal */}
+      {editingContainer && (
+        <BookmarkModal
+          bookmark={{
+            id: editingContainer.id,
+            title: editingContainer.title,
+            url: editingContainer.url,
+            description: editingContainer.description,
+            icon: editingContainer.icon,
+            keywords: editingContainer.keywords,
+          }}
+          targetSectionId={section.id}
+          modalMode="edit"
+          onClose={() => setEditingContainer(null)}
+          onSaved={() => {
+            setEditingContainer(null);
+            loadContainers();
+          }}
+          onCustomSave={async (data: { title: string; url: string; description: string; icon: string; keywords: string }) => {
+            const updated = {
+              ...containerSettings,
+              [editingContainer.name]: {
+                ...containerSettings[editingContainer.name],
+                customName: data.title,
+                customUrl: data.url,
+                description: data.description,
+                icon: data.icon,
+                keywords: data.keywords,
+              }
+            };
+            setContainerSettings(updated);
+            await handleSaveConfig(updated);
+            setEditingContainer(null);
+          }}
+        />
+      )}
+
+      {/* Portainer Connection Settings Modal (Admin Only) */}
+      {showSettingsModal && isAdmin && (
         <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
           <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', borderRadius: '24px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--glass-border)', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <Server size={20} style={{ color: 'var(--primary)' }} />
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>Portainer Widget Settings</h3>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>Portainer Widget API Settings</h3>
               </div>
               <button onClick={() => setShowSettingsModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={18} /></button>
             </div>
 
-            {/* API Settings */}
+            {/* API Connection Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'rgba(var(--primary-rgb), 0.04)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>API Connection (Defaults to Abraham Portainer)</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>API Connection Settings</span>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
@@ -253,7 +317,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Portainer API Key</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Portainer API Key (Hidden)</label>
                 <input
                   type="password"
                   placeholder="ptr_..."
@@ -264,30 +328,17 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
               </div>
             </div>
 
-            {/* Container Customizations */}
+            {/* Container Visibility List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Container Customization</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Container Visibility</span>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto' }}>
                 {containers.map(c => {
                   const setting = containerSettings[c.name] || {};
                   return (
-                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, minWidth: '130px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{setting.customName || c.name}</span>
                       
-                      <input
-                        placeholder="Custom Launch URL (http://...)"
-                        value={setting.customUrl || ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setContainerSettings(prev => ({
-                            ...prev,
-                            [c.name]: { ...prev[c.name], customUrl: val }
-                          }));
-                        }}
-                        style={{ flex: 1, padding: '0.4rem 0.6rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.75rem', outline: 'none' }}
-                      />
-
                       <button
                         type="button"
                         onClick={() => {
@@ -317,11 +368,11 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
               </button>
               <button
                 disabled={savingSettings}
-                onClick={handleSaveConfig}
+                onClick={() => handleSaveConfig()}
                 className="btn btn-primary"
                 style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700 }}
               >
-                {savingSettings ? "Saving..." : "Save Widget Config"}
+                {savingSettings ? "Saving..." : "Save Connection Config"}
               </button>
             </div>
           </div>
@@ -330,3 +381,4 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, onRe
     </div>
   );
 }
+

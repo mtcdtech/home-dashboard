@@ -34,12 +34,13 @@ export interface BookmarkModalProps {
   modalMode: "add" | "edit";
   onClose: () => void;
   onSaved: () => void;
+  onCustomSave?: (data: { title: string; url: string; description: string; icon: string; keywords: string }) => Promise<void>;
   iconRegistry?: { selfhost: any[], walkx: any[] };
   onUploadIcon?: (file: File) => Promise<void>;
   globalTags?: any[];
 }
 
-export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, onSaved, iconRegistry, onUploadIcon, globalTags = [] }: BookmarkModalProps) {
+export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, onSaved, onCustomSave, iconRegistry, onUploadIcon, globalTags = [] }: BookmarkModalProps) {
   const [title, setTitle] = useState(bookmark?.title || "");
   const [url, setUrl] = useState(bookmark?.url || "");
   const [description, setDescription] = useState(bookmark?.description || "");
@@ -53,10 +54,12 @@ export function BookmarkModal({ bookmark, targetSectionId, modalMode, onClose, o
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !url.trim()) return;
+    if (!title.trim()) return;
     setSaving(true);
     try {
-      if (modalMode === "edit" && bookmark?.id) {
+      if (onCustomSave) {
+        await onCustomSave({ title, url, description, icon, keywords });
+      } else if (modalMode === "edit" && bookmark?.id) {
         await actions.updateBookmark(bookmark.id, { title, url, description, longDescription, icon, keywords, tags: selectedTags } as any);
       } else {
         await actions.createBookmark({ title, url, description, longDescription, icon, keywords, tags: selectedTags, sectionId: targetSectionId, order: 999, openInNewTab: true } as any);

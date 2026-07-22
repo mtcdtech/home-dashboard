@@ -1463,6 +1463,7 @@ export function Dashboard({
                                                 section={section}
                                                 showEditControls={showEditControls}
                                                 hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                isAdmin={isAdmin}
                                                 onRefresh={() => router.refresh()}
                                              />
                                           ) : (
