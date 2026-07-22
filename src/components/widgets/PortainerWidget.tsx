@@ -306,9 +306,9 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Endpoint ID</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Endpoint ID (MTCD is 2, Abraham is 5 or 3)</label>
                   <input
-                    placeholder="5"
+                    placeholder="2"
                     value={endpointId}
                     onChange={(e) => setEndpointId(e.target.value)}
                     style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}

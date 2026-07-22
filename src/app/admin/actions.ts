@@ -1829,9 +1829,13 @@ export async function updateSectionWidgetConfig(sectionId: string, widgetConfig:
 export async function fetchPortainerContainers(config: { url?: string; apiKey?: string; endpointId?: string }) {
   await requireSession();
   try {
-    const baseUrl = (config.url || process.env.PORTAINER_URL || "https://docker.abraham16.com").replace(/\/$/, "");
-    const apiKey = config.apiKey || process.env.PORTAINER_API_KEY || "ptr_LAYVFvw5+DscmC2s2QsM+5aeO6iXGYcR4+KwjH7f/eU=";
-    const endpointId = config.endpointId || "5";
+    let rawUrl = (config.url || process.env.PORTAINER_URL || "https://docker.abraham16.com").trim();
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      rawUrl = `https://${rawUrl}`;
+    }
+    const baseUrl = rawUrl.replace(/\/$/, "");
+    const apiKey = (config.apiKey || process.env.PORTAINER_API_KEY || "").trim();
+    const endpointId = (config.endpointId || "2").trim();
 
     const fetchUrl = `${baseUrl}/api/endpoints/${endpointId}/docker/containers/json?all=1`;
     const httpResp = await fetch(fetchUrl, {
