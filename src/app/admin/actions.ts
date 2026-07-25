@@ -1918,3 +1918,57 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
     };
   }
 }
+
+// --- IAM INTEGRATION SERVER ACTIONS ---
+export async function iamBackfillDryRun() {
+  await requireAdmin();
+  const { runIamBackfill } = await import("@/../scripts/backfill-mtcd-person-ids");
+  return await runIamBackfill({ apply: false });
+}
+
+export async function iamBackfillApply() {
+  await requireAdmin();
+  const { runIamBackfill } = await import("@/../scripts/backfill-mtcd-person-ids");
+  const result = await runIamBackfill({ apply: true });
+  revalidatePath("/admin/users");
+  return result;
+}
+
+export async function iamManualLink(userId: string, pid: string) {
+  await requireAdmin();
+  const cleanPid = pid.trim();
+  if (!cleanPid) throw new Error("Invalid mtcd_person_id");
+
+  const conflict = await prisma.user.findUnique({ where: { mtcdPersonId: cleanPid } });
+  if (conflict && conflict.id !== userId) {
+    throw new Error(`mtcd_person_id ${cleanPid} is already linked to user ${conflict.name || conflict.email}`);
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      mtcdPersonId: cleanPid,
+      mtcdIdentitySource: "manual_admin",
+      mtcdLastSyncedAt: new Date(),
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return { success: true, user: updated };
+}
+
+export async function iamUnlink(userId: string) {
+  await requireAdmin();
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      mtcdPersonId: null,
+      mtcdIdentitySource: null,
+      mtcdLastSyncedAt: new Date(),
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return { success: true, user: updated };
+}
+

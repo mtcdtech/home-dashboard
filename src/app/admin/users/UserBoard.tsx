@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X, Key, Lock, EyeOff } from "lucide-react";
-import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser, updateLocalAdminSettings } from "../actions";
+import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X, Key, Lock, EyeOff, Link as LinkIcon, Unlink, RefreshCw } from "lucide-react";
+import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser, updateLocalAdminSettings, iamBackfillDryRun, iamBackfillApply, iamManualLink, iamUnlink } from "../actions";
 
 export default function UserTable({ initialUsers, allTabs = [], initialDisableLocalAdmin = false }: { initialUsers: any[]; allTabs?: { id: string; title: string }[]; initialDisableLocalAdmin?: boolean }) {
   const [users, setUsers] = useState(initialUsers);
   const [search, setSearch] = useState("");
+  const [filterUnlinked, setFilterUnlinked] = useState(false);
+  const [isSyncingIam, setIsSyncingIam] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
   const [dragUserId, setDragUserId] = useState<string | null>(null);
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
@@ -71,12 +73,65 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
     );
   };
 
+  const unlinkedCount = useMemo(() => users.filter(u => !u.mtcdPersonId).length, [users]);
+
+  const handleManualLink = async (userId: string, currentName: string) => {
+    const pid = window.prompt(`Enter mtcd_person_id to link to user "${currentName}":`);
+    if (!pid || !pid.trim()) return;
+    try {
+      const res = await iamManualLink(userId, pid.trim());
+      setUsers(u => u.map(x => x.id === userId ? { ...x, ...res.user } : x));
+      alert(`User "${currentName}" linked to ${pid.trim()}`);
+    } catch (e: any) {
+      alert("Failed to link IAM person ID: " + (e.message || e));
+    }
+  };
+
+  const handleUnlink = async (userId: string, currentName: string) => {
+    if (confirm(`Unlink IAM person ID from user "${currentName}"?`)) {
+      try {
+        const res = await iamUnlink(userId);
+        setUsers(u => u.map(x => x.id === userId ? { ...x, ...res.user } : x));
+      } catch (e: any) {
+        alert("Failed to unlink: " + (e.message || e));
+      }
+    }
+  };
+
+  const handleBackfillDryRun = async () => {
+    setIsSyncingIam(true);
+    try {
+      const res = await iamBackfillDryRun();
+      alert(`[IAM Dry-Run Summary]\nMatched: ${res.stats.matched}\nAmbiguous: ${res.stats.ambiguous}\nUnmatched: ${res.stats.unmatched}\nAlready Taken: ${res.stats.alreadyTaken}\nReport saved to: ${res.outFile}`);
+    } catch (e: any) {
+      alert("IAM Dry-Run failed: " + (e.message || e));
+    } finally {
+      setIsSyncingIam(false);
+    }
+  };
+
+  const handleBackfillApply = async () => {
+    if (!confirm("Run IAM Backfill (APPLY)? This will write mtcdPersonId to matching local users.")) return;
+    setIsSyncingIam(true);
+    try {
+      const res = await iamBackfillApply();
+      alert(`[IAM Backfill Applied]\nApplied: ${res.stats.applied}\nMatched: ${res.stats.matched}\nAmbiguous: ${res.stats.ambiguous}\nUnmatched: ${res.stats.unmatched}`);
+      window.location.reload();
+    } catch (e: any) {
+      alert("IAM Backfill failed: " + (e.message || e));
+    } finally {
+      setIsSyncingIam(false);
+    }
+  };
+
   // Group users
   const groups = useMemo(() => {
     const q = search.toLowerCase();
-    const filtered = users.filter(u =>
-      !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.department?.toLowerCase().includes(q)
-    );
+    const filtered = users.filter(u => {
+      const matchesSearch = !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.department?.toLowerCase().includes(q) || u.mtcdPersonId?.toLowerCase().includes(q);
+      const matchesUnlinked = !filterUnlinked || !u.mtcdPersonId;
+      return matchesSearch && matchesUnlinked;
+    });
 
     const groupMap: Record<string, any[]> = {};
     filtered.forEach(u => {
@@ -98,7 +153,7 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
     });
 
     return sortedKeys.map(key => ({ name: key, users: groupMap[key] }));
-  }, [users, search, customGroups]);
+  }, [users, search, filterUnlinked, customGroups]);
 
   const admins = users.filter(u => u.isAdmin).length;
   const depts = new Set(users.map(u => u.department || "—")).size;
@@ -173,7 +228,7 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
         ))}
       </div>
 
-      {/* Search + Create Group */}
+      {/* Search + Controls */}
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, maxWidth: '380px' }}>
           <Search size={15} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.35 }} />
@@ -181,7 +236,7 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
             id="user-search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search users, email, department..."
+            placeholder="Search users, email, department, pid..."
             style={{
               width: '100%', padding: '0.65rem 1rem 0.65rem 2.5rem',
               borderRadius: '10px', border: '1px solid var(--glass-border)',
@@ -191,6 +246,46 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
             }}
           />
         </div>
+
+        <button
+          onClick={() => setFilterUnlinked(!filterUnlinked)}
+          className="btn glass"
+          style={{
+            padding: '0.6rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap',
+            background: filterUnlinked ? 'rgba(239, 68, 68, 0.15)' : 'rgba(var(--primary-rgb), 0.04)',
+            border: filterUnlinked ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--glass-border)',
+            color: filterUnlinked ? '#ef4444' : 'var(--text)'
+          }}
+        >
+          <Unlink size={15} /> Unlinked from IAM ({unlinkedCount})
+        </button>
+
+        <button
+          disabled={isSyncingIam}
+          onClick={handleBackfillDryRun}
+          className="btn glass"
+          style={{
+            padding: '0.6rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap'
+          }}
+        >
+          <RefreshCw size={15} className={isSyncingIam ? "animate-spin" : ""} /> IAM Dry-Run
+        </button>
+
+        <button
+          disabled={isSyncingIam}
+          onClick={handleBackfillApply}
+          className="btn glass"
+          style={{
+            padding: '0.6rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap',
+            background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981'
+          }}
+        >
+          <LinkIcon size={15} /> Backfill IAM
+        </button>
+
         <button
           onClick={handleCreateGroup}
           className="btn btn-primary"
@@ -306,6 +401,7 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'left' }}>Name</th>
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'left' }}>Email</th>
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'left' }}>Department (Entra)</th>
+              <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'left' }}>IAM Link</th>
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'center' }}>Role</th>
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'left' }}>Default Tab</th>
               <th style={{ padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, textAlign: 'center' }}>Actions</th>
@@ -334,7 +430,7 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, group.name)}
                   >
-                    <td colSpan={7} style={{ padding: '0.7rem 1rem' }}>
+                    <td colSpan={8} style={{ padding: '0.7rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         {isCollapsed
                           ? <ChevronRight size={16} style={{ color: 'var(--primary)', opacity: 0.7, cursor: 'pointer' }} onClick={() => toggleCollapse(group.name)} />
@@ -438,6 +534,52 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
                         }
                       </td>
 
+                      {/* IAM Link */}
+                      <td style={tdStyle}>
+                        {user.mtcdPersonId ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <a
+                              href={`https://admin.server.mtcd.org/iam/users?pid=${user.mtcdPersonId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={`Source: ${user.mtcdIdentitySource || "Authentik SSO"}`}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                padding: '0.18rem 0.5rem', borderRadius: '6px',
+                                background: 'rgba(16, 185, 129, 0.1)', color: '#10b981',
+                                fontSize: '0.72rem', fontWeight: 700, fontFamily: 'monospace',
+                                textDecoration: 'none'
+                              }}
+                            >
+                              <LinkIcon size={12} /> {user.mtcdPersonId.slice(0, 16)}...
+                            </a>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleUnlink(user.id, user.name || user.email); }}
+                              title="Unlink IAM Person ID"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', opacity: 0.6, padding: '0.1rem', display: 'flex' }}
+                            >
+                              <Unlink size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ opacity: 0.35, fontSize: '0.75rem', fontStyle: 'italic' }}>Unlinked</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleManualLink(user.id, user.name || user.email); }}
+                              title="Manually link mtcd_person_id"
+                              style={{
+                                background: 'rgba(var(--primary-rgb), 0.08)', color: 'var(--primary)',
+                                border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '6px',
+                                padding: '0.15rem 0.45rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700,
+                                display: 'inline-flex', alignItems: 'center', gap: '0.25rem'
+                              }}
+                            >
+                              <LinkIcon size={11} /> Link
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
                       {/* Admin Toggle */}
                       <td style={{ ...tdStyle, textAlign: 'center' }}>
                         <button
@@ -517,7 +659,7 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, group.name)}
                     >
-                      <td colSpan={6} style={{
+                      <td colSpan={8} style={{
                         ...tdStyle, textAlign: 'center', opacity: 0.3, padding: '1.5rem',
                         background: isDragTarget ? 'rgba(var(--primary-rgb), 0.08)' : 'transparent',
                         fontStyle: 'italic', fontSize: '0.8rem'
