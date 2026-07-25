@@ -88,3 +88,24 @@ export async function safeEmailUpdate(newEmail: string, thisUserId: string, db: 
   }
   return { email: newEmail };
 }
+
+export async function getIamApiKey(db: any = prisma): Promise<string> {
+  try {
+    const settings = await (db as any).globalSettings.findUnique({ where: { id: "global" } });
+    if (settings?.iamApiKey) return settings.iamApiKey;
+  } catch (e) {}
+  return (
+    process.env.IAM_API_KEY ||
+    process.env.HOME_DASHBOARD_API_KEY ||
+    process.env.ADMIN_PORTAL_API_KEY ||
+    ""
+  );
+}
+
+export async function validateIamApiKey(providedKey: string, db: any = prisma): Promise<boolean> {
+  const cleanProvided = (providedKey || "").trim();
+  if (!cleanProvided) return false;
+  const validKey = await getIamApiKey(db);
+  if (!validKey) return false;
+  return cleanProvided === validKey.trim();
+}

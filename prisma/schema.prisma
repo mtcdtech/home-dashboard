@@ -283,5 +283,6 @@ model GlobalSettings {
   customTags    Json?     // Array of { id, text, color } for global custom tags
   searchEngines Json?     // Array of custom search engines { id, name, url }
   disableLocalAdmin Boolean @default(false)
+  iamApiKey     String?   // API key for IAM portal access to /api/iam/roles and /api/iam/users
   updatedAt     DateTime @updatedAt
 }

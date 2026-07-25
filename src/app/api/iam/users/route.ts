@@ -1,32 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateIamApiKey } from "@/lib/iam";
 import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
-function validateApiKey(req: NextRequest): boolean {
-  const configuredKey =
-    process.env.IAM_API_KEY ||
-    process.env.HOME_DASHBOARD_API_KEY ||
-    process.env.ADMIN_PORTAL_API_KEY;
-
-  const headerKey = req.headers.get("x-api-key");
-  const authHeader = req.headers.get("authorization");
-  const bearerKey = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
-  const searchKey = req.nextUrl.searchParams.get("api_key");
-
-  const providedKey = (headerKey || bearerKey || searchKey || "").trim();
-
-  if (configuredKey && providedKey) {
-    return providedKey === configuredKey.trim();
-  }
-
-  return false;
-}
-
 export async function GET(req: NextRequest) {
   try {
-    const isApiKeyValid = validateApiKey(req);
+    const headerKey = req.headers.get("x-api-key");
+    const authHeader = req.headers.get("authorization");
+    const bearerKey = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
+    const searchKey = req.nextUrl.searchParams.get("api_key");
+
+    const providedKey = (headerKey || bearerKey || searchKey || "").trim();
+    const isApiKeyValid = await validateIamApiKey(providedKey);
+
     const session = await auth();
     const isSessionAdmin = (session?.user as any)?.isAdmin === true;
 
@@ -35,7 +23,7 @@ export async function GET(req: NextRequest) {
         {
           error: "Unauthorized",
           message:
-            "Invalid or missing API key. Pass 'x-api-key' header or 'Bearer' token matching IAM_API_KEY.",
+            "Invalid or missing API key. Pass 'Authorization: Bearer <key>' or 'x-api-key' header.",
         },
         { status: 401 }
       );
@@ -65,7 +53,7 @@ export async function GET(req: NextRequest) {
       const roles: string[] = [];
       if (u.isAdmin) roles.push("admin");
       if (u.canEditContent) roles.push("editor");
-      if (roles.length === 0) roles.push("user");
+      if (roles.length === 0) roles.push("viewer");
 
       return {
         id: u.id,
@@ -93,7 +81,7 @@ export async function GET(req: NextRequest) {
       users: formattedUsers,
     });
   } catch (error: any) {
-    console.error("IAM API Users endpoint error:", error);
+    console.error("IAM API /api/iam/users error:", error);
     return NextResponse.json(
       { error: "Internal Server Error", message: error.message || String(error) },
       { status: 500 }

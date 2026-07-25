@@ -1972,3 +1972,29 @@ export async function iamUnlink(userId: string) {
   return { success: true, user: updated };
 }
 
+export async function getIamApiDetails() {
+  await requireAdmin();
+  const { getIamApiKey } = await import("@/lib/iam");
+  const apiKey = await getIamApiKey();
+  return {
+    apiKey,
+    rolesUrl: "/api/iam/roles",
+    usersUrl: "/api/iam/users",
+  };
+}
+
+export async function regenerateIamApiKey() {
+  await requireAdmin();
+  const randomBytes = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join('');
+  const newKey = `iam_live_${randomBytes}`;
+
+  await (prisma as any).globalSettings.upsert({
+    where: { id: "global" },
+    update: { iamApiKey: newKey },
+    create: { id: "global", iamApiKey: newKey },
+  });
+
+  revalidatePath("/admin/users");
+  return { success: true, apiKey: newKey };
+}
+

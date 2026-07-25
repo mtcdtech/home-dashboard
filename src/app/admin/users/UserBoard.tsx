@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X, Key, Lock, EyeOff, Link as LinkIcon, Unlink, RefreshCw } from "lucide-react";
-import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser, updateLocalAdminSettings, iamBackfillDryRun, iamBackfillApply, iamManualLink, iamUnlink } from "../actions";
+import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X, Key, Lock, EyeOff, Link as LinkIcon, Unlink, RefreshCw, Copy } from "lucide-react";
+import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser, updateLocalAdminSettings, iamBackfillDryRun, iamBackfillApply, iamManualLink, iamUnlink, getIamApiDetails, regenerateIamApiKey } from "../actions";
 
 export default function UserTable({ initialUsers, allTabs = [], initialDisableLocalAdmin = false }: { initialUsers: any[]; allTabs?: { id: string; title: string }[]; initialDisableLocalAdmin?: boolean }) {
   const [users, setUsers] = useState(initialUsers);
@@ -18,6 +18,18 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSavingLocalAdmin, setIsSavingLocalAdmin] = useState(false);
+
+  const [iamApiKey, setIamApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isRegeneratingApiKey, setIsRegeneratingApiKey] = useState(false);
+
+  const handleOpenAdminModal = async () => {
+    setShowLocalAdminModal(true);
+    try {
+      const details = await getIamApiDetails();
+      setIamApiKey(details.apiKey || "");
+    } catch (e) {}
+  };
 
   const handleToggleAdmin = async (id: string, current: boolean) => {
     setUsers(u => u.map(x => x.id === id ? { ...x, isAdmin: !current } : x));
@@ -296,7 +308,7 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
         </button>
 
         <button
-          onClick={() => setShowLocalAdminModal(true)}
+          onClick={handleOpenAdminModal}
           className="btn glass"
           style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700,
                    display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap',
@@ -304,51 +316,146 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
                    border: disableLocalAdmin ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--glass-border)',
                    color: disableLocalAdmin ? '#ef4444' : 'var(--text)' }}
         >
-          <Key size={15} /> Local Admin Settings {disableLocalAdmin ? "(Disabled)" : "(Active)"}
+          <Key size={15} /> Admin & IAM Settings {disableLocalAdmin ? "(Local Admin Disabled)" : ""}
         </button>
       </div>
 
       {showLocalAdminModal && (
         <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-          <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '500px', borderRadius: '24px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--glass-border)' }}>
+          <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '540px', borderRadius: '24px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--glass-border)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <Key size={20} style={{ color: 'var(--primary)' }} />
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>Local Admin Settings</h3>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>Admin & IAM Settings</h3>
               </div>
               <button onClick={() => setShowLocalAdminModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={18} /></button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '12px', background: 'rgba(var(--primary-rgb), 0.05)', cursor: 'pointer', border: '1px solid var(--glass-border)' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Disable Local Admin Sign In</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Hides the "Use Local Account" option on the login screen and blocks local admin credentials.</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* IAM API Integration Box */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', borderRadius: '14px', background: 'rgba(var(--primary-rgb), 0.04)', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <LinkIcon size={16} style={{ color: '#10b981' }} />
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>IAM Portal Integration API</span>
+                  </div>
+                  <button
+                    disabled={isRegeneratingApiKey}
+                    onClick={async () => {
+                      if (confirm("Regenerate IAM API Key? Any existing integration using the old key will need to be updated.")) {
+                        setIsRegeneratingApiKey(true);
+                        try {
+                          const res = await regenerateIamApiKey();
+                          setIamApiKey(res.apiKey);
+                          alert("New IAM API Key generated successfully!");
+                        } catch (e: any) {
+                          alert("Failed to regenerate API Key: " + (e.message || e));
+                        } finally {
+                          setIsRegeneratingApiKey(false);
+                        }
+                      }
+                    }}
+                    className="btn glass"
+                    style={{ padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                  >
+                    <RefreshCw size={12} className={isRegeneratingApiKey ? "animate-spin" : ""} /> Regenerate Key
+                  </button>
                 </div>
-                <input 
-                  type="checkbox" 
-                  checked={disableLocalAdmin}
-                  onChange={(e) => setDisableLocalAdmin(e.target.checked)}
-                  style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                />
-              </label>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Change Local Admin Password</span>
-                <input
-                  type="password"
-                  placeholder="New Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                />
-                <input
-                  type="password"
-                  placeholder="Confirm New Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                />
+                {/* API Roles URL */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Roles API URL</span>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                      readOnly
+                      value={typeof window !== "undefined" ? `${window.location.origin}/api/iam/roles` : "/api/iam/roles"}
+                      style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.15)', color: 'var(--text)', fontSize: '0.8rem', fontFamily: 'monospace' }}
+                    />
+                    <button
+                      onClick={() => {
+                        const url = typeof window !== "undefined" ? `${window.location.origin}/api/iam/roles` : "/api/iam/roles";
+                        navigator.clipboard.writeText(url);
+                        alert("Roles API URL copied to clipboard!");
+                      }}
+                      className="btn glass"
+                      style={{ padding: '0.5rem', borderRadius: '8px' }}
+                      title="Copy Roles API URL"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* API Key */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>IAM API Key</span>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      readOnly
+                      value={iamApiKey || "No key generated yet (uses process.env.IAM_API_KEY)"}
+                      style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.15)', color: 'var(--text)', fontSize: '0.8rem', fontFamily: 'monospace' }}
+                    />
+                    <button
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="btn glass"
+                      style={{ padding: '0.5rem', borderRadius: '8px' }}
+                      title={showApiKey ? "Hide API Key" : "Show API Key"}
+                    >
+                      {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (iamApiKey) {
+                          navigator.clipboard.writeText(iamApiKey);
+                          alert("IAM API Key copied to clipboard!");
+                        } else {
+                          alert("No API key set yet. Click 'Regenerate Key' to create one.");
+                        }
+                      }}
+                      className="btn glass"
+                      style={{ padding: '0.5rem', borderRadius: '8px' }}
+                      title="Copy API Key"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Local Admin Settings */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Local Admin Authentication</span>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderRadius: '12px', background: 'rgba(var(--primary-rgb), 0.05)', cursor: 'pointer', border: '1px solid var(--glass-border)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Disable Local Admin Sign In</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Hides the "Use Local Account" option on the login screen and blocks local admin credentials.</span>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={disableLocalAdmin}
+                    onChange={(e) => setDisableLocalAdmin(e.target.checked)}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                  />
+                </label>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Change Local Admin Password</span>
+                  <input
+                    type="password"
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <input
+                    type="password"
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -372,12 +479,12 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
                       disableLocalAdmin,
                       password: newPassword ? newPassword.trim() : undefined
                     });
-                    alert("Local admin settings updated successfully!");
+                    alert("Settings updated successfully!");
                     setNewPassword("");
                     setConfirmPassword("");
                     setShowLocalAdminModal(false);
                   } catch (e: any) {
-                    alert("Failed to update local admin settings: " + (e.message || e));
+                    alert("Failed to update settings: " + (e.message || e));
                   } finally {
                     setIsSavingLocalAdmin(false);
                   }
