@@ -1922,13 +1922,13 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
 // --- IAM INTEGRATION SERVER ACTIONS ---
 export async function iamBackfillDryRun() {
   await requireAdmin();
-  const { runIamBackfill } = await import("@/../scripts/backfill-mtcd-person-ids");
+  const { runIamBackfill } = await import("@/lib/iam-backfill");
   return await runIamBackfill({ apply: false });
 }
 
 export async function iamBackfillApply() {
   await requireAdmin();
-  const { runIamBackfill } = await import("@/../scripts/backfill-mtcd-person-ids");
+  const { runIamBackfill } = await import("@/lib/iam-backfill");
   const result = await runIamBackfill({ apply: true });
   revalidatePath("/admin/users");
   return result;

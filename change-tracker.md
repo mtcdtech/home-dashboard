@@ -2,23 +2,15 @@
 
 ## Running Change Log
 
-### 2026-07-25 - IAM Integration Framework Phase D1+D2 (v1.8.0 → v1.9.0)
-- **Summary**: Implemented full IAM integration framework for `home-dashboard` to consume `mtcd_person_id`, `mtcd_person_id_history`, `mtcd_login_source`, and `mtcd_identities` from Authentik SSO providers.
+### 2026-07-25 - IAM Integration API Endpoints & Refactoring (v1.9.0)
+- **Summary**: Exposed `/api/iam/users` and `/api/iam/roles` endpoints protected by `IAM_API_KEY` for the IAM portal to query user roles, `mtcd_person_id` links, and workspace permissions. Refactored backfill code to `src/lib/iam-backfill.ts`.
 - **Files Created/Modified**:
-  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.9.0`, added `tsx` devDependency, added `backfill:iam` & `backfill:iam:apply` scripts)
-  - [prisma/schema.prisma](file:///Users/benny2168/Antigravity/home-dashboard/prisma/schema.prisma) (added `mtcdPersonId`, `mtcdIdentitySource`, `mtcdLastSyncedAt` fields)
-  - [prisma/migrations/20260725000000_iam_integration_add_mtcd_person_id/migration.sql](file:///Users/benny2168/Antigravity/home-dashboard/prisma/migrations/20260725000000_iam_integration_add_mtcd_person_id/migration.sql) (additive migration SQL)
-  - [src/types/next-auth.d.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/types/next-auth.d.ts) (augmented `Session`, `User`, `Profile`, and `JWT` interfaces)
-  - [src/lib/iam.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/iam.ts) (provider classification & 3-tier user resolution logic)
-  - [src/auth.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/auth.ts) (3-tier user lookup in `signIn`, dual-write claims, JWT & session propagation)
-  - [scripts/backfill-mtcd-person-ids.ts](file:///Users/benny2168/Antigravity/home-dashboard/scripts/backfill-mtcd-person-ids.ts) (backfill script with dry-run/apply modes and CSV reporting)
-  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (IAM server actions for backfill, manual linking, and unlinking)
-  - [src/app/admin/users/UserBoard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/users/UserBoard.tsx) (IAM Link column, unlinked filter chip, manual link modal, and backfill controls)
-  - [src/lib/iam.test.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/iam.test.ts) (unit tests for IAM utilities)
+  - [src/app/api/iam/users/route.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/api/iam/users/route.ts) (User & role export API endpoint)
+  - [src/app/api/iam/roles/route.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/api/iam/roles/route.ts) (Role definition & mapping API endpoint)
+  - [src/auth.config.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/auth.config.ts) (added `/api/iam` to `isPublicApi` middleware exclusions)
+  - [src/lib/iam-backfill.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/iam-backfill.ts) (backfill implementation module)
+  - [.env.example](file:///Users/benny2168/Antigravity/home-dashboard/.env.example) (added `IAM_API_KEY`)
   - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
-  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
   - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
 - **Validation**:
-  - `npx prisma generate` completed cleanly.
-  - `npm run build` compiled 21 static/dynamic routes with zero errors.
-  - Unit tests verified provider classification, claim extraction, 3-tier resolution, and conflict handling.
+  - `npm run build` compiled `/api/iam/users` and `/api/iam/roles` endpoints cleanly.

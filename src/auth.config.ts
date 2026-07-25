@@ -147,7 +147,10 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const isAdmin = (auth?.user as any)?.isAdmin;
       const isLoginPage = nextUrl.pathname.startsWith("/login");
-      const isPublicApi = nextUrl.pathname.startsWith("/api/auth") || nextUrl.pathname.startsWith("/api/sync");
+      const isPublicApi =
+        nextUrl.pathname.startsWith("/api/auth") ||
+        nextUrl.pathname.startsWith("/api/sync") ||
+        nextUrl.pathname.startsWith("/api/iam");
       const isPublicAsset =
         nextUrl.pathname.startsWith("/_next") ||
         nextUrl.pathname.startsWith("/favicon.ico") ||
