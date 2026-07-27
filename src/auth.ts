@@ -85,6 +85,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const providerKind = classifyProvider(account?.provider);
         const { pid, loginSource, pidHistory } = extractPidClaims(profile);
 
+        const WEBAPP_SLUG = "home-dashboard";
+        const rawAuthorizedWebapp = (profile as any)?.mtcd_shared_authorized_webapp || "";
+
+        const isSharedMailbox =
+          loginSource === "microsoft_shared" ||
+          loginSource === "microsoft_shared_authorized" ||
+          (pid && pid.startsWith("mtcd_shared_"));
+
+        const isAuthorizedSharedForThisApp =
+          loginSource === "microsoft_shared_authorized" &&
+          (rawAuthorizedWebapp === WEBAPP_SLUG || rawAuthorizedWebapp === "home-dashboard-pco" || rawAuthorizedWebapp === "home-dashboard-ms");
+
+        if (isSharedMailbox && !isAuthorizedSharedForThisApp) {
+          console.warn(`[auth] REJECTING shared mailbox in home-dashboard: pid=${pid} login_source=${loginSource}`);
+          return false;
+        }
+
         let department = "";
         let isGroupAdmin = false;
         const groups: string[] = (profile?.groups as string[]) || [];
