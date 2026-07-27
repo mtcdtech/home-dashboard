@@ -150,7 +150,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ccImage = user.image || null;
         }
 
-        const finalName = msName || pcoName || ccName || user.name;
+        const finalName = isAuthorizedSharedForThisApp
+          ? ((profile as any)?.name || (profile as any)?.preferred_username || "Shared Account")
+          : (msName || pcoName || ccName || user.name);
         const finalImage = msImage || pcoImage || ccImage || user.image;
 
         const iamPayload: any = {};
