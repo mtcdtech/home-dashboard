@@ -114,9 +114,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.log("Synology SSO Sign-in - User:", user.email, "isGroupAdmin:", isGroupAdmin);
         } else if (providerKind === "authentik") {
           isGroupAdmin =
+            groups.includes("app_dashboard_admin") ||
             groups.includes("app-home-dashboard-global-admins") ||
             groups.includes("app-home-dashboard-admins") ||
-            groups.includes("Authentik Admins");
+            groups.includes("Authentik Admins") ||
+            groups.includes("authentik Admins");
           department = "";
         }
 

@@ -33,6 +33,7 @@ export default async function LoginPage() {
         disableLocalAdmin={globalSettings?.disableLocalAdmin ?? false}
         hasMicrosoft={!!process.env.AUTH_MICROSOFT_ENTRA_ID_ID && !process.env.NEXTAUTH_URL?.includes("abraham16")}
         hasSynology={!!process.env.SYNOLOGY_CLIENT_ID}
+        hasAuthentik={!!process.env.AUTHENTIK_CLIENT_ID}
         hasAuthentikPco={!!process.env.AUTHENTIK_PCO_CLIENT_ID}
         hasAuthentikMs={!!process.env.AUTHENTIK_MS_CLIENT_ID}
         hasAuthentikCc={!!process.env.AUTHENTIK_CC_CLIENT_ID}

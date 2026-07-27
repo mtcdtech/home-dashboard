@@ -3,6 +3,31 @@ import type { NextAuthConfig } from "next-auth";
 
 const providers: any[] = [];
 
+// Generic Authentik OIDC (Personal SSO — abraham16.com)
+if (process.env.AUTHENTIK_CLIENT_ID) {
+  providers.push({
+    id: "authentik",
+    name: "Authentik",
+    type: "oidc",
+    issuer: process.env.AUTHENTIK_ISSUER,
+    clientId: process.env.AUTHENTIK_CLIENT_ID,
+    clientSecret: process.env.AUTHENTIK_CLIENT_SECRET,
+    authorization: { params: { scope: "openid profile email groups", prompt: "login" } },
+    checks: ["pkce", "state"],
+    allowDangerousEmailAccountLinking: true,
+    profile(profile: any) {
+      return {
+        id: profile.sub,
+        name: profile.name || profile.preferred_username,
+        email: profile.email,
+        image: profile.picture || null,
+        department: "",
+        isAdmin: false,
+      };
+    },
+  });
+}
+
 // Authentik OIDC -> Planning Center (auto-redirect via dedicated single-source flow)
 if (process.env.AUTHENTIK_PCO_CLIENT_ID) {
   providers.push({

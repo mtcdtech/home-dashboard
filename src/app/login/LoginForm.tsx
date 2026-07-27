@@ -11,7 +11,7 @@ const IconComponent = ({ name, size = 24, color = "currentColor" }: { name: stri
   return <Icon size={size} color={color} />;
 };
 
-export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, disableLocalAdmin, hasMicrosoft, hasSynology, hasAuthentikPco, hasAuthentikMs, hasAuthentikCc }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any, disableLocalAdmin?: boolean, hasMicrosoft?: boolean, hasSynology?: boolean, hasAuthentikPco?: boolean, hasAuthentikMs?: boolean, hasAuthentikCc?: boolean }) {
+export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, disableLocalAdmin, hasMicrosoft, hasSynology, hasAuthentik, hasAuthentikPco, hasAuthentikMs, hasAuthentikCc }: { logoUrl?: string | null, themeColor: string, logoIcon?: string | null, loginTheme?: any, disableLocalAdmin?: boolean, hasMicrosoft?: boolean, hasSynology?: boolean, hasAuthentik?: boolean, hasAuthentikPco?: boolean, hasAuthentikMs?: boolean, hasAuthentikCc?: boolean }) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
@@ -156,9 +156,9 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, disableLo
           </div>
         )}
 
-        {(hasAuthentikMs || hasAuthentikPco || hasAuthentikCc) && (
+        {(hasAuthentik || hasAuthentikMs || hasAuthentikPco || hasAuthentikCc) && (
           <button 
-            onClick={() => signIn(hasAuthentikMs ? "authentik-ms" : hasAuthentikPco ? "authentik-pco" : "authentik-cc", { callbackUrl: "/" })}
+            onClick={() => signIn(hasAuthentik ? "authentik" : hasAuthentikMs ? "authentik-ms" : hasAuthentikPco ? "authentik-pco" : "authentik-cc", { callbackUrl: "/" })}
             style={{ 
               width: '100%',
               padding: '1.1rem', 
