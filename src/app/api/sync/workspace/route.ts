@@ -42,9 +42,12 @@ export async function GET(request: Request) {
 
       const encodeMediaToBase64 = async (url: string | null | undefined) => {
          if (!url) return url;
-         if (url.startsWith('/api/uploads/') || url.startsWith('/uploads/')) {
+         if (url.startsWith('data:image')) return url;
+
+         const uploadMatch = url.match(/(?:\/api\/uploads\/|\/uploads\/)([^\s?#]+)/);
+         if (uploadMatch) {
             try {
-               const filename = url.split('/').pop() || '';
+               const filename = uploadMatch[1];
                const filePath = join(process.cwd(), 'public', 'uploads', filename);
                if (existsSync(filePath)) {
                   const buffer = await readFile(filePath);
