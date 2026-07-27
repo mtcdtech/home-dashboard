@@ -167,7 +167,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           dbUser = await prisma.user.update({
             where: { id: existingUser.id },
             data: {
-              name: finalName,
+              name: user.name || finalName || existingUser.name,
               image: finalImage,
               msName,
               msImage,
