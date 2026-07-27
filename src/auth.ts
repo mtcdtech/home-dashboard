@@ -284,6 +284,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
       }
+
+      // Always ensure isAdmin and permissions are up-to-date from DB
+      if (token?.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: { isAdmin: true, department: true, canEditContent: true }
+          });
+          if (dbUser) {
+            token.isAdmin = dbUser.isAdmin;
+            if (dbUser.department) token.department = dbUser.department;
+          }
+        } catch (e) {}
+      }
+
       return token;
     },
     async session({ session, token }: any) {
