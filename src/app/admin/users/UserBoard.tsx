@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X, Key, Lock, EyeOff, Link as LinkIcon, Unlink, RefreshCw, Copy } from "lucide-react";
+import { Shield, ShieldAlert, Search, Users, ChevronDown, ChevronRight, GripVertical, Plus, FolderOpen, Home, Eye, Edit3, Trash2, Check, X, Key, Lock, EyeOff, Link as LinkIcon, Unlink, RefreshCw, Copy, Info } from "lucide-react";
 import { toggleUserAdmin, updateUserDashboardGroup, updateUserDefaultTab, renameGroup, deleteGroup, deleteUser, updateLocalAdminSettings, iamBackfillDryRun, iamBackfillApply, iamManualLink, iamUnlink, getIamApiDetails, regenerateIamApiKey } from "../actions";
 
 export default function UserTable({ initialUsers, allTabs = [], initialDisableLocalAdmin = false }: { initialUsers: any[]; allTabs?: { id: string; title: string }[]; initialDisableLocalAdmin?: boolean }) {
@@ -499,6 +499,26 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
         </div>
       )}
 
+      {/* Admin role read-only note */}
+      <div style={{
+        padding: '0.85rem 1.25rem',
+        borderRadius: '12px',
+        background: 'rgba(59, 130, 246, 0.05)',
+        border: '1px solid rgba(59, 130, 246, 0.15)',
+        color: 'var(--text)',
+        fontSize: '0.82rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.6rem',
+        marginBottom: '0.5rem',
+        opacity: 0.95
+      }}>
+        <Info size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+        <span>
+          <strong>Administrator Role Management:</strong> Administrator status is read-only in the webapp. Changing admin status is done in the <a href="https://admin.server.mtcd.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'underline' }}>MTCD Admin Portal</a>.
+        </span>
+      </div>
+
       {/* Grouped Table */}
       <div className="admin-table-wrap glass" style={{ borderRadius: '16px', overflow: 'auto', border: '1px solid var(--glass-border)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -687,22 +707,22 @@ export default function UserTable({ initialUsers, allTabs = [], initialDisableLo
                         )}
                       </td>
 
-                      {/* Admin Toggle */}
+                      {/* Admin Toggle (Read-Only) */}
                       <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <button
+                        <span
                           id={`admin-toggle-${user.id}`}
-                          onClick={(e) => { e.stopPropagation(); handleToggleAdmin(user.id, user.isAdmin); }}
-                          title={user.isAdmin ? "Click to remove admin" : "Click to make admin"}
                           style={{
                             background: user.isAdmin ? 'var(--primary)' : 'rgba(var(--primary-rgb), 0.08)',
                             color: user.isAdmin ? '#fff' : 'var(--text)',
-                            border: 'none', borderRadius: '8px', padding: '0.35rem 0.75rem',
-                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
-                            gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
+                            borderRadius: '8px', padding: '0.35rem 0.75rem',
+                            display: 'inline-flex', alignItems: 'center',
+                            gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700,
+                            opacity: 0.85
                           }}
+                          title="Admin role changes must be performed in the MTCD Admin Portal"
                         >
                           {user.isAdmin ? <><Shield size={13} /> Admin</> : <><ShieldAlert size={13} style={{ opacity: 0.4 }} /> Standard</>}
-                        </button>
+                        </span>
                       </td>
 
                       {/* Default Workspace */}

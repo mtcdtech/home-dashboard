@@ -33,17 +33,12 @@ export async function GET(req: NextRequest) {
         {
           id: "admin",
           name: "Administrator",
-          description: "Full access to manage all bookmarks, workspaces, themes, and users.",
+          description: "Full access to manage the application dashboard.",
         },
         {
-          id: "editor",
-          name: "Content Editor",
-          description: "Can edit and publish bookmarks and assigned sections.",
-        },
-        {
-          id: "viewer",
-          name: "Standard Reader",
-          description: "Can view assigned workspaces and sections.",
+          id: "standard",
+          name: "Standard User",
+          description: "Standard access to the application dashboard.",
         },
       ],
     });

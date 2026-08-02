@@ -754,8 +754,7 @@ export async function getGlobalSettings() {
 // --- USER & IDENTITY GOVERNANCE ---
 export async function toggleUserAdmin(id: string, isAdmin: boolean) {
   await requireAdmin();
-  await prisma.user.update({ where: { id }, data: { isAdmin } });
-  revalidatePath("/admin/users");
+  throw new Error("Admin role changes must be performed in the MTCD Admin Portal.");
 }
 
 export async function updateUserDashboardGroup(id: string, dashboardGroup: string) {

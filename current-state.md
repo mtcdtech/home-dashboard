@@ -4,7 +4,7 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.9.0` (IAM Phase D1+D2 ship + IAM Spec API & Key Manager)
+- **Current Version**: `v1.10.0` (Authentik SSO Integration + Simplified Roles + Read-Only Admin UI)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment (Stack 58 `homedashboard`).
 
 ## Status & Operational State
@@ -16,11 +16,13 @@
   - Created IAM backfill script `scripts/backfill-mtcd-person-ids.ts` & `src/lib/iam-backfill.ts`. Added `backfill:iam` / `backfill:iam:apply` scripts to `package.json`.
   - Added IAM Server Actions (`iamBackfillDryRun`, `iamBackfillApply`, `iamManualLink`, `iamUnlink`, `getIamApiDetails`, `regenerateIamApiKey`) in `src/app/admin/actions.ts`.
   - Updated Admin User Board (`UserBoard.tsx`) with IAM Link status column, "Unlinked from IAM" filter chip, manual link/unlink modal tools, and dry-run/apply backfill triggers.
-- **IAM Spec API & Key Management**:
-  - `/api/iam/roles` — Returns exact IAM spec format `{ "roles": [ { "id": "admin", "name": "Administrator", "description": "..." }, { "id": "editor", ... }, { "id": "viewer", ... } ] }`.
-  - `/api/iam/users` — Exports list of users, `mtcd_person_id`, email, roles, department, `dashboard_group`, `allowed_tabs`, and `allowed_sections`.
-  - Stored API key in DB (`GlobalSettings.iamApiKey`) with `process.env.IAM_API_KEY` fallback.
-  - Exposed API URL, API Key viewer, copy controls, and **Regenerate Key** button inside **Admin & IAM Settings** modal on `/admin/users`.
+- **Authentik SSO & Roles Integration (v1.10.0)**:
+  - Simplified the Roles API (`/api/iam/roles`) and User API role mapping (`/api/iam/users`) to return only `admin` and `standard` roles.
+  - Updated `src/auth.ts` to map OIDC group `app_homedashboard_admin` (along with legacy fallback groups) to `isAdmin: true` for Authentik sign-ins.
+  - Renamed the login screen SSO button text to "Log in Securely".
+  - Made the Admin role toggling read-only in the webapp: blocked state modification in `toggleUserAdmin` (throws error) and replaced the interactive admin toggle buttons with static tags on the Admin `/admin/users` page.
+  - Added a warning notice in the Admin `/admin/users` view linking to the MTCD Admin Portal for administrator role modifications.
+  - Completed one-time reverse pull sync of dashboard administrators (`avcoordinator@mtcd.org`, `tech@mtcd.org` / `ben@abraham16.com`, and `webmaster@mtcd.org`) to the MTCD Admin Portal (`webapps.json`) and Authentik groups.
 
 ## Environment Requirements
 - `DATABASE_URL`: PostgreSQL connection string (see `.env.example`).
@@ -32,3 +34,4 @@
 ## Known Risks & Considerations
 - Deploying to production Stack 58 (`home.server.mtcd.org`) runs the additive Prisma migration automatically.
 - Stack 59 (`home.abraham16.com`) continues to no-op gracefully with Synology SSO.
+

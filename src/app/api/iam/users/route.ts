@@ -51,9 +51,11 @@ export async function GET(req: NextRequest) {
 
     const formattedUsers = users.map((u) => {
       const roles: string[] = [];
-      if (u.isAdmin) roles.push("admin");
-      if (u.canEditContent) roles.push("editor");
-      if (roles.length === 0) roles.push("viewer");
+      if (u.isAdmin) {
+        roles.push("admin");
+      } else {
+        roles.push("standard");
+      }
 
       return {
         id: u.id,
@@ -76,7 +78,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       app: "home-dashboard",
-      version: "1.9.0",
+      version: "1.10.0",
       total: formattedUsers.length,
       users: formattedUsers,
     });

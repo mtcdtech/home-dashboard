@@ -2,12 +2,15 @@
 
 ## Recommended Next Steps
 1. **Post-Deployment Verification**:
-   - Verify `v1.9.0` is deployed and live at `https://home.server.mtcd.org/`.
-   - Test logging in via `authentik-pco`, `authentik-ms`, and `authentik-cc` to confirm `mtcdPersonId` is populated on the logged-in User row.
-   - Navigate to `/admin/users` as an admin to inspect the new "IAM Link" column and verify the "Unlinked from IAM" filter chip.
-2. **IAM Backfill Execution**:
-   - Run dry-run backfill via Admin UI or `npm run backfill:iam` and review generated `backfill-report-*.csv`.
-   - After confirming dry-run matches, execute `npm run backfill:iam:apply` (or click "Backfill IAM" in the Admin UI) to link legacy unlinked user rows.
+   - Verify `v1.10.0` is deployed and live at `https://home.server.mtcd.org/`.
+   - Verify the login button on the login screen says **"Log in Securely"**.
+   - Test logging in via Authentik as an administrator (e.g. `tech@mtcd.org` / `ben@abraham16.com` or `avcoordinator@mtcd.org`) and verify you are granted admin permissions in the home dashboard (you have access to `/admin` routes).
+   - Navigate to `/admin/users` and verify:
+     - The warning note is visible: *"Administrator status is read-only in the webapp. Changing admin status is done in the MTCD Admin Portal."*
+     - The admin switches in the user table are replaced with read-only badges ("Admin" / "Standard") and are not clickable.
+     - Attempting to toggle admin status (by intercepting API or checking action code) fails with: *"Admin role changes must be performed in the MTCD Admin Portal."*
+2. **Synchronize Authentik Groups**:
+   - Log in to the MTCD Admin Portal (`https://admin.server.mtcd.org`) and check the `homedashboard` webapp config to verify the roles list shows only "Administrator" (`admin`) and "Standard User" (`standard`).
+   - Check that `avcoordinator@mtcd.org`, `ben@abraham16.com`, and `webmaster@mtcd.org` are in the "Administrator" assignments list.
+   - Click the sync button or ensure that the hourly sync cron synchronizes these assignments into the Authentik groups.
 
-## Open Questions & Future Phase D3 Track
-- The admin portal Phase D3+E will add `home-dashboard` to `webapps.json` with an assigned `identity_profile` when `compat_mode` flipping is scheduled. No further code changes are needed in `home-dashboard` for Phase D3.

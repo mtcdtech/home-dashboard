@@ -187,7 +187,7 @@ export function LoginForm({ logoUrl, themeColor, logoIcon, loginTheme, disableLo
             }}
           >
             <ShieldCheck size={24} />
-            Sign In Securely
+            Log in Securely
           </button>
         )}
 
