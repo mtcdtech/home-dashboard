@@ -6,60 +6,172 @@ on:
       - main
       - abraham-prod
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-push:
+  # ---------------------------------------------------------------------------
+  # Build native per-arch on native runners (no QEMU emulation). Free arm64
+  # runners are available for public repos as ubuntu-24.04-arm.
+  # ---------------------------------------------------------------------------
+  build-amd64:
+    name: Build amd64
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Get package version
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+      - name: Build and push amd64
+        uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: mtcdtech/homedashboard:latest,mtcdtech/homedashboard:v${{ env.VERSION }},mtcdtech/homedashboard:${{ github.sha }}
-          cache-from: type=registry,ref=mtcdtech/homedashboard:buildcache
-          cache-to: type=registry,ref=mtcdtech/homedashboard:buildcache,mode=max
+          tags: mtcdtech/homedashboard:${{ github.sha }}-amd64
+          cache-from: type=registry,ref=mtcdtech/homedashboard:buildcache-amd64
+          cache-to: type=registry,ref=mtcdtech/homedashboard:buildcache-amd64,mode=max
+          provenance: false
 
-  deploy-to-portainer:
-    needs: build-and-push
-    runs-on: ubuntu-latest
+  build-arm64:
+    name: Build arm64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          python-version: '3.9'
-      - name: Install dependencies
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push arm64
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: mtcdtech/homedashboard:${{ github.sha }}-arm64
+          cache-from: type=registry,ref=mtcdtech/homedashboard:buildcache-arm64
+          cache-to: type=registry,ref=mtcdtech/homedashboard:buildcache-arm64,mode=max
+          provenance: false
+
+  # ---------------------------------------------------------------------------
+  # Combine the per-arch images into a single multi-arch manifest per tag.
+  # This is what Portainer pulls.
+  # ---------------------------------------------------------------------------
+  manifest:
+    name: Publish multi-arch manifest
+    needs: [build-amd64, build-arm64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get package version
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create SHA manifest
+        run: |
+          docker buildx imagetools create \
+            -t mtcdtech/homedashboard:${{ github.sha }} \
+            mtcdtech/homedashboard:${{ github.sha }}-amd64 \
+            mtcdtech/homedashboard:${{ github.sha }}-arm64
+
+      - name: Create versioned manifest
+        run: |
+          docker buildx imagetools create \
+            -t mtcdtech/homedashboard:v${{ steps.version.outputs.VERSION }} \
+            mtcdtech/homedashboard:${{ github.sha }}-amd64 \
+            mtcdtech/homedashboard:${{ github.sha }}-arm64
+
+      - name: Create latest manifest
+        run: |
+          docker buildx imagetools create \
+            -t mtcdtech/homedashboard:latest \
+            mtcdtech/homedashboard:${{ github.sha }}-amd64 \
+            mtcdtech/homedashboard:${{ github.sha }}-arm64
+
+      - name: Verify manifest was published
+        run: |
+          docker buildx imagetools inspect mtcdtech/homedashboard:${{ github.sha }}
+
+  # ---------------------------------------------------------------------------
+  # Deploy: update_portainer.py self-gates by branch (main -> MTCD stack 58,
+  # abraham-prod -> Abraham dashboard-app container). Then poll the live site
+  # for the expected version and fail loudly on mismatch.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to Portainer
+    needs: manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
         run: pip install requests
-      - name: Trigger Portainer Updates
+
+      - name: Trigger Portainer redeploy
         env:
           GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           AUTH_MICROSOFT_ENTRA_ID_SECRET: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           PORTAINER_API_KEY_CHURCH: ${{ secrets.PORTAINER_API_KEY_CHURCH }}
+          PORTAINER_API_KEY_ABRAHAM: ${{ secrets.PORTAINER_API_KEY_ABRAHAM }}
           AUTHENTIK_PCO_CLIENT_ID: ${{ secrets.AUTHENTIK_PCO_CLIENT_ID }}
           AUTHENTIK_PCO_CLIENT_SECRET: ${{ secrets.AUTHENTIK_PCO_CLIENT_SECRET }}
           AUTHENTIK_PCO_ISSUER: ${{ secrets.AUTHENTIK_PCO_ISSUER }}
           AUTHENTIK_MS_CLIENT_ID: ${{ secrets.AUTHENTIK_MS_CLIENT_ID }}
           AUTHENTIK_MS_CLIENT_SECRET: ${{ secrets.AUTHENTIK_MS_CLIENT_SECRET }}
           AUTHENTIK_MS_ISSUER: ${{ secrets.AUTHENTIK_MS_ISSUER }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          PORTAINER_API_KEY_ABRAHAM: ${{ secrets.PORTAINER_API_KEY_ABRAHAM }}
         run: python update_portainer.py
 
+      - name: Verify live version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            HOST="home.server.mtcd.org"
+          else
+            HOST="home.abraham16.com"
+          fi
+          echo "Expecting v$VERSION on $HOST (branch=${GITHUB_REF_NAME})"
+          for i in $(seq 1 20); do
+            LIVE=$(curl -sL -m 8 "https://$HOST/login" 2>/dev/null \
+              | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "")
+            echo "attempt $i: live=[$LIVE] expected=[$VERSION]"
+            if [ "$LIVE" = "$VERSION" ]; then
+              echo "DEPLOYED: $HOST is on v$VERSION"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::$HOST did not reach v$VERSION within 10 minutes. Live footer stuck at [$LIVE]."
+          exit 1
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
