@@ -4,10 +4,15 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.10.0` (Authentik SSO Integration + Simplified Roles + Read-Only Admin UI)
+- **Current Version**: `v1.11.0` (Performance Optimization Runbook Shipped: SSR Enabled + Async avatarColor Write + Slim Dept Queries + Bundle Analyzer)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment (Stack 58 `homedashboard`).
 
 ## Status & Operational State
+- **Performance Optimization (v1.11.0)**:
+  - Enabled SSR rendering on Dashboard component by removing the mounted-gate (`if (!mounted) return null`).
+  - Made cosmetic `user.update` for `avatarColor` in `page.tsx` async (fire-and-forget `.catch(...)`) to eliminate TTFB delays.
+  - Slimmed Prisma queries for `dashboardGroup` in `admin/sync/page.tsx` using `distinct: ['dashboardGroup']` and `where: { dashboardGroup: { not: null } }`.
+  - Configured `@next/bundle-analyzer` in `next.config.ts` and generated bundle report (`perf-reports/bundle-2026-08-11.html`).
 - **IAM Integration (Phase D1+D2)**: Completed.
   - Added `mtcdPersonId`, `mtcdIdentitySource`, `mtcdLastSyncedAt` columns & unique index to `User` model.
   - NextAuth type augmentation in `src/types/next-auth.d.ts`.
