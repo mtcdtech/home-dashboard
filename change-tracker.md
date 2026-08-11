@@ -2,6 +2,21 @@
 
 ## Running Change Log
 
+### 2026-08-11 - Self-Hosted Icon Route URL Fix & Path Rewriter (v1.12.1)
+- **Summary**: Fixed issue where stored `/uploads/icons/<hash>.<ext>` paths returned 404 on production because Next.js does not serve post-build files added to `/public/uploads/` directly. Updated `downloadIconToDisk` and `saveBase64IconToDisk` in `src/lib/icon-storage.ts` to return `/api/uploads/icons/<hash>.<ext>` paths, matching the runtime `/api/uploads/[...path]/route.ts` dynamic file server while keeping disk writes at `/app/public/uploads/icons/<hash>.<ext>`. Updated `encodeMediaToBase64` in `src/app/api/sync/workspace/route.ts` to match both `/uploads/` and `/api/uploads/` local paths. Updated `scripts/migrate-icons-to-disk.mjs` to check `/api/uploads/` for idempotency. Created `scripts/fix-icon-paths.mjs` ESM migration script with `--dry-run` default, `--apply` flag, and automated PostgreSQL table backups (`pg_dump` with Prisma JSON fallback) to rewrite existing `/uploads/icons/%` database values to `/api/uploads/icons/%`.
+- **Files Modified**:
+  - [src/lib/icon-storage.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/lib/icon-storage.ts) (updated returned URL path format to `/api/uploads/icons/<hash>.<ext>`)
+  - [src/app/api/sync/workspace/route.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/app/api/sync/workspace/route.ts) (updated `encodeMediaToBase64` to match both `/uploads/` and `/api/uploads/`)
+  - [scripts/migrate-icons-to-disk.mjs](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/scripts/migrate-icons-to-disk.mjs) (updated `isExternalUrl` and `downloadIconToDisk` to skip `/api/uploads/` paths)
+  - [scripts/fix-icon-paths.mjs](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/scripts/fix-icon-paths.mjs) (created path rewriter ESM migration script)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/package.json) (bumped version to `1.12.1`)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/notes-next-session.md)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/current-state.md)
+- **Validation**:
+  - Tested ESM script loading and execution for `fix-icon-paths.mjs` and `migrate-icons-to-disk.mjs`.
+  - Verified Next.js build compilation with `npm run build`.
+
 ### 2026-08-11 - Self-Hosted Icons & Storage Infrastructure (v1.12.0)
 - **Summary**: Implemented self-hosted icon storage across the application to eliminate external CDN dependencies (Brandfetch expiration, jsDelivr slowdowns). Created `src/lib/icon-storage.ts` with `downloadIconToDisk` (5s timeout, 2MB max, content-type + magic-byte sniffing, SVG sanitization), `saveBase64IconToDisk`, `isExternalUrl`, and `isLucideIconName`. Updated `IconPicker.tsx` to route external icon URLs through a new server action `downloadAndStoreIcon` in `src/app/admin/actions.ts` emitting `/uploads/icons/<hash>.<ext>` paths while preserving search UX and gracefully handling errors. Updated `refreshSyncedWorkspace` and `processMediaField` to store local icons and updated `src/app/api/sync/workspace/route.ts` `encodeMediaToBase64` to inline external URLs as base64 data URIs. Created idempotent migration script `scripts/migrate-icons-to-disk.mjs` with `--dry-run` default, `--apply` flag, and automated PostgreSQL table backups (`pg_dump` with Prisma JSON fallback).
 - **Files Modified**:

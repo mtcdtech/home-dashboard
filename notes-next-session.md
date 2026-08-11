@@ -29,16 +29,20 @@
 - **Non-blocking Errors**: Timeouts and connection errors are logged as `WARN` with target URL and elapsed duration in milliseconds, returning clean error objects to the client UI.
 - **Portainer Widget Hardening**: `PortainerWidget` displays `(5s timeout)` during container loading and renders an inline error card with a retry button on fetch failure or timeout.
 
-## Self-Hosted Icons Infrastructure & Migration (v1.12.0)
-- **Code shipped**: All icon selections (Brandfetch, Catalog jsDelivr, custom manual URLs) now route through `downloadAndStoreIcon` server action, writing to `/app/public/uploads/icons/<hash>.<ext>`.
+## Self-Hosted Icons Infrastructure & Route Fix (v1.12.1)
+- **Code shipped**: Icon storage helpers now return `/api/uploads/icons/<hash>.<ext>` so Next.js runtime route `/api/uploads/[...path]` serves icons uploaded after build. Disk storage location remains `/app/public/uploads/icons/<hash>.<ext>`.
 - **Migration CLI commands for Ben to run after deployment**:
   1. Abraham:
-     - Dry-run: `docker exec dashboard-app node /app/scripts/migrate-icons-to-disk.mjs`
-     - Apply: `docker exec dashboard-app node /app/scripts/migrate-icons-to-disk.mjs --apply`
+     - Dry-run icon path fix: `docker exec dashboard-app node /app/scripts/fix-icon-paths.mjs`
+     - Apply icon path fix: `docker exec dashboard-app node /app/scripts/fix-icon-paths.mjs --apply`
+     - Dry-run external icon migration (if any external URLs remain): `docker exec dashboard-app node /app/scripts/migrate-icons-to-disk.mjs`
+     - Apply external icon migration: `docker exec dashboard-app node /app/scripts/migrate-icons-to-disk.mjs --apply`
   2. MTCD Synology:
-     - Dry-run: `docker exec homedashboard-app node /app/scripts/migrate-icons-to-disk.mjs`
-     - Apply: `docker exec homedashboard-app node /app/scripts/migrate-icons-to-disk.mjs --apply`
-- **Verification**: Run `SELECT count(*) FROM "Bookmark" WHERE icon LIKE 'http%';` against DB — expect 0 rows remaining after migration apply.
+     - Dry-run icon path fix: `docker exec homedashboard-app node /app/scripts/fix-icon-paths.mjs`
+     - Apply icon path fix: `docker exec homedashboard-app node /app/scripts/fix-icon-paths.mjs --apply`
+     - Dry-run external icon migration (if any external URLs remain): `docker exec homedashboard-app node /app/scripts/migrate-icons-to-disk.mjs`
+     - Apply external icon migration: `docker exec homedashboard-app node /app/scripts/migrate-icons-to-disk.mjs --apply`
+- **Verification**: Run `SELECT count(*) FROM "Bookmark" WHERE icon LIKE '/uploads/%';` against DB — expect 0 rows remaining after `fix-icon-paths.mjs --apply`.
 
 ## Recommended Next Steps & Performance Follow-ups
 1. **Archive `benny2168/home-dashboard`** on github.com when you get a moment (Settings → General → scroll to Danger Zone → Archive this repository). Local clone at `/Users/benny2168/Antigravity/home-dashboard-abraham` still has uncommitted WIP (entrypoint.sh, LoginForm.tsx, page.tsx) — decide whether to port those to a mtcd branch first.
