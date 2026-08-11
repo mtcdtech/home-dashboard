@@ -9,6 +9,7 @@ import { requireSession, requireAdmin, requireTabRole, requireSectionRole } from
 import { safeFetch } from "@/lib/ssrf";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { downloadIconToDisk, saveBase64IconToDisk, isExternalUrl } from "@/lib/icon-storage";
 
 async function logActionActivity(type: string, detail: string) {
   try {
@@ -122,16 +123,27 @@ export async function downloadImageFromUrl(url: string) {
   }
 }
 
+export async function downloadAndStoreIcon(url: string): Promise<{ localPath?: string; error?: string }> {
+  await requireSession();
+  if (!url || typeof url !== 'string') {
+    return { error: 'Invalid URL provided' };
+  }
+  if (!isExternalUrl(url)) {
+    return { localPath: url };
+  }
+  return await downloadIconToDisk(url);
+}
+
 export async function processMediaField(mediaUrl: string | null | undefined) {
   if (!mediaUrl) return mediaUrl;
   try {
     if (mediaUrl.startsWith('data:image')) {
-      const saved = await saveGeneratedImage(mediaUrl);
-      return saved || mediaUrl; // Fallback to raw base64 if save failed (better than nothing)
+      const saved = await saveBase64IconToDisk(mediaUrl);
+      return saved || mediaUrl;
     }
-    if (mediaUrl.startsWith('http')) {
-      const local = await downloadImageFromUrl(mediaUrl);
-      if (local) return local;
+    if (isExternalUrl(mediaUrl)) {
+      const result = await downloadIconToDisk(mediaUrl);
+      if (result.localPath) return result.localPath;
     }
   } catch (e) {
     console.error("Failed to process media field:", e);
