@@ -24,6 +24,11 @@
   - **Redeploy container**: Login screen will display "Log in with Authentik".
 - **Authentik OAuth Callback URL**: Ensure `https://home.abraham16.com/api/auth/callback/authentik` is registered in Authentik provider settings.
 
+## Portainer & Workspace Sync Fetch Timeout Hardening (v1.11.2)
+- **Fetch Timeout Protection**: All outbound `fetch` requests in `refreshSyncedWorkspace` and `fetchPortainerContainers` are protected with `signal: AbortSignal.timeout(5000)`.
+- **Non-blocking Errors**: Timeouts and connection errors are logged as `WARN` with target URL and elapsed duration in milliseconds, returning clean error objects to the client UI.
+- **Portainer Widget Hardening**: `PortainerWidget` displays `(5s timeout)` during container loading and renders an inline error card with a retry button on fetch failure or timeout.
+
 ## Recommended Next Steps & Performance Follow-ups
 1. **Archive `benny2168/home-dashboard`** on github.com when you get a moment (Settings → General → scroll to Danger Zone → Archive this repository). Local clone at `/Users/benny2168/Antigravity/home-dashboard-abraham` still has uncommitted WIP (entrypoint.sh, LoginForm.tsx, page.tsx) — decide whether to port those to a mtcd branch first.
 2. **Curated Icon Allow-list for Lucide**: Replace wildcard `LucideIcons` import in `IconPicker.tsx` / `Dashboard.tsx` with a curated allow-list or map to enable tree-shaking for icons.
@@ -32,6 +37,7 @@
 5. **Tab Tree Caching**: Evaluate `unstable_cache` or Redis/React cache for tab tree queries if permission model permits.
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json`.
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.11.2).
 - Login button says "Log in Securely".
 - Log in via Authentik as an administrator (e.g. `tech@mtcd.org`, `ben@abraham16.com`, `avcoordinator@mtcd.org`) and verify admin permissions land correctly.
+- Verify PortainerWidget on Abraham home tab displays inline error card or container list within 5 seconds without freezing tab switching.

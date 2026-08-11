@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.11.1` (Abraham Container Env-Preservation Fix & Authentik Migration Path)
+- **Current Version**: `v1.11.2` (Portainer & Workspace Sync Fetch Timeout Hardening)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Portainer & Workspace Sync Fetch Timeout Hardening (v1.11.2)**:
+  - Added 5-second fetch timeouts (`AbortSignal.timeout(5000)`) to `refreshSyncedWorkspace` and all outbound `fetch` calls in `fetchPortainerContainers`.
+  - Caught `AbortError` / `TimeoutError` exceptions cleanly, returning error objects instead of throwing, and logged WARN messages specifying target URL and elapsed duration.
+  - Hardened `PortainerWidget` to display a 5s timeout indicator during container loading and render an inline error card with a retry button on fetch failure/timeout.
 - **Abraham Container Env Preservation & Authentik Migration (v1.11.1)**:
   - Rewrote `deploy_abraham_container()` in `update_portainer.py` to inspect `dashboard-app` before stopping/removing it.
   - Carries forward existing env variables, `HostConfig` (binds/ports), and `NetworkingConfig` across redeployments.
