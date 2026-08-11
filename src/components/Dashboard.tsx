@@ -699,8 +699,6 @@ export function Dashboard({
       }
    }, [_activePrimary, _isLightForBg, _secOpac, _glsOpac]);
 
-   if (!mounted) return null;
-
    const hexToRgb = (hex: string) => {
       if (!hex) return "99, 102, 241";
       if (hex.startsWith('rgb')) return hex;
@@ -1023,7 +1021,7 @@ export function Dashboard({
 
                   {/* 5. Light/Dark Mode */}
                   <button className="nav-menu-btn" title="Toggle Theme" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text)', padding: '0.5rem', display: 'flex', alignItems: 'center' }}>
-                     {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} <span className="mobile-menu-text">Toggle Dark Mode</span>
+                     {mounted ? (resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />) : <Sun size={18} />} <span className="mobile-menu-text">Toggle Dark Mode</span>
                   </button>
                </div>
             </div>
