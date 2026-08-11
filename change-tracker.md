@@ -2,6 +2,26 @@
 
 ## Running Change Log
 
+### 2026-08-11 - CI/CD Pipeline Rewrite (deploy.yml, no version bump)
+- **Summary**: Rewrote `.github/workflows/deploy.yml` to fix chronic silent build hangs. Root cause was a single-runner multi-arch buildx step (`linux/amd64,linux/arm64`) that used QEMU emulation for arm64 and would stall 30-90 minutes on registry cache round-trips with no timeout, no fail-fast, and no post-deploy verification. Silent hangs meant the live site would stay on the old version for hours or days with no signal.
+- **New pipeline shape**:
+  - `build-amd64` job on native `ubuntu-latest` (x64) — no QEMU
+  - `build-arm64` job on native `ubuntu-24.04-arm` (free for public repos)
+  - `manifest` job combines both per-arch images into multi-arch manifests for `:${sha}`, `:v${version}`, `:latest`
+  - `deploy` job runs `update_portainer.py` (self-gates by branch: `main` → MTCD, `abraham-prod` → Abraham), then **polls the live login page for the expected version**; workflow FAILS after 10 min of mismatch instead of silently succeeding.
+  - Concurrency group per branch: superseded pushes auto-cancel.
+  - Timeouts: 25 min per build job, 15 min on deploy job, 10 min on manifest job.
+- **Result**: First run on the new pipeline (SHA 1d40178) completed in ~8 minutes end-to-end on both branches; previously-hung v1.11.0 build (previous SHA d7360e3) had been in_progress for 2+ hours. Both `home.server.mtcd.org` and `home.abraham16.com` now serve v1.11.0.
+- **abraham-prod branch**: fast-forwarded from stale 41587d4 (July 22, v1.8.0) to 1d40178 (v1.11.0 + new deploy). No commits lost (ahead=0, behind=17 before ff).
+- **Files modified**:
+  - [.github/workflows/deploy.yml](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/.github/workflows/deploy.yml) — full rewrite
+- **Deploy contract (canonical, going forward)**:
+  - Any push to `main` deploys to Church Synology (home.server.mtcd.org)
+  - Any push to `abraham-prod` deploys to Abraham Mac Mini (home.abraham16.com)
+  - Both build the SAME multi-arch image tagged by SHA — arch mismatches at runtime are impossible
+  - If the live footer version doesn't match `package.json` within 10 min post-deploy, the workflow FAILS red — no more silent v-mismatches
+- **Fork status**: `benny2168/home-dashboard` (has no CI, never actually deployed anything) marked for archive. Abraham deploys exclusively via `mtcdtech/home-dashboard abraham-prod` branch now.
+
 ### 2026-07-25 - IAM Spec API & Key Manager UI Modal (v1.9.0)
 - **Summary**: Implemented exact IAM portal roles specification (`GET /api/iam/roles`) returning `{ roles: [{ id: "admin", name: "Administrator", description: "..." }, ...] }`. Created DB-backed API key management in `GlobalSettings.iamApiKey`, and added an IAM Portal API section in the **Admin & IAM Settings** modal (`UserBoard.tsx`) exposing the Roles API URL, API Key viewer/copy controls, and a **Regenerate Key** button.
 - **Files Created/Modified**:
