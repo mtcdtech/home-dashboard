@@ -2,6 +2,22 @@
 
 ## Running Change Log
 
+### 2026-08-11 - Self-Hosted Icons & Storage Infrastructure (v1.12.0)
+- **Summary**: Implemented self-hosted icon storage across the application to eliminate external CDN dependencies (Brandfetch expiration, jsDelivr slowdowns). Created `src/lib/icon-storage.ts` with `downloadIconToDisk` (5s timeout, 2MB max, content-type + magic-byte sniffing, SVG sanitization), `saveBase64IconToDisk`, `isExternalUrl`, and `isLucideIconName`. Updated `IconPicker.tsx` to route external icon URLs through a new server action `downloadAndStoreIcon` in `src/app/admin/actions.ts` emitting `/uploads/icons/<hash>.<ext>` paths while preserving search UX and gracefully handling errors. Updated `refreshSyncedWorkspace` and `processMediaField` to store local icons and updated `src/app/api/sync/workspace/route.ts` `encodeMediaToBase64` to inline external URLs as base64 data URIs. Created idempotent migration script `scripts/migrate-icons-to-disk.mjs` with `--dry-run` default, `--apply` flag, and automated PostgreSQL table backups (`pg_dump` with Prisma JSON fallback).
+- **Files Modified**:
+  - [src/lib/icon-storage.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/lib/icon-storage.ts) (created helper module)
+  - [src/components/IconPicker.tsx](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/components/IconPicker.tsx) (routed external URLs through server action and emitted local paths)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/app/admin/actions.ts) (added `downloadAndStoreIcon` server action and updated `processMediaField`)
+  - [src/app/api/sync/workspace/route.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/app/api/sync/workspace/route.ts) (extended `encodeMediaToBase64` for external URLs)
+  - [scripts/migrate-icons-to-disk.mjs](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/scripts/migrate-icons-to-disk.mjs) (created icon migration ESM script)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/package.json) (bumped version to `1.12.0`)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/notes-next-session.md)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/current-state.md)
+- **Validation**:
+  - Ran `npm run build` locally — compiled successfully in 21s with 0 errors.
+  - Verified ESM migration script loads cleanly with `node scripts/migrate-icons-to-disk.mjs`.
+
 ### 2026-08-11 - Portainer & Workspace Sync Fetch Timeout Hardening (v1.11.2)
 - **Summary**: Implemented defensive 5-second fetch timeouts (`AbortSignal.timeout(5000)`) and non-blocking error handling across all outbound server action fetches in `refreshSyncedWorkspace` and `fetchPortainerContainers`. Caught `AbortError` / `TimeoutError` exceptions cleanly, returning error objects instead of throwing, and added WARN log output specifying the target URL and elapsed duration. Updated `PortainerWidget` loading state to display a timeout indicator (`(5s timeout)`) and render an inline error card with a retry button when container fetches fail or time out.
 - **Files Modified**:

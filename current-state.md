@@ -4,10 +4,16 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.11.2` (Portainer & Workspace Sync Fetch Timeout Hardening)
+- **Current Version**: `v1.12.0` (Self-Hosted Icons & Storage Infrastructure)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Self-Hosted Icons & Storage Infrastructure (v1.12.0)**:
+  - Created `src/lib/icon-storage.ts` providing `downloadIconToDisk` (5s fetch timeout, 2MB max size limit, magic-byte + MIME sniffing, SVG script/event-handler sanitization), `saveBase64IconToDisk`, `isExternalUrl`, and `isLucideIconName`.
+  - Updated `src/components/IconPicker.tsx` to route all external URLs (Brandfetch, Catalog jsDelivr, custom manual URLs) through `downloadAndStoreIcon` server action in `src/app/admin/actions.ts`, emitting `/uploads/icons/<hash>.<ext>` local paths and surfacing inline download errors.
+  - Updated `refreshSyncedWorkspace` and `processMediaField` to convert incoming data URIs or external URLs to local `/uploads/icons/*` files during workspace sync.
+  - Extended `encodeMediaToBase64` in `src/app/api/sync/workspace/route.ts` to fetch external URLs with a 5s timeout and inline them as base64 data URIs for backward-compat tab sync.
+  - Created `scripts/migrate-icons-to-disk.mjs` ESM migration script with `--dry-run` default, `--apply` flag, and automated PostgreSQL table backups (`pg_dump` with Prisma JSON fallback).
 - **Portainer & Workspace Sync Fetch Timeout Hardening (v1.11.2)**:
   - Added 5-second fetch timeouts (`AbortSignal.timeout(5000)`) to `refreshSyncedWorkspace` and all outbound `fetch` calls in `fetchPortainerContainers`.
   - Caught `AbortError` / `TimeoutError` exceptions cleanly, returning error objects instead of throwing, and logged WARN messages specifying target URL and elapsed duration.
