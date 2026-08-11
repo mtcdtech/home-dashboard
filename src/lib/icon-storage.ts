@@ -10,7 +10,7 @@ export function isLucideIconName(value: string | null | undefined): boolean {
 export function isExternalUrl(value: string | null | undefined): boolean {
   if (!value) return false;
   if (!/^https?:\/\//i.test(value)) return false;
-  return !value.includes('/uploads/');
+  return !value.includes('/uploads/') && !value.includes('/api/uploads/');
 }
 
 export function sniffImageType(buffer: Buffer, contentType?: string | null): { ext: string; mime: string } | null {
@@ -87,7 +87,7 @@ export async function downloadIconToDisk(sourceUrl: string): Promise<{ localPath
   }
 
   // If already a local upload path, return it directly
-  if (sourceUrl.startsWith('/uploads/')) {
+  if (sourceUrl.startsWith('/uploads/') || sourceUrl.startsWith('/api/uploads/')) {
     return { localPath: sourceUrl };
   }
 
@@ -127,8 +127,8 @@ export async function downloadIconToDisk(sourceUrl: string): Promise<{ localPath
     }
 
     const hash = crypto.createHash('sha256').update(sourceUrl.trim()).digest('hex');
-    const relativePath = `/uploads/icons/${hash}.${typeInfo.ext}`;
-    const fullPath = path.join(process.cwd(), 'public', relativePath);
+    const relativePath = `/api/uploads/icons/${hash}.${typeInfo.ext}`;
+    const fullPath = path.join(process.cwd(), 'public', 'uploads', 'icons', `${hash}.${typeInfo.ext}`);
 
     if (fs.existsSync(fullPath)) {
       return { localPath: relativePath };
@@ -186,8 +186,8 @@ export async function saveBase64IconToDisk(dataUri: string): Promise<string | nu
     }
 
     const hash = crypto.createHash('sha256').update(dataUri).digest('hex');
-    const relativePath = `/uploads/icons/${hash}.${typeInfo.ext}`;
-    const fullPath = path.join(process.cwd(), 'public', relativePath);
+    const relativePath = `/api/uploads/icons/${hash}.${typeInfo.ext}`;
+    const fullPath = path.join(process.cwd(), 'public', 'uploads', 'icons', `${hash}.${typeInfo.ext}`);
 
     if (fs.existsSync(fullPath)) {
       return relativePath;

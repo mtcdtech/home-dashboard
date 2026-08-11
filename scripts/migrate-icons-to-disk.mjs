@@ -22,7 +22,7 @@ const prisma = createPrismaClient();
 function isExternalUrl(value) {
   if (!value) return false;
   if (!/^https?:\/\//i.test(value)) return false;
-  return !value.includes('/uploads/');
+  return !value.includes('/uploads/') && !value.includes('/api/uploads/');
 }
 
 function sniffImageType(buffer, contentType) {
@@ -85,7 +85,7 @@ async function downloadIconToDisk(sourceUrl) {
     return { error: 'Invalid URL provided' };
   }
 
-  if (sourceUrl.startsWith('/uploads/')) {
+  if (sourceUrl.startsWith('/uploads/') || sourceUrl.startsWith('/api/uploads/')) {
     return { localPath: sourceUrl };
   }
 
@@ -125,8 +125,8 @@ async function downloadIconToDisk(sourceUrl) {
     }
 
     const hash = crypto.createHash('sha256').update(sourceUrl.trim()).digest('hex');
-    const relativePath = `/uploads/icons/${hash}.${typeInfo.ext}`;
-    const fullPath = path.join(process.cwd(), 'public', relativePath);
+    const relativePath = `/api/uploads/icons/${hash}.${typeInfo.ext}`;
+    const fullPath = path.join(process.cwd(), 'public', 'uploads', 'icons', `${hash}.${typeInfo.ext}`);
 
     if (fs.existsSync(fullPath)) {
       return { localPath: relativePath };

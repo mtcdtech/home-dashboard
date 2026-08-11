@@ -44,23 +44,25 @@ export async function GET(request: Request) {
          if (!url) return url;
          if (url.startsWith('data:image')) return url;
 
-         const uploadMatch = url.match(/(?:\/api\/uploads\/|\/uploads\/)([^\s?#]+)/);
-         if (uploadMatch) {
-            try {
-               const filename = uploadMatch[1];
-               const filePath = join(process.cwd(), 'public', 'uploads', filename);
-               if (existsSync(filePath)) {
-                  const buffer = await readFile(filePath);
-                  const ext = filename.split('.').pop()?.toLowerCase() || 'png';
-                  let mimeType = 'image/png';
-                  if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
-                  if (ext === 'svg') mimeType = 'image/svg+xml';
-                  if (ext === 'gif') mimeType = 'image/gif';
-                  if (ext === 'webp') mimeType = 'image/webp';
-                  return `data:${mimeType};base64,${buffer.toString('base64')}`;
+         if (url.startsWith('/uploads/') || url.startsWith('/api/uploads/') || url.includes('/uploads/') || url.includes('/api/uploads/')) {
+            const uploadMatch = url.match(/(?:\/api\/uploads\/|\/uploads\/)([^\s?#]+)/);
+            if (uploadMatch) {
+               try {
+                  const filename = uploadMatch[1];
+                  const filePath = join(process.cwd(), 'public', 'uploads', filename);
+                  if (existsSync(filePath)) {
+                     const buffer = await readFile(filePath);
+                     const ext = filename.split('.').pop()?.toLowerCase() || 'png';
+                     let mimeType = 'image/png';
+                     if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+                     if (ext === 'svg') mimeType = 'image/svg+xml';
+                     if (ext === 'gif') mimeType = 'image/gif';
+                     if (ext === 'webp') mimeType = 'image/webp';
+                     return `data:${mimeType};base64,${buffer.toString('base64')}`;
+                  }
+               } catch (e) {
+                  console.error("Base64 encode error:", e);
                }
-            } catch (e) {
-               console.error("Base64 encode error:", e);
             }
          }
 
