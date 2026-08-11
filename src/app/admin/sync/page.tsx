@@ -32,7 +32,11 @@ export default async function SyncPage() {
       select: { id: true, name: true, email: true, department: true, avatarColor: true, isAdmin: true },
       orderBy: { name: 'asc' }
     }),
-    prisma.user.findMany({ select: { dashboardGroup: true } }).then(users => 
+    prisma.user.findMany({
+      select: { dashboardGroup: true },
+      distinct: ['dashboardGroup'],
+      where: { dashboardGroup: { not: null } },
+    }).then(users => 
       Array.from(new Set(users.map(u => u.dashboardGroup || 'General').filter(Boolean)))
     )
   ]);
