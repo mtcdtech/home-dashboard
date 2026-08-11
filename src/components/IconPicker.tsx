@@ -5,6 +5,7 @@ import * as LucideIcons from "lucide-react";
 import { Upload, X } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { getIconRegistry, getCachedIconRegistry } from "@/lib/iconRegistry";
+import { downloadAndStoreIcon } from "@/app/admin/actions";
 
 export const IconComponent = ({ name, size = 24, className = "", fallback }: { name?: string | null | undefined, size?: number, className?: string, fallback?: React.ReactNode }) => {
   if (!name) return fallback || null;
@@ -40,6 +41,39 @@ export const IconPicker = ({
 }) => {
   const [activeSource, setActiveSource] = useState<"catalog" | "brands" | "extended" | "custom">("catalog");
   const [isDragging, setIsDragging] = useState(false);
+  const [isStoring, setIsStoring] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [manualInput, setManualInput] = useState<string>(currentIcon || "");
+
+  React.useEffect(() => {
+    setManualInput(currentIcon || "");
+  }, [currentIcon]);
+
+  const handleSelectIcon = async (url: string) => {
+    setPickerError(null);
+    if (!url) {
+      setIcon("");
+      return;
+    }
+
+    if (/^https?:\/\//i.test(url) && !url.includes('/uploads/')) {
+      setIsStoring(true);
+      try {
+        const res = await downloadAndStoreIcon(url);
+        if (res?.localPath) {
+          setIcon(res.localPath);
+        } else {
+          setPickerError(res?.error || "Failed to download and store icon on server");
+        }
+      } catch (err: any) {
+        setPickerError(err.message || "Error downloading icon");
+      } finally {
+        setIsStoring(false);
+      }
+    } else {
+      setIcon(url);
+    }
+  };
   
   const uploadFile = async (file: File) => {
       const fd = new FormData();
@@ -82,6 +116,18 @@ export const IconPicker = ({
           <LucideIcons.Image size={14} />
           <h4 style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Icon Selection</h4>
       </div>
+
+      {isStoring && (
+        <div style={{ padding: '0.6rem 0.8rem', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#60a5fa', fontSize: '0.8rem', textAlign: 'center' }}>
+          Downloading and storing icon to server...
+        </div>
+      )}
+
+      {pickerError && (
+        <div style={{ padding: '0.6rem 0.8rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '0.8rem', textAlign: 'center' }}>
+          {pickerError}
+        </div>
+      )}
 
       <div className="glass" style={{ display: 'flex', padding: '0.25rem', borderRadius: '10px', background: 'rgba(255,255,255,0.03)' }}>
          {(["catalog", "brands", "extended", "custom"] as const).map(src => (
@@ -134,7 +180,7 @@ export const IconPicker = ({
                             <button 
                               key={item}
                               type="button"
-                              onClick={() => setIcon(url)}
+                              onClick={() => handleSelectIcon(url)}
                               className="glass"
                               style={{ padding: '6px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', border: currentIcon === url ? '2px solid var(--primary)' : '1px solid transparent', background: 'rgba(255,255,255,0.05)' }}
                             >
@@ -152,7 +198,7 @@ export const IconPicker = ({
 
       
       {activeSource === "brands" && (
-         <BrandfetchPicker setIcon={setIcon} currentIcon={currentIcon} />
+         <BrandfetchPicker onSelectIcon={handleSelectIcon} currentIcon={currentIcon} />
       )}
       {activeSource === "extended" && (
          <IconifyPicker setIcon={setIcon} currentIcon={currentIcon} />
@@ -180,14 +226,25 @@ export const IconPicker = ({
                           <Upload size={16} /> Choose File
                       </label>
                       <span style={{ fontSize: '0.85rem', opacity: 0.5 }}>- or -</span>
-                      <input 
-                        id="icon-input-manual" 
-                        value={currentIcon || ""} 
-                        onChange={(e) => setIcon(e.target.value)}
-                        placeholder="Paste image URL here..." 
-                        className="glass" 
-                        style={{ padding: '0.75rem', borderRadius: '8px', width: '100%', fontSize: '0.9rem' }} 
-                      />
+                      <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                        <input 
+                          id="icon-input-manual" 
+                          value={manualInput} 
+                          onChange={(e) => setManualInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSelectIcon(manualInput))}
+                          placeholder="Paste image URL or Lucide icon name..." 
+                          className="glass" 
+                          style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', fontSize: '0.9rem' }} 
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); handleSelectIcon(manualInput); }}
+                          className="btn btn-primary"
+                          style={{ padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.85rem' }}
+                        >
+                          Apply
+                        </button>
+                      </div>
                   </div>
                   <p style={{ margin: '1rem 0 0 0', fontSize: '0.75rem', opacity: 0.4 }}>Drag and drop SVG / PNG / JPG legacy assets here</p>
               </div>
@@ -267,7 +324,7 @@ function IconifyPicker({ setIcon, currentIcon }: any) {
 };
 
 
-function BrandfetchPicker({ setIcon, currentIcon }: any) {
+function BrandfetchPicker({ onSelectIcon, currentIcon }: { onSelectIcon: (url: string) => void; currentIcon: any }) {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);
@@ -314,7 +371,7 @@ function BrandfetchPicker({ setIcon, currentIcon }: any) {
                           <button 
                               key={`${brand.domain}-${idx}`}
                               type="button"
-                              onClick={() => setIcon(iconUrl)}
+                              onClick={() => onSelectIcon(iconUrl)}
                               className="glass"
                               title={brand.name}
                               style={{ 
