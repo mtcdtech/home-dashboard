@@ -63,6 +63,22 @@ export async function GET(request: Request) {
                console.error("Base64 encode error:", e);
             }
          }
+
+         if (/^https?:\/\//i.test(url)) {
+            try {
+               const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+               if (res.ok) {
+                  const arrayBuffer = await res.arrayBuffer();
+                  const buffer = Buffer.from(arrayBuffer);
+                  const contentType = res.headers.get('content-type') || 'image/png';
+                  const mimeType = contentType.split(';')[0].trim();
+                  return `data:${mimeType};base64,${buffer.toString('base64')}`;
+               }
+            } catch (e) {
+               console.error("Base64 external fetch error:", e);
+            }
+         }
+
          return makeAbsolute(url);
       };
 
