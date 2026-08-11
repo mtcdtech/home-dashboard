@@ -114,7 +114,7 @@ def deploy_to_portainer(name, url, api_key, global_secrets):
 
 
 def deploy_abraham_container(portainer_url, api_key, github_sha):
-    """Deploy Abraham dashboard by pulling new image and recreating the container.
+    """Deploy Abraham dashboard by pulling new image and recreating the container while preserving existing env & host config.
     Abraham runs dashboard-app as a standalone container (no Portainer stack).
     Once a multi-arch image is available, this will be migrated to a stack."""
     name = "Abraham Mac Mini"
@@ -128,8 +128,91 @@ def deploy_abraham_container(portainer_url, api_key, github_sha):
     # Build the image tag to use
     image_tag = f"mtcdtech/homedashboard:{github_sha}" if github_sha else "mtcdtech/homedashboard:latest"
 
+    # Minimal fallback env used only if key is missing or container does not exist
+    fallback_env = {
+        "NODE_ENV": "production",
+        "DATABASE_URL": "postgresql://user:password@dashboard-db:5432/dashboard?schema=public",
+        "NEXTAUTH_URL": "https://home.abraham16.com",
+        "AUTH_URL": "https://home.abraham16.com",
+        "AUTH_TRUST_HOST": "true",
+    }
+
+    fallback_host_config = {
+        "PortBindings": {"4000/tcp": [{"HostPort": "4001"}]},
+        "Binds": ["/Users/benny2168/Dockers/dashboard-uploads:/app/public/uploads"],
+        "RestartPolicy": {"Name": "unless-stopped"},
+        "NetworkMode": "dashboard_default",
+    }
+
+    fallback_networking_config = {
+        "EndpointsConfig": {
+            "dashboard_default": {},
+            "proxynet": {}
+        }
+    }
+
+    # 1. Inspect existing container before stopping/removing it
+    print(f"[{name}] Inspecting existing container 'dashboard-app'...")
     try:
-        # 1. Pull the new image
+        r_inspect = requests.get(
+            f"{docker_api}/containers/dashboard-app/json",
+            headers=headers, verify=False, timeout=30
+        )
+    except Exception as e:
+        print(f"[{name}] Failed to inspect container: {e}")
+        r_inspect = None
+
+    env_dict = {}
+    preserved_keys = []
+    injected_defaults = []
+
+    if r_inspect and r_inspect.status_code == 200:
+        inspect_data = r_inspect.json()
+        config = inspect_data.get("Config", {})
+        raw_env = config.get("Env", [])
+        for item in raw_env:
+            if '=' in item:
+                k, v = item.split('=', 1)
+                env_dict[k] = v
+        preserved_keys = list(env_dict.keys())
+
+        # Ensure minimal defaults if any are missing
+        for k, v in fallback_env.items():
+            if k not in env_dict:
+                env_dict[k] = v
+                injected_defaults.append(k)
+
+        host_config = inspect_data.get("HostConfig") or fallback_host_config
+
+        networks = inspect_data.get("NetworkSettings", {}).get("Networks", {})
+        if networks:
+            networking_config = {"EndpointsConfig": {net: {} for net in networks.keys()}}
+        else:
+            networking_config = fallback_networking_config
+
+        cmd = config.get("Cmd") or ["sh", "-c", "npx prisma db push && node server.js"]
+        exposed_ports = config.get("ExposedPorts") or {"4000/tcp": {}}
+    else:
+        status_str = str(r_inspect.status_code) if r_inspect else "N/A"
+        print(f"[{name}] Existing container not found (status {status_str}). Initializing with fallback configuration.")
+        env_dict = dict(fallback_env)
+        injected_defaults = list(fallback_env.keys())
+        host_config = fallback_host_config
+        networking_config = fallback_networking_config
+        cmd = ["sh", "-c", "npx prisma db push && node server.js"]
+        exposed_ports = {"4000/tcp": {}}
+
+    # Always overwrite REDEPLOY_DATE with current epoch
+    redeploy_date = int(time.time())
+    env_dict["REDEPLOY_DATE"] = str(redeploy_date)
+
+    print(f"[{name}] Preserved env keys ({len(preserved_keys)}): {preserved_keys}")
+    print(f"[{name}] Injected default env keys ({len(injected_defaults)}): {injected_defaults}")
+
+    new_env_list = [f"{k}={v}" for k, v in env_dict.items()]
+
+    try:
+        # 2. Pull the new image
         print(f"[{name}] Pulling image {image_tag}...")
         r = requests.post(
             f"{docker_api}/images/create?fromImage=mtcdtech/homedashboard&tag={github_sha or 'latest'}",
@@ -137,43 +220,21 @@ def deploy_abraham_container(portainer_url, api_key, github_sha):
         )
         print(f"[{name}] Pull status: {r.status_code}")
 
-        # 2. Stop and remove old container
+        # 3. Stop and remove old container
         for container in ["dashboard-app"]:
             print(f"[{name}] Stopping {container}...")
             requests.post(f"{docker_api}/containers/{container}/stop", headers=headers, verify=False, timeout=30)
             print(f"[{name}] Removing {container}...")
             requests.delete(f"{docker_api}/containers/{container}", headers=headers, verify=False, timeout=30)
 
-        # 3. Create new container with updated image
-        redeploy_date = int(time.time())
+        # 4. Create new container with updated image and preserved config
         container_config = {
             "Image": image_tag,
-            "Cmd": ["sh", "-c", "npx prisma db push && node server.js"],
-            "Env": [
-                "NODE_ENV=production",
-                "DATABASE_URL=postgresql://user:password@dashboard-db:5432/dashboard?schema=public",
-                "NEXTAUTH_URL=https://home.abraham16.com",
-                "AUTH_URL=https://home.abraham16.com",
-                "AUTH_TRUST_HOST=true",
-                "AUTH_SECRET=85Fa8SnqPbz5f7PDa8thsn+bGAAO0m/cjW0l6WZSrF4=",
-                "SYNOLOGY_CLIENT_ID=dc7539fab929d7fb6f1725ad64ce4a6f",
-                "SYNOLOGY_CLIENT_SECRET=U93mrDlkxacUmeBEJW5KHFa7W1Rq5mhv",
-                "SYNOLOGY_ISSUER=https://sso.abraham16.com/webman/sso",
-                f"REDEPLOY_DATE={redeploy_date}",
-            ],
-            "HostConfig": {
-                "PortBindings": {"4000/tcp": [{"HostPort": "4001"}]},
-                "Binds": ["/Users/benny2168/Dockers/dashboard-uploads:/app/public/uploads"],
-                "RestartPolicy": {"Name": "unless-stopped"},
-                "NetworkMode": "dashboard_default",
-            },
-            "ExposedPorts": {"4000/tcp": {}},
-            "NetworkingConfig": {
-                "EndpointsConfig": {
-                    "dashboard_default": {},
-                    "proxynet": {}
-                }
-            }
+            "Cmd": cmd,
+            "Env": new_env_list,
+            "HostConfig": host_config,
+            "ExposedPorts": exposed_ports,
+            "NetworkingConfig": networking_config
         }
         print(f"[{name}] Creating new dashboard-app container with {image_tag}...")
         r = requests.post(
@@ -186,7 +247,7 @@ def deploy_abraham_container(portainer_url, api_key, github_sha):
         container_id = r.json().get("Id", "")
         print(f"[{name}] Container created: {container_id[:12]}")
 
-        # 4. Start the new container
+        # 5. Start the new container
         r = requests.post(f"{docker_api}/containers/{container_id}/start", headers=headers, verify=False, timeout=30)
         print(f"[{name}] Start status: {r.status_code}")
         print(f"[{name}] Deployment triggered successfully!")
