@@ -2,6 +2,18 @@
 
 ## Running Change Log
 
+### 2026-08-11 - Abraham Container Env-Preservation Fix & Authentik Migration Path (v1.11.1)
+- **Summary**: Rewrote `deploy_abraham_container()` in `update_portainer.py` to inspect the running `dashboard-app` container (`GET /api/endpoints/3/docker/containers/dashboard-app/json`) before recreating it. Preserves existing environment variables, `HostConfig` (port bindings & directory mounts), and `NetworkingConfig` across container redeployments instead of hardcoding static `SYNOLOGY_*` credentials and wiping container env state. Added minimal default env fallbacks for first-time deploys, ensured `REDEPLOY_DATE` is always updated to trigger image pull/restart, and removed hardcoded Synology credentials from deploy script to support transition to Authentik SSO (`https://auth.abraham16.com`).
+- **Files Modified**:
+  - [update_portainer.py](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/update_portainer.py) (rewrote `deploy_abraham_container()` to read container inspect config before recreate, parse existing `Env`, preserve `HostConfig`/`NetworkingConfig`, and inject missing minimal defaults)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/package.json) (bumped version to `1.11.1`)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/notes-next-session.md)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/current-state.md)
+- **Validation**:
+  - Tested container inspection against Portainer endpoint 3 API (`GET /api/endpoints/3/docker/containers/dashboard-app/json`). Verified complete parsing of existing env dict, `HostConfig` (Binds, PortBindings), and `NetworkSettings.Networks`.
+  - Confirmed image tag logic and "stop → remove → create → start" sequence preserved.
+
 ### 2026-08-11 - CI/CD Pipeline Rewrite (deploy.yml, no version bump)
 - **Summary**: Rewrote `.github/workflows/deploy.yml` to fix chronic silent build hangs. Root cause was a single-runner multi-arch buildx step (`linux/amd64,linux/arm64`) that used QEMU emulation for arm64 and would stall 30-90 minutes on registry cache round-trips with no timeout, no fail-fast, and no post-deploy verification. Silent hangs meant the live site would stay on the old version for hours or days with no signal.
 - **New pipeline shape**:

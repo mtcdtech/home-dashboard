@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.11.0` (Performance Optimization Runbook Shipped: SSR Enabled + Async avatarColor Write + Slim Dept Queries + Bundle Analyzer)
-- **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment (Stack 58 `homedashboard`).
+- **Current Version**: `v1.11.1` (Abraham Container Env-Preservation Fix & Authentik Migration Path)
+- **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Abraham Container Env Preservation & Authentik Migration (v1.11.1)**:
+  - Rewrote `deploy_abraham_container()` in `update_portainer.py` to inspect `dashboard-app` before stopping/removing it.
+  - Carries forward existing env variables, `HostConfig` (binds/ports), and `NetworkingConfig` across redeployments.
+  - Removed hardcoded `SYNOLOGY_*` credentials from Python script so secrets managed in Portainer survive CI deploys.
 - **Performance Optimization (v1.11.0)**:
   - Enabled SSR rendering on Dashboard component by removing the mounted-gate (`if (!mounted) return null`).
   - Made cosmetic `user.update` for `avatarColor` in `page.tsx` async (fire-and-forget `.catch(...)`) to eliminate TTFB delays.
@@ -38,5 +42,5 @@
 
 ## Known Risks & Considerations
 - Deploying to production Stack 58 (`home.server.mtcd.org`) runs the additive Prisma migration automatically.
-- Stack 59 (`home.abraham16.com`) continues to no-op gracefully with Synology SSO.
+- Abraham Mac Mini (`home.abraham16.com`) container env is preserved across redeploys. Ready for manual Authentik OIDC credential addition in Portainer.
 

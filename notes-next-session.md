@@ -9,6 +9,21 @@
 - **Silent hangs are dead.** Build jobs have `timeout-minutes: 25`, deploy has 15, and the deploy job POLLS the live login page for 10 minutes checking that the footer version matches `package.json`. If it doesn't match, the workflow fails red — no more "shipped to git but still on old version" surprises.
 - **`benny2168/home-dashboard` is a dead fork.** It has no CI and never actually deployed anything to any live site. Slated for archive on GitHub (needs Ben's own admin access to complete). Any local work Ben still wants to keep in that clone should be transplanted to a branch of `mtcdtech/home-dashboard`.
 
+## Abraham Container Env-Preservation & Authentik Migration (v1.11.1)
+- **Env-Preservation Behavior**: `deploy_abraham_container()` in `update_portainer.py` now inspects `dashboard-app` (`GET /api/endpoints/3/docker/containers/dashboard-app/json`) BEFORE stopping/removing the container. Existing env vars, `HostConfig` (binds/ports), and `NetworkingConfig` are carried forward verbatim. Hardcoded `SYNOLOGY_*` credentials have been removed from Python deploy logic so secrets managed in Portainer survive CI deployments.
+- **Manual Portainer Migration Steps for Ben**:
+  Log into Abraham Portainer (`https://docker.abraham16.com`) → endpoint 3 (Mac Mini) → Containers → `dashboard-app` → Duplicate/Edit → Environment variables:
+  - **Add**:
+    - `AUTHENTIK_CLIENT_ID` = `<from Authentik provider>`
+    - `AUTHENTIK_CLIENT_SECRET` = `<from Authentik provider>`
+    - `AUTHENTIK_ISSUER` = `https://auth.abraham16.com/application/o/dashboard/`
+  - **Remove** (only after verifying Authentik login works):
+    - `SYNOLOGY_CLIENT_ID`
+    - `SYNOLOGY_CLIENT_SECRET`
+    - `SYNOLOGY_ISSUER`
+  - **Redeploy container**: Login screen will display "Log in with Authentik".
+- **Authentik OAuth Callback URL**: Ensure `https://home.abraham16.com/api/auth/callback/authentik` is registered in Authentik provider settings.
+
 ## Recommended Next Steps & Performance Follow-ups
 1. **Archive `benny2168/home-dashboard`** on github.com when you get a moment (Settings → General → scroll to Danger Zone → Archive this repository). Local clone at `/Users/benny2168/Antigravity/home-dashboard-abraham` still has uncommitted WIP (entrypoint.sh, LoginForm.tsx, page.tsx) — decide whether to port those to a mtcd branch first.
 2. **Curated Icon Allow-list for Lucide**: Replace wildcard `LucideIcons` import in `IconPicker.tsx` / `Dashboard.tsx` with a curated allow-list or map to enable tree-shaking for icons.
