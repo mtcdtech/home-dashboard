@@ -137,18 +137,28 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
         </div>
       </div>
 
-      {/* Error state */}
-      {error && (
-        <div style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <AlertCircle size={16} style={{ flexShrink: 0 }} />
-          <span>{error}</span>
+      {/* Container List Grid / Loading / Inline Error Card */}
+      {error ? (
+        <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600 }}>Portainer Connection Error</div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.15rem' }}>{error}</div>
+            </div>
+          </div>
+          <button 
+            onClick={loadContainers}
+            style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
+          >
+            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+            Retry
+          </button>
         </div>
-      )}
-
-      {/* Container List Grid */}
-      {loading && containers.length === 0 ? (
-        <div style={{ padding: '1.5rem', textAlign: 'center', opacity: 0.5, fontSize: '0.8rem' }}>
-          Loading Portainer containers...
+      ) : loading && containers.length === 0 ? (
+        <div style={{ padding: '1.5rem', textAlign: 'center', opacity: 0.6, fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+          <RefreshCw size={14} className="animate-spin" />
+          <span>Loading Portainer containers... (5s timeout)</span>
         </div>
       ) : visibleContainers.length === 0 ? (
         <div style={{ padding: '1.5rem', textAlign: 'center', opacity: 0.5, fontSize: '0.8rem' }}>

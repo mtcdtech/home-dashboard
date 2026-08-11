@@ -1263,8 +1263,12 @@ export async function refreshSyncedWorkspace(tabId: string) {
   });
   if (!tab || !tab.syncSourceUrl || !tab.isReadOnlySync) return;
 
+  const startTime = Date.now();
   try {
-     const resp = await fetch(tab.syncSourceUrl, { cache: 'no-store' });
+     const resp = await fetch(tab.syncSourceUrl, { 
+       cache: 'no-store',
+       signal: AbortSignal.timeout(5000)
+     });
      if (!resp.ok) return;
      const payload = await resp.json();
      if (!payload.tab) return;
@@ -1379,9 +1383,14 @@ export async function refreshSyncedWorkspace(tabId: string) {
            });
         }
      }
-     revalidatePath("/");
-  } catch(e) {
-     console.error("Failed to sync workspace", e);
+      revalidatePath("/");
+  } catch(e: any) {
+     const elapsed = Date.now() - startTime;
+     if (e?.name === 'AbortError' || e?.name === 'TimeoutError' || e?.message?.includes('timeout') || e?.message?.includes('aborted')) {
+        console.warn(`WARN: Synced workspace refresh timed out for ${tab.syncSourceUrl} after ${elapsed}ms`);
+     } else {
+        console.error("Failed to sync workspace", e);
+     }
   }
 }
 
@@ -1839,6 +1848,8 @@ export async function updateSectionWidgetConfig(sectionId: string, widgetConfig:
 // --- PORTAINER WIDGET INTEGRATION ---
 export async function fetchPortainerContainers(config: { url?: string; apiKey?: string; endpointId?: string }) {
   await requireSession();
+  const startTime = Date.now();
+  let currentFetchUrl = "";
   try {
     let rawUrl = (config.url || process.env.PORTAINER_URL || "https://docker.abraham16.com").trim();
     if (!/^https?:\/\//i.test(rawUrl)) {
@@ -1851,8 +1862,10 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
     // Auto-detect endpoint ID if not explicitly specified
     if (!targetEndpointId) {
       try {
-        const endpointsResp = await fetch(`${baseUrl}/api/endpoints`, {
-          headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+        currentFetchUrl = `${baseUrl}/api/endpoints`;
+        const endpointsResp = await fetch(currentFetchUrl, {
+          headers: { "X-API-Key": apiKey, "Accept": "application/json" },
+          signal: AbortSignal.timeout(5000)
         });
         if (endpointsResp.ok) {
           const endpoints = await endpointsResp.json();
@@ -1860,26 +1873,35 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
             targetEndpointId = String(endpoints[0].Id);
           }
         }
-      } catch (e) {
-        console.warn("Could not auto-detect Portainer endpoint ID:", e);
+      } catch (e: any) {
+        const elapsed = Date.now() - startTime;
+        if (e?.name === 'AbortError' || e?.name === 'TimeoutError' || e?.message?.includes('timeout') || e?.message?.includes('aborted')) {
+          console.warn(`WARN: Auto-detect Portainer endpoint ID timed out for ${currentFetchUrl} after ${elapsed}ms`);
+        } else {
+          console.warn("Could not auto-detect Portainer endpoint ID:", e);
+        }
       }
     }
 
     if (!targetEndpointId) targetEndpointId = "2";
 
     let fetchUrl = `${baseUrl}/api/endpoints/${targetEndpointId}/docker/containers/json?all=1`;
+    currentFetchUrl = fetchUrl;
     let httpResp = await fetch(fetchUrl, {
       headers: {
         "X-API-Key": apiKey,
         "Accept": "application/json"
-      }
+      },
+      signal: AbortSignal.timeout(5000)
     });
 
     // Fallback: If specified endpointId 404s, attempt auto-discovering from /api/endpoints
     if (!httpResp.ok && httpResp.status === 404) {
       try {
-        const endpointsResp = await fetch(`${baseUrl}/api/endpoints`, {
-          headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+        currentFetchUrl = `${baseUrl}/api/endpoints`;
+        const endpointsResp = await fetch(currentFetchUrl, {
+          headers: { "X-API-Key": apiKey, "Accept": "application/json" },
+          signal: AbortSignal.timeout(5000)
         });
         if (endpointsResp.ok) {
           const endpoints = await endpointsResp.json();
@@ -1888,14 +1910,19 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
             if (fallbackId !== targetEndpointId) {
               targetEndpointId = fallbackId;
               fetchUrl = `${baseUrl}/api/endpoints/${targetEndpointId}/docker/containers/json?all=1`;
+              currentFetchUrl = fetchUrl;
               httpResp = await fetch(fetchUrl, {
-                headers: { "X-API-Key": apiKey, "Accept": "application/json" }
+                headers: { "X-API-Key": apiKey, "Accept": "application/json" },
+                signal: AbortSignal.timeout(5000)
               });
             }
           }
         }
-      } catch (e) {
-        // Ignore fallback error
+      } catch (e: any) {
+        const elapsed = Date.now() - startTime;
+        if (e?.name === 'AbortError' || e?.name === 'TimeoutError' || e?.message?.includes('timeout') || e?.message?.includes('aborted')) {
+          console.warn(`WARN: Portainer fallback endpoint discovery timed out for ${currentFetchUrl} after ${elapsed}ms`);
+        }
       }
     }
 
@@ -1922,6 +1949,14 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
       }))
     };
   } catch (err: any) {
+    const elapsed = Date.now() - startTime;
+    if (err?.name === 'AbortError' || err?.name === 'TimeoutError' || err?.message?.includes('timeout') || err?.message?.includes('aborted')) {
+      console.warn(`WARN: Portainer fetch timed out for ${currentFetchUrl || 'Portainer API'} after ${elapsed}ms`);
+      return {
+        success: false,
+        error: "Portainer API request timed out (5s limit exceeded)"
+      };
+    }
     console.error("fetchPortainerContainers error:", err);
     return {
       success: false,
