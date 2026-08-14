@@ -36,11 +36,14 @@ export async function GET(
     if (extension === "svg") contentType = "image/svg+xml";
     if (extension === "gif") contentType = "image/gif";
     if (extension === "webp") contentType = "image/webp";
+    if (extension === "ico") contentType = "image/x-icon";
 
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {

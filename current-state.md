@@ -4,10 +4,25 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.12.1` (Self-Hosted Icon Route URL Fix & Path Migration Script)
+- **Current Version**: `v1.13.0` (Security Hardening & Audit Remediation)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Security Hardening & Vulnerability Remediation (v1.13.0)**:
+  - Gated `getGlobalSettings` behind `requireAdmin` (C1).
+  - Added `requireSectionRole` authorization checks across bookmark server actions (C2).
+  - Gated `fetchPortainerContainers` behind `requireAdmin` and added strict host allowlist validation against `ALLOWED_PORTAINER_HOSTS` / `PORTAINER_URL` before transmitting API keys (C3).
+  - Removed unauthenticated debug leftover endpoint `/api/debug-tabs` (H1).
+  - Removed SSRF fallback bypass in `downloadImageFromUrl` (H2).
+  - Hardened file uploads (`/api/upload` & `uploadImage`) with extension allowlists (`png`, `jpg`, `jpeg`, `webp`, `gif`, `ico`), 5MB size limits, magic-byte format validation, and sanitized filenames; added CSP and nosniff headers to `/api/uploads/[...path]` (H3).
+  - Gated `getEffectiveUserId` to restrict impersonation checking to admins (H5).
+  - Enforced self-or-admin authorization in `setUserDefaultTab` (H6).
+  - Added `requireAdmin` to `reorderTabs` (H7).
+  - Changed `transferTabOwnership` requirement from editor to tab owner (H8).
+  - Added SSRF validation via `isSafeUrl()` on cross-server workspace sync URLs in `importWorkspaceFromSyncUrl` and `refreshSyncedWorkspace` (H9).
+  - Added path-traversal guard to `encodeMediaToBase64` in `/api/sync/workspace` (H10).
+  - Configured global security response headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, Content-Security-Policy) and disabled `X-Powered-By` header in `next.config.ts` (M1, L1).
+  - Gated `/api/icons` behind session check returning 401 for unauthenticated requests (M2).
 - **Self-Hosted Icon Route URL Fix & Path Rewriter (v1.12.1)**:
   - Updated `downloadIconToDisk` and `saveBase64IconToDisk` in `src/lib/icon-storage.ts` to return `/api/uploads/icons/<hash>.<ext>` instead of `/uploads/icons/...` (files are still saved on disk at `/app/public/uploads/icons/<hash>.<ext>`). Next.js serves post-build uploaded files via `/api/uploads/[...path]/route.ts`.
   - Extended `encodeMediaToBase64` in `src/app/api/sync/workspace/route.ts` to check both `/uploads/` and `/api/uploads/` local path prefixes.

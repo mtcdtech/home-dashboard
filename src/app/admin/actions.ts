@@ -6,10 +6,11 @@ import { revalidatePath } from "next/cache";
 import { parseBookmarksHtml } from "@/lib/bookmark-parser";
 import { auth } from "@/auth";
 import { requireSession, requireAdmin, requireTabRole, requireSectionRole } from "@/lib/authz";
-import { safeFetch } from "@/lib/ssrf";
+import { safeFetch, isSafeUrl } from "@/lib/ssrf";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { downloadIconToDisk, saveBase64IconToDisk, isExternalUrl } from "@/lib/icon-storage";
+import { ALLOWED_IMAGE_EXTENSIONS, MAX_UPLOAD_BYTES, isMagicImage, sanitizeImageFilename } from "@/lib/image-validation";
 
 async function logActionActivity(type: string, detail: string) {
   try {
@@ -57,12 +58,25 @@ export async function uploadImage(formData: FormData) {
   try {
     const file = formData.get("file") as File;
     if (!file) return null;
+
+    const { filename, ext } = sanitizeImageFilename(file.name);
+    if (!ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
+      throw new Error("Invalid file extension");
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error("File too large (max 5MB)");
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+
+    if (buffer.length > MAX_UPLOAD_BYTES || !isMagicImage(buffer)) {
+      throw new Error("Invalid image format or content");
+    }
+
     const uploadDir = join(process.cwd(), "public", "uploads");
     try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
-    const cleanName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "").replace(/\.\.+/g, ".");
-    const filename = `${Date.now()}-${cleanName}`;
     const path = join(uploadDir, filename);
     await writeFile(path, buffer);
     return `/api/uploads/${filename}`;
@@ -93,20 +107,8 @@ export async function saveGeneratedImage(base64: string) {
 export async function downloadImageFromUrl(url: string) {
   await requireSession();
   try {
-    let buffer: Buffer;
-    try {
-      const arrayBuffer = await safeFetch(url, { expectedTypePrefix: 'image/' });
-      buffer = Buffer.from(arrayBuffer);
-    } catch (ssrfErr) {
-      console.warn("safeFetch blocked or failed, attempting direct fetch for media asset:", url);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      const resp = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (!resp.ok) return null;
-      const arrayBuffer = await resp.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
-    }
+    const arrayBuffer = await safeFetch(url, { expectedTypePrefix: 'image/' });
+    const buffer = Buffer.from(arrayBuffer);
 
     const uploadDir = join(process.cwd(), "public", "uploads");
     try { await mkdir(uploadDir, { recursive: true }); } catch (e) { }
@@ -181,11 +183,13 @@ async function getEffectiveUserId(): Promise<string | undefined> {
   const session = await auth();
   const realUserId = session?.user?.id;
   if (!realUserId) return undefined;
-  try {
-    const cookieStore = await cookies();
-    const impId = cookieStore.get("impersonate_user_id")?.value;
-    if (impId && impId !== realUserId) return impId;
-  } catch (e) {}
+  if ((session?.user as any)?.isAdmin === true) {
+    try {
+      const cookieStore = await cookies();
+      const impId = cookieStore.get("impersonate_user_id")?.value;
+      if (impId && impId !== realUserId) return impId;
+    } catch (e) {}
+  }
   return realUserId;
 }
 
@@ -242,6 +246,7 @@ export async function updateTab(id: string, data: { title: string; icon?: string
 }
 
 export async function reorderTabs(orderedIds: string[]) {
+  await requireAdmin();
   await Promise.all(orderedIds.map((id, idx) => (prisma as any).tab.update({ where: { id }, data: { order: idx } })));
   revalidatePath("/");
 }
@@ -639,6 +644,8 @@ function normalizeUrl(url: string): string {
 }
 
 export async function createBookmark(data: any) {
+  if (!data?.sectionId) throw new Error("sectionId is required");
+  await requireSectionRole(data.sectionId, "edit");
   if (data.url) data.url = normalizeUrl(data.url);
   
   if (data.sectionId) {
@@ -657,6 +664,12 @@ export async function createBookmark(data: any) {
 }
 
 export async function updateBookmark(id: string, data: any) {
+  const bookmark = await prisma.bookmark.findUnique({ where: { id }, select: { sectionId: true } });
+  if (!bookmark) throw new Error("Bookmark not found");
+  await requireSectionRole(bookmark.sectionId, "edit");
+  if (data.sectionId && data.sectionId !== bookmark.sectionId) {
+    await requireSectionRole(data.sectionId, "edit");
+  }
   if (data.url) data.url = normalizeUrl(data.url);
   await prisma.bookmark.update({ where: { id }, data });
   await logActionActivity("bookmark_edit", `Updated bookmark: ${data.title || data.url || id}`);
@@ -664,11 +677,20 @@ export async function updateBookmark(id: string, data: any) {
 }
 
 export async function deleteBookmark(id: string) {
+  const bookmark = await prisma.bookmark.findUnique({ where: { id }, select: { sectionId: true } });
+  if (!bookmark) throw new Error("Bookmark not found");
+  await requireSectionRole(bookmark.sectionId, "edit");
   await prisma.bookmark.delete({ where: { id } });
   revalidatePath("/");
 }
 
 export async function moveBookmark(bookmarkId: string, targetSectionId: string, beforeBookmarkId?: string) {
+  const bookmark = await prisma.bookmark.findUnique({ where: { id: bookmarkId }, select: { sectionId: true } });
+  if (!bookmark) throw new Error("Bookmark not found");
+  await requireSectionRole(bookmark.sectionId, "edit");
+  if (targetSectionId !== bookmark.sectionId) {
+    await requireSectionRole(targetSectionId, "edit");
+  }
   await prisma.bookmark.update({ where: { id: bookmarkId }, data: { sectionId: targetSectionId } });
   const allInTarget = await prisma.bookmark.findMany({ where: { sectionId: targetSectionId }, orderBy: { order: "asc" } });
   const withoutMoved = allInTarget.filter((b) => b.id !== bookmarkId);
@@ -760,6 +782,7 @@ export async function updateGlobalSettings(data: any) {
 }
 
 export async function getGlobalSettings() {
+  await requireAdmin();
   return await (prisma as any).globalSettings.findUnique({ where: { id: "global" } });
 }
 
@@ -840,7 +863,7 @@ async function _updateTabUserRole(tabId: string, userId: string, role: string) {
 }
 
 export async function transferTabOwnership(tabId: string, currentOwnerId: string, newOwnerId: string) {
-  await requireTabRole(tabId, "edit");
+  await requireTabRole(tabId, "owner");
   // Disconnect current owner, add them as an editor instead
   await prisma.tab.update({
     where: { id: tabId },
@@ -1116,6 +1139,9 @@ export async function generateTabSyncToken(tabId: string) {
 
 export async function importWorkspaceFromSyncUrl(syncUrl: string) {
   await requireAdmin();
+  if (!(await isSafeUrl(syncUrl))) {
+    throw new Error("Invalid or unsafe sync URL");
+  }
   try {
      console.log("importWorkspaceFromSyncUrl: Starting import for", syncUrl);
      const session = await auth();
@@ -1274,6 +1300,10 @@ export async function refreshSyncedWorkspace(tabId: string) {
     include: { tabSections: true, owners: { select: { id: true } } } 
   });
   if (!tab || !tab.syncSourceUrl || !tab.isReadOnlySync) return;
+  if (!(await isSafeUrl(tab.syncSourceUrl))) {
+    console.warn("refreshSyncedWorkspace: Refusing unsafe syncSourceUrl:", tab.syncSourceUrl);
+    return;
+  }
 
   const startTime = Date.now();
   try {
@@ -1617,7 +1647,10 @@ export async function bulkApplyDeptThemeRole(themeId: string, department: string
 }
 
 export async function setUserDefaultTab(userId: string, tabId: string) {
-  await requireSession();
+  const session = await requireSession();
+  if (session.id !== userId && !(session as any).isAdmin) {
+    throw new Error("Unauthorized to change another user's default tab");
+  }
   await prisma.user.update({ where: { id: userId }, data: { defaultTabId: tabId } });
 }
 
@@ -1859,7 +1892,7 @@ export async function updateSectionWidgetConfig(sectionId: string, widgetConfig:
 
 // --- PORTAINER WIDGET INTEGRATION ---
 export async function fetchPortainerContainers(config: { url?: string; apiKey?: string; endpointId?: string }) {
-  await requireSession();
+  await requireAdmin();
   const startTime = Date.now();
   let currentFetchUrl = "";
   try {
@@ -1868,6 +1901,37 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
       rawUrl = `https://${rawUrl}`;
     }
     const baseUrl = rawUrl.replace(/\/$/, "");
+    const parsedTargetUrl = new URL(baseUrl);
+    const targetHost = parsedTargetUrl.hostname.toLowerCase();
+
+    // Strict URL allowlist check (C3)
+    let isAllowed = false;
+    if (process.env.ALLOWED_PORTAINER_HOSTS) {
+      const allowedHosts = process.env.ALLOWED_PORTAINER_HOSTS.split(",").map(h => h.trim().toLowerCase()).filter(Boolean);
+      isAllowed = allowedHosts.some(allowed => {
+        if (allowed === targetHost) return true;
+        try {
+          const parsed = new URL(allowed.includes("://") ? allowed : `https://${allowed}`);
+          return parsed.hostname.toLowerCase() === targetHost;
+        } catch {
+          return false;
+        }
+      });
+    } else if (process.env.PORTAINER_URL) {
+      try {
+        const envUrl = new URL(process.env.PORTAINER_URL.includes("://") ? process.env.PORTAINER_URL : `https://${process.env.PORTAINER_URL}`);
+        isAllowed = envUrl.hostname.toLowerCase() === targetHost || baseUrl === process.env.PORTAINER_URL.replace(/\/$/, "");
+      } catch {
+        isAllowed = false;
+      }
+    } else {
+      isAllowed = targetHost === "docker.abraham16.com" || targetHost === "docker.server.mtcd.org";
+    }
+
+    if (!isAllowed) {
+      throw new Error(`Portainer URL is not in the allowed host list: ${targetHost}`);
+    }
+
     const apiKey = (config.apiKey || process.env.PORTAINER_API_KEY || "").trim();
     let targetEndpointId = config.endpointId?.trim();
 

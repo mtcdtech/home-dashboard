@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import path, { join } from 'path';
 import { existsSync } from 'fs';
 
 export async function GET(request: Request) {
@@ -49,7 +49,12 @@ export async function GET(request: Request) {
             if (uploadMatch) {
                try {
                   const filename = uploadMatch[1];
-                  const filePath = join(process.cwd(), 'public', 'uploads', filename);
+                  const baseUploadsDir = join(process.cwd(), 'public', 'uploads');
+                  const filePath = join(baseUploadsDir, filename);
+                  const resolved = path.resolve(filePath);
+                  if (!resolved.startsWith(path.resolve(baseUploadsDir) + path.sep)) {
+                     return makeAbsolute(url);
+                  }
                   if (existsSync(filePath)) {
                      const buffer = await readFile(filePath);
                      const ext = filename.split('.').pop()?.toLowerCase() || 'png';
@@ -58,6 +63,7 @@ export async function GET(request: Request) {
                      if (ext === 'svg') mimeType = 'image/svg+xml';
                      if (ext === 'gif') mimeType = 'image/gif';
                      if (ext === 'webp') mimeType = 'image/webp';
+                     if (ext === 'ico') mimeType = 'image/x-icon';
                      return `data:${mimeType};base64,${buffer.toString('base64')}`;
                   }
                } catch (e) {

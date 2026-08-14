@@ -52,7 +52,7 @@
 5. **Tab Tree Caching**: Evaluate `unstable_cache` or Redis/React cache for tab tree queries if permission model permits.
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.12.0).
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.13.0).
 - Login button says "Log in Securely".
 - Log in via Authentik as an administrator (e.g. `tech@mtcd.org`, `ben@abraham16.com`, `avcoordinator@mtcd.org`) and verify admin permissions land correctly.
 - Verify PortainerWidget on Abraham home tab displays inline error card or container list within 5 seconds without freezing tab switching.

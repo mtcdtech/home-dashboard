@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { requireSession } from '@/lib/authz';
 
 export const revalidate = 86400; // Cache for 24 hours
 
 export async function GET() {
+  try {
+    await requireSession();
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const localIcons: string[] = [];
   
   // 1. Read local uploaded icons
