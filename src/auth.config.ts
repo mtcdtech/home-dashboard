@@ -1,7 +1,110 @@
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { prisma } from "@/lib/prisma";
 import type { NextAuthConfig } from "next-auth";
 
 const providers: any[] = [];
+
+// Local Admin credentials provider with bcrypt verification and silent legacy migration
+providers.push(
+  Credentials({
+    id: "credentials",
+    name: "Credentials",
+    credentials: {
+      username: { label: "Username", type: "text" },
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      console.log("Credentials login attempt for:", credentials?.username);
+      try {
+        const settings = await (prisma as any).globalSettings.findUnique({
+          where: { id: "global" },
+        });
+        if (settings?.disableLocalAdmin) {
+          console.log("Local admin sign-in attempt rejected: disabled by administrator");
+          return null;
+        }
+
+        const username = typeof credentials?.username === "string" ? credentials.username.trim() : "";
+        const inputPassword = typeof credentials?.password === "string" ? credentials.password : "";
+
+        if (username === "admin") {
+          let user = await prisma.user.findUnique({
+            where: { email: "admin@local.host" },
+          });
+
+          // Bootstrap seed if no local admin user exists: create with random bcrypt-hashed password
+          if (!user) {
+            const randomPassword = crypto.randomBytes(16).toString("hex");
+            const initialHash = await bcrypt.hash(randomPassword, 12);
+            user = await prisma.user.create({
+              data: {
+                name: "Local Admin",
+                email: "admin@local.host",
+                passwordHash: initialHash,
+                password: null,
+                isAdmin: true,
+                department: "IT",
+              },
+            });
+            console.log("================================================================================");
+            console.log("[SECURITY] Initial Local Admin account seeded (no default password).");
+            console.log(`[SECURITY] Temporary credentials -> Username: admin | Password: ${randomPassword}`);
+            console.log("================================================================================");
+          }
+
+          if (!inputPassword) return null;
+
+          let isValid = false;
+
+          if (user.passwordHash) {
+            isValid = await bcrypt.compare(inputPassword, user.passwordHash);
+          } else if (user.password) {
+            // Legacy plaintext fallback (transition support)
+            if (inputPassword === user.password) {
+              isValid = true;
+              // Silently upgrade to bcrypt hash and clear legacy plaintext password
+              try {
+                const upgradedHash = await bcrypt.hash(inputPassword, 12);
+                await prisma.user.update({
+                  where: { id: user.id },
+                  data: {
+                    passwordHash: upgradedHash,
+                    password: null,
+                  },
+                });
+                console.log(`[auth] Successfully upgraded legacy password to bcrypt hash for user ${user.email}`);
+              } catch (upgradeErr) {
+                console.error("[auth] Failed to upgrade legacy password hash:", upgradeErr);
+              }
+            }
+          }
+
+          if (isValid) {
+            console.log("Local admin authorized successfully");
+            (prisma as any).activityLog
+              .create({
+                data: {
+                  userId: user.id,
+                  userName: user.name,
+                  type: "login",
+                  detail: "via Local Admin Credentials",
+                },
+              })
+              .catch(() => {});
+            return user;
+          }
+        }
+      } catch (error) {
+        console.error("Local admin authorization failed:", error);
+        return null;
+      }
+      return null;
+    },
+  })
+);
 
 // Generic Authentik OIDC (Personal SSO — abraham16.com)
 if (process.env.AUTHENTIK_CLIENT_ID) {

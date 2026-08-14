@@ -4,10 +4,17 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.13.1` (Security Quick Hits & Hardening)
+- **Current Version**: `v1.14.0` (Password Hashing Migration & Local Admin Hardening)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Password Hashing Migration (v1.14.0)**:
+  - Migrated local admin credentials to bcrypt hashing (`bcryptjs`, cost factor 12) (M3).
+  - Added nullable `passwordHash` field to Prisma schema and generated migration SQL.
+  - Implemented credentials provider in `src/auth.config.ts` supporting bcrypt verification, silent legacy plaintext upgrade on successful login, and random password admin bootstrap (eliminating default `"admin"` fallback).
+  - Updated `updateLocalAdminSettings` in `src/app/admin/actions.ts` to hash passwords with bcrypt and set `password` to null.
+  - Created standalone post-deploy migration script `scripts/migrate-passwords.mjs`.
+  - Preserved fenced `entrypoint.sh` and `src/auth.ts`.
 - **Security Quick Hits & Hardening (v1.13.1)**:
   - Replaced `Math.random()` with `crypto.randomBytes(32)` in `regenerateIamApiKey` (M6).
   - Removed `?api_key=` URL parameter fallback from `/api/iam/roles` and `/api/iam/users`, enforcing `Authorization: Bearer` or `X-API-Key` headers (M7).

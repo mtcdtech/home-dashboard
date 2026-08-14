@@ -2,6 +2,25 @@
 
 ## Running Change Log
 
+### 2026-08-13 - Password Hashing Migration & Local Admin Hardening (v1.14.0)
+- **Summary**: Resolved security audit finding M3 by migrating local administrator credential storage and verification from legacy plaintext to bcrypt hashing (`bcryptjs`, cost factor 12). Added nullable `passwordHash` field to Prisma `User` schema while keeping `password` temporarily for non-disruptive migration. Updated credentials provider in `src/auth.config.ts` to check `bcrypt.compare()` when `passwordHash` is present, falling back to legacy plaintext comparison with automatic silent upgrade (calculating bcrypt hash, storing `passwordHash`, and setting `password` to null on successful login). Removed hardcoded default `"admin"` plaintext password seed fallback, bootstrapping uninitialized admin accounts with a cryptographically secure random password printed once to container logs. Updated `updateLocalAdminSettings` in `src/app/admin/actions.ts` to hash passwords with bcrypt and clear plaintext fields. Created standalone post-deploy database migration script `scripts/migrate-passwords.mjs` to batch-upgrade existing plaintext passwords. Preserved fenced files (`entrypoint.sh` and `src/auth.ts`). Pre-migration Postgres dumps taken on MTCD and Abraham databases.
+- **Files Modified**:
+  - [prisma/schema.prisma](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/prisma/schema.prisma) (added `passwordHash String?` to User model)
+  - [prisma/migrations/20260813213000_add_password_hash/migration.sql](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/prisma/migrations/20260813213000_add_password_hash/migration.sql) (migration SQL for `passwordHash` column)
+  - [src/auth.config.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/auth.config.ts) (added credentials provider with bcrypt verification, silent legacy upgrade, and random admin bootstrap)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/src/app/admin/actions.ts) (updated `updateLocalAdminSettings` to bcrypt-hash passwords and clear plaintext)
+  - [scripts/migrate-passwords.mjs](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/scripts/migrate-passwords.mjs) (created batch password hashing migration script)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/package.json) (bumped version to `1.14.0`)
+  - [package-lock.json](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/package-lock.json) (synchronized version to `1.14.0`)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/notes-next-session.md)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/current-state.md)
+- **Validation**:
+  - Validated local Next.js compilation via `npm run build`.
+  - Unit tested bcrypt hashing and comparison.
+  - Verified non-disruptive silent upgrade logic.
+  - Confirmed pre-migration PostgreSQL backups captured on both servers.
+
 ### 2026-08-13 - Security Quick Hits & Hardening (v1.13.1)
 - **Summary**: Implemented 8 security hardening and audit items across the application. Replaced `Math.random()` with `crypto.randomBytes(32)` for cryptographically secure IAM API key generation (M6). Removed URL query parameter `?api_key=` fallback in IAM roles (`/api/iam/roles`) and users (`/api/iam/users`) routes, requiring `Authorization: Bearer` or `X-API-Key` headers (M7). Replaced direct string comparisons with constant-time `crypto.timingSafeEqual` in `validateIamApiKey` and workspace sync token verification (L2). Bound development PostgreSQL port to loopback interface `127.0.0.1:5434:5432` in `docker-compose.yml` (L3). Added `checks: ["pkce", "state"]` to `MicrosoftEntraID` and `synology` OIDC providers in `src/auth.config.ts` (L4). Created in-memory sliding window rate limiter `src/lib/rate-limit.ts` and applied 60 req/min limit to `/api/track/click` (M8) and 10 req/min limit to POST `/api/auth/[...nextauth]` (L5). Added dangerous protocol filter (`javascript:`, `data:`, `vbscript:`, `file:`) to `parseBookmarksHtml` and sanitized bookmark URLs with `normalizeUrl` in `executeBookmarkImport` (L6). Added DNS-rebinding TOCTOU architectural documentation to `isSafeUrl` in `src/lib/ssrf.ts` (I3). Added explanatory documentation for `allowDangerousEmailAccountLinking` in `src/auth.config.ts` (I1) and documented unused `Session` model under JWT strategy in `prisma/schema.prisma` (I2).
 - **Files Modified**:

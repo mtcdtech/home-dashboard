@@ -12,6 +12,7 @@ import { join } from "path";
 import { downloadIconToDisk, saveBase64IconToDisk, isExternalUrl } from "@/lib/icon-storage";
 import { ALLOWED_IMAGE_EXTENSIONS, MAX_UPLOAD_BYTES, isMagicImage, sanitizeImageFilename } from "@/lib/image-validation";
 import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 
 
 async function logActionActivity(type: string, detail: string) {
@@ -1861,18 +1862,23 @@ export async function updateLocalAdminSettings(data: { disableLocalAdmin?: boole
   }
 
   if (data.password && data.password.trim()) {
+    const passwordHash = await bcrypt.hash(data.password.trim(), 12);
     const adminUser = await prisma.user.findUnique({ where: { email: "admin@local.host" } });
     if (adminUser) {
       await prisma.user.update({
         where: { id: adminUser.id },
-        data: { password: data.password.trim() }
+        data: {
+          passwordHash,
+          password: null,
+        }
       });
     } else {
       await prisma.user.create({
         data: {
           name: "Local Admin",
           email: "admin@local.host",
-          password: data.password.trim(),
+          passwordHash,
+          password: null,
           isAdmin: true,
           department: "IT",
         }

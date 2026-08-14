@@ -21,7 +21,8 @@ model User {
   pcoImage      String?
   ccName        String?
   ccImage       String?
-  password      String?   // For local admin/admin
+  password      String?   // For local admin/admin (legacy, transition support)
+  passwordHash  String?   // Bcrypt hash for local admin
   department    String?   // Maps to "Department" in MS profile
   departmentOverride String? // Admin-set group override — survives MS sync
   dashboardGroup String   @default("General") // Custom drag-and-drop grouping
