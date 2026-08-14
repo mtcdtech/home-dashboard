@@ -9,9 +9,6 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   allowedDevOrigins: ['home.abraham16.com'],
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -2,6 +2,20 @@
 
 ## Running Change Log
 
+### 2026-08-13 - Dependency Security Upgrade & Next.js 16.3.1 (v1.14.1)
+- **Summary**: Patched 17 npm vulnerabilities (1 low, 4 moderate, 9 high, 3 critical) including `@auth/core` CVE-2026-7rqj-j65f-68wh, `fast-uri` CVE-2026-2826-b924-f7ph, `undici` CVEs, `hono`, `nanoid`, `valibot`, and bumped `next` from `16.2.2` to `16.3.1` (and `eslint-config-next` to `16.3.1`) to resolve Next.js Server Component DoS / XSS / cache-poisoning advisories (GHSA-q4gf-8mx6-v5v3, GHSA-ffhc-5mcf-pf4q, etc.). Removed deprecated `eslint` option block from `next.config.ts`. Ran full `npm audit` verification bringing vulnerability count from 17 down to 0. Preserved fenced security and auth files (`src/auth.ts`, `src/lib/permissions.ts`, `src/lib/iam.ts`, `api/iam/*`, `entrypoint.sh`).
+- **Files Modified**:
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/package.json) (bumped version to `1.14.1`, `next` and `eslint-config-next` to `16.3.1`)
+  - [package-lock.json](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/package-lock.json) (locked dependencies, 0 vulnerabilities remaining)
+  - [next.config.ts](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/next.config.ts) (removed deprecated `eslint` option)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/change-tracker.md)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard-mtcd/notes-next-session.md)
+- **Validation**:
+  - `npm audit` returned 0 vulnerabilities (reduced from 17).
+  - Next.js production build (`npm run build`) succeeded in Turbopack without warnings/errors.
+  - Local smoke test verified `/login` HTTP 200 and rendered footer version `v1.14.1`.
+
 ### 2026-08-13 - Password Hashing Migration & Local Admin Hardening (v1.14.0)
 - **Summary**: Resolved security audit finding M3 by migrating local administrator credential storage and verification from legacy plaintext to bcrypt hashing (`bcryptjs`, cost factor 12). Added nullable `passwordHash` field to Prisma `User` schema while keeping `password` temporarily for non-disruptive migration. Updated credentials provider in `src/auth.config.ts` to check `bcrypt.compare()` when `passwordHash` is present, falling back to legacy plaintext comparison with automatic silent upgrade (calculating bcrypt hash, storing `passwordHash`, and setting `password` to null on successful login). Removed hardcoded default `"admin"` plaintext password seed fallback, bootstrapping uninitialized admin accounts with a cryptographically secure random password printed once to container logs. Updated `updateLocalAdminSettings` in `src/app/admin/actions.ts` to hash passwords with bcrypt and clear plaintext fields. Created standalone post-deploy database migration script `scripts/migrate-passwords.mjs` to batch-upgrade existing plaintext passwords. Preserved fenced files (`entrypoint.sh` and `src/auth.ts`). Pre-migration Postgres dumps taken on MTCD and Abraham databases.
 - **Files Modified**:

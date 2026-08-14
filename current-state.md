@@ -4,10 +4,15 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.14.0` (Password Hashing Migration & Local Admin Hardening)
+- **Current Version**: `v1.14.1` (Dependency Security Upgrade & Next.js 16.3.1)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Dependency Security Upgrade (v1.14.1)**:
+  - Upgraded Next.js from `16.2.2` to `16.3.1` and `eslint-config-next` to `16.3.1` to patch Server Component DoS / XSS / cache-poisoning CVEs.
+  - Resolved all 17 npm audit vulnerabilities across direct and transitive dependencies (`@auth/core`, `fast-uri`, `undici`, `hono`, `nanoid`, `valibot`). Zero vulnerabilities remaining.
+  - Removed deprecated `eslint` option block from `next.config.ts`.
+  - Preserved fenced security and authentication files (`src/auth.ts`, `src/lib/permissions.ts`, `src/lib/iam.ts`, `api/iam/*`, `entrypoint.sh`).
 - **Password Hashing Migration (v1.14.0)**:
   - Migrated local admin credentials to bcrypt hashing (`bcryptjs`, cost factor 12) (M3).
   - Added nullable `passwordHash` field to Prisma schema and generated migration SQL.
