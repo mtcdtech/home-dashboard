@@ -3,6 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { readFile } from 'fs/promises';
 import path, { join } from 'path';
 import { existsSync } from 'fs';
+import { timingSafeEqual } from 'crypto';
+
+function safeEq(a: string, b: string): boolean {
+   const bufA = Buffer.from(a);
+   const bufB = Buffer.from(b);
+   if (bufA.length !== bufB.length) return false;
+   return timingSafeEqual(bufA, bufB);
+}
 
 export async function GET(request: Request) {
    const { searchParams } = new URL(request.url);
@@ -34,7 +42,7 @@ export async function GET(request: Request) {
          return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
       }
 
-      if (tab.syncToken !== token) {
+      if (!tab.syncToken || !safeEq(tab.syncToken, token)) {
          return NextResponse.json({ error: 'Invalid sync token' }, { status: 403 });
       }
 

@@ -4,10 +4,20 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.13.0` (Security Hardening & Audit Remediation)
+- **Current Version**: `v1.13.1` (Security Quick Hits & Hardening)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Security Quick Hits & Hardening (v1.13.1)**:
+  - Replaced `Math.random()` with `crypto.randomBytes(32)` in `regenerateIamApiKey` (M6).
+  - Removed `?api_key=` URL parameter fallback from `/api/iam/roles` and `/api/iam/users`, enforcing `Authorization: Bearer` or `X-API-Key` headers (M7).
+  - Implemented `crypto.timingSafeEqual` in `validateIamApiKey` and `/api/sync/workspace` sync token check (L2).
+  - Bound dev Postgres port to loopback interface `127.0.0.1:5434:5432` in `docker-compose.yml` (L3).
+  - Added `checks: ["pkce", "state"]` to `MicrosoftEntraID` and `synology` OIDC providers in `src/auth.config.ts` (L4).
+  - Implemented in-memory sliding window rate limiter in `src/lib/rate-limit.ts` (60 req/min on `/api/track/click`, 10 req/min on POST `/api/auth/[...nextauth]`) (L5, M8).
+  - Filtered dangerous URI schemes (`javascript:`, `data:`, `vbscript:`, `file:`) in `parseBookmarksHtml` and sanitized URLs with `normalizeUrl` in `executeBookmarkImport` (L6).
+  - Added DNS-rebinding TOCTOU architectural documentation to `isSafeUrl` in `src/lib/ssrf.ts` (I3).
+  - Documented verified-email account linking assumptions in `src/auth.config.ts` (I1) and unused `Session` model under JWT strategy in `prisma/schema.prisma` (I2).
 - **Security Hardening & Vulnerability Remediation (v1.13.0)**:
   - Gated `getGlobalSettings` behind `requireAdmin` (C1).
   - Added `requireSectionRole` authorization checks across bookmark server actions (C2).

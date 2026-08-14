@@ -74,6 +74,8 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
+// Unused: NextAuth JWT strategy is in effect across all environments.
+// Retained in schema for compatibility in case of strategy change.
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique

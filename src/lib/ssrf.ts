@@ -3,6 +3,10 @@ import { promisify } from 'util';
 
 const lookup = promisify(dns.lookup);
 
+// NOTE (I3): There is an inherent Time-of-Check to Time-of-Use (TOCTOU) DNS-rebinding
+// window when using fetch() after isSafeUrl() DNS resolution. Mitigating this fully
+// requires resolving DNS once and connecting directly to the resolved IP with explicit
+// Host headers (tracked in notes-next-session.md for a future network client refactor).
 export async function isSafeUrl(urlString: string): Promise<boolean> {
   try {
     const urlObj = new URL(urlString);

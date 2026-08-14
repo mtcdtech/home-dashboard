@@ -39,6 +39,8 @@ if (process.env.AUTHENTIK_PCO_CLIENT_ID) {
     clientSecret: process.env.AUTHENTIK_PCO_CLIENT_SECRET,
     authorization: { params: { scope: "openid profile email groups mtcd_person", prompt: "login" } },
     checks: ["pkce", "state"],
+    // Account linking by verified email: trust assumption is that configured IdPs
+    // (Authentik/Planning Center/Microsoft/Synology) verify email ownership before issuing claims.
     allowDangerousEmailAccountLinking: true,
     profile(profile: any) {
       return {
@@ -121,6 +123,7 @@ if (
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
       issuer,
       authorization: { params: { scope: "openid profile email User.Read" } },
+      checks: ["pkce", "state"],
       allowDangerousEmailAccountLinking: true,
       profile(profile: any) {
         return {
@@ -144,6 +147,7 @@ if (process.env.SYNOLOGY_CLIENT_ID) {
       clientSecret: process.env.SYNOLOGY_CLIENT_SECRET,
       issuer: process.env.SYNOLOGY_ISSUER,
       authorization: { params: { scope: "openid email groups" } },
+      checks: ["pkce", "state"],
       allowDangerousEmailAccountLinking: true,
       profile(profile: any) {
         console.log("Synology OIDC Profile claims:", profile);

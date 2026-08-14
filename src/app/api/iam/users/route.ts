@@ -10,9 +10,8 @@ export async function GET(req: NextRequest) {
     const headerKey = req.headers.get("x-api-key");
     const authHeader = req.headers.get("authorization");
     const bearerKey = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
-    const searchKey = req.nextUrl.searchParams.get("api_key");
 
-    const providedKey = (headerKey || bearerKey || searchKey || "").trim();
+    const providedKey = (headerKey || bearerKey || "").trim();
     const isApiKeyValid = await validateIamApiKey(providedKey);
 
     const session = await auth();
@@ -78,7 +77,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       app: "home-dashboard",
-      version: "1.10.0",
+      version: "1.13.1",
       total: formattedUsers.length,
       users: formattedUsers,
     });

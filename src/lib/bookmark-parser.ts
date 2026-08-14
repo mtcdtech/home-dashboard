@@ -22,6 +22,8 @@ const TECHNICAL_FOLDERS = [
   "Unsorted Bookmarks"
 ];
 
+const FORBIDDEN_PROTOCOLS = /^(javascript|data|vbscript|file):/i;
+
 export async function parseBookmarksHtml(html: string): Promise<ImportedFolder[]> {
   const $ = cheerio.load(html);
   const folders: ImportedFolder[] = [];
@@ -46,8 +48,8 @@ export async function parseBookmarksHtml(html: string): Promise<ImportedFolder[]
         const url = $(a).attr("href");
         const icon = $(a).attr("icon"); // Favicons are often Base64 encoded here
 
-        if (url) {
-          bookmarks.push({ title, url, icon });
+        if (url && !FORBIDDEN_PROTOCOLS.test(url.trim())) {
+          bookmarks.push({ title, url: url.trim(), icon });
         }
       });
     }

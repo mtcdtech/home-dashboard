@@ -11,6 +11,8 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { downloadIconToDisk, saveBase64IconToDisk, isExternalUrl } from "@/lib/icon-storage";
 import { ALLOWED_IMAGE_EXTENSIONS, MAX_UPLOAD_BYTES, isMagicImage, sanitizeImageFilename } from "@/lib/image-validation";
+import { randomBytes } from "crypto";
+
 
 async function logActionActivity(type: string, detail: string) {
   try {
@@ -1463,8 +1465,10 @@ export async function executeBookmarkImport(mappings: any[]) {
     const lastBookmark = await prisma.bookmark.findFirst({ where: { sectionId }, orderBy: { order: "desc" } });
     let currentOrder = (lastBookmark?.order ?? -1) + 1;
     for (const bookmark of mapping.bookmarks) {
-      if (existingUrls.has(bookmark.url)) continue;
-      await prisma.bookmark.create({ data: { title: bookmark.title, url: bookmark.url, icon: bookmark.icon, sectionId, order: currentOrder++ } });
+      if (!bookmark.url) continue;
+      const normalizedUrl = normalizeUrl(bookmark.url);
+      if (existingUrls.has(normalizedUrl)) continue;
+      await prisma.bookmark.create({ data: { title: bookmark.title, url: normalizedUrl, icon: bookmark.icon, sectionId, order: currentOrder++ } });
       revalidatePath("/");
     }
     revalidatePath("/");
@@ -2107,8 +2111,7 @@ export async function getIamApiDetails() {
 
 export async function regenerateIamApiKey() {
   await requireAdmin();
-  const randomBytes = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join('');
-  const newKey = `iam_live_${randomBytes}`;
+  const newKey = `iam_live_${randomBytes(32).toString("hex")}`;
 
   await (prisma as any).globalSettings.upsert({
     where: { id: "global" },

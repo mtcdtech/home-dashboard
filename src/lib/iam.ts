@@ -1,4 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { timingSafeEqual } from "crypto";
+
+function safeEq(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 export type IamProviderKind =
   | "authentik"       // authentik-pco | authentik-ms | authentik-cc — carries mtcd_person_id
@@ -107,5 +115,5 @@ export async function validateIamApiKey(providedKey: string, db: any = prisma): 
   if (!cleanProvided) return false;
   const validKey = await getIamApiKey(db);
   if (!validKey) return false;
-  return cleanProvided === validKey.trim();
+  return safeEq(cleanProvided, validKey.trim());
 }
