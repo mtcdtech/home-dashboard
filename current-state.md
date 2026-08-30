@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.14.2` (Admin Bookmark Saving Permission Bypass Fix)
+- **Current Version**: `v1.14.3` (Bookmark Duplication Feature)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Bookmark Duplication Feature (v1.14.3)**:
+  - Added a `duplicateBookmark(id)` server action in `src/app/admin/actions.ts` that copies the original bookmark and places it right below it in the same section (shifting subsequent bookmarks up in order).
+  - Added a duplicate button (using Lucide `<Copy />` icon) in edit mode next to the delete button on bookmark cards in `src/components/Dashboard.tsx` with proper event propagation blocking (`stopPropagation`).
 - **Admin Bookmark Saving Permission Bypass Fix (v1.14.2)**:
   - Added administrator bypass check in `requireSectionRole` (`src/lib/authz.ts`) following the specification in `resolveSectionAccess` (`permissions.ts`).
   - Refined `isLocalAdmin` in `requireTabRole` to support the seeded `admin@local.host` email explicitly in addition to name/email checks.

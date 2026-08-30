@@ -1564,8 +1564,36 @@ export function Dashboard({
                                                       </div>
                                                    </a>
                                                    {showEditControls && hasSectionEditAccess(section, tab) && (
-                                                      <div style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '0.25rem', background: 'var(--glass-bg)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                                                         <button onClick={(e) => { e.preventDefault(); if (confirm('Delete app?')) actions.deleteBookmark(bookmark.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff4444' }}><Trash2 size={14} /></button>
+                                                      <div style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '0.25rem', background: 'var(--glass-bg)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--glass-border)', zIndex: 10 }}>
+                                                         <button 
+                                                            title="Duplicate bookmark"
+                                                            onClick={async (e) => { 
+                                                               e.preventDefault(); 
+                                                               e.stopPropagation(); 
+                                                               try {
+                                                                  await actions.duplicateBookmark(bookmark.id);
+                                                                  router.refresh();
+                                                               } catch (err) {
+                                                                  console.error(err);
+                                                               }
+                                                            }} 
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.7, display: 'flex', alignItems: 'center', padding: '2px' }}
+                                                            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                                                            onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
+                                                         >
+                                                            <Copy size={14} />
+                                                         </button>
+                                                         <button 
+                                                            title="Delete bookmark"
+                                                            onClick={(e) => { 
+                                                               e.preventDefault(); 
+                                                               e.stopPropagation(); 
+                                                               if (confirm('Delete app?')) actions.deleteBookmark(bookmark.id); 
+                                                            }} 
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff4444', display: 'flex', alignItems: 'center', padding: '2px' }}
+                                                         >
+                                                            <Trash2 size={14} />
+                                                         </button>
                                                       </div>
                                                    )}
                                                 </div>

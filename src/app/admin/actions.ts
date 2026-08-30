@@ -687,6 +687,42 @@ export async function deleteBookmark(id: string) {
   revalidatePath("/");
 }
 
+export async function duplicateBookmark(id: string) {
+  const original = await prisma.bookmark.findUnique({ where: { id } });
+  if (!original) throw new Error("Bookmark not found");
+  await requireSectionRole(original.sectionId, "edit");
+
+  // Increment order of all bookmarks in the section that have order > original.order
+  await prisma.bookmark.updateMany({
+    where: {
+      sectionId: original.sectionId,
+      order: { gt: original.order }
+    },
+    data: {
+      order: { increment: 1 }
+    }
+  });
+
+  // Create a duplicate bookmark with order = original.order + 1
+  const duplicateData = {
+    title: original.title,
+    url: original.url,
+    description: original.description,
+    longDescription: original.longDescription,
+    icon: original.icon,
+    keywords: original.keywords,
+    openInNewTab: original.openInNewTab,
+    tags: original.tags,
+    order: original.order + 1,
+    sectionId: original.sectionId
+  };
+
+  const b = await prisma.bookmark.create({ data: duplicateData });
+  await logActionActivity("bookmark_edit", `Duplicated bookmark: ${original.title || original.url} to ${b.title}`);
+  revalidatePath("/");
+  return b;
+}
+
 export async function moveBookmark(bookmarkId: string, targetSectionId: string, beforeBookmarkId?: string) {
   const bookmark = await prisma.bookmark.findUnique({ where: { id: bookmarkId }, select: { sectionId: true } });
   if (!bookmark) throw new Error("Bookmark not found");

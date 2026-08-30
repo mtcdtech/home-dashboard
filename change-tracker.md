@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-08-29 - Bookmark Duplication Feature (v1.14.3)
+- **Summary**: Implemented a bookmark duplication feature. Added a `duplicateBookmark(id)` server action in `src/app/admin/actions.ts` that copies the original bookmark and places it right below it in the same section (shifting subsequent bookmarks up in order). Added a duplicate button (using Lucide `<Copy />` icon) in edit mode next to the delete button on bookmark cards in `src/components/Dashboard.tsx` with proper event propagation blocking (`stopPropagation`).
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (implemented `duplicateBookmark` server action)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (added duplicate button and stopped propagation on click)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.14.3`)
+  - [package-lock.json](file:///Users/benny2168/Antigravity/home-dashboard/package-lock.json) (updated lockfile version)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - Next.js production build (`npm run build`) succeeded.
+
 ### 2026-08-29 - Admin Bookmark Saving Permission Bypass Fix (v1.14.2)
 - **Summary**: Fixed issue where saving bookmarks failed (the save button did nothing) for global administrators. The root cause was that `requireSectionRole` in `src/lib/authz.ts` lacked an admin bypass, thereby blocking normal admins from modifying bookmarks in sections where they were not explicitly owners/editors. Added admin bypass block following the access-matrix spec. Refined `isLocalAdmin` check to support both `admin@local` and `admin@local.host` emails. Resolved TypeScript and ESLint type lints in `src/lib/authz.ts`.
 - **Files Modified**:
