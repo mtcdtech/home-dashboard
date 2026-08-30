@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.14.1` (Dependency Security Upgrade & Next.js 16.3.1)
+- **Current Version**: `v1.14.2` (Admin Bookmark Saving Permission Bypass Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Admin Bookmark Saving Permission Bypass Fix (v1.14.2)**:
+  - Added administrator bypass check in `requireSectionRole` (`src/lib/authz.ts`) following the specification in `resolveSectionAccess` (`permissions.ts`).
+  - Refined `isLocalAdmin` in `requireTabRole` to support the seeded `admin@local.host` email explicitly in addition to name/email checks.
+  - Cleaned up ESLint/TS lints in `src/lib/authz.ts` to ensure 100% clean check status.
 - **Dependency Security Upgrade (v1.14.1)**:
   - Upgraded Next.js from `16.2.2` to `16.3.1` and `eslint-config-next` to `16.3.1` to patch Server Component DoS / XSS / cache-poisoning CVEs.
   - Resolved all 17 npm audit vulnerabilities across direct and transitive dependencies (`@auth/core`, `fast-uri`, `undici`, `hono`, `nanoid`, `valibot`). Zero vulnerabilities remaining.

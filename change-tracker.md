@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-08-29 - Admin Bookmark Saving Permission Bypass Fix (v1.14.2)
+- **Summary**: Fixed issue where saving bookmarks failed (the save button did nothing) for global administrators. The root cause was that `requireSectionRole` in `src/lib/authz.ts` lacked an admin bypass, thereby blocking normal admins from modifying bookmarks in sections where they were not explicitly owners/editors. Added admin bypass block following the access-matrix spec. Refined `isLocalAdmin` check to support both `admin@local` and `admin@local.host` emails. Resolved TypeScript and ESLint type lints in `src/lib/authz.ts`.
+- **Files Modified**:
+  - [src/lib/authz.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/authz.ts) (added admin bypass check to `requireSectionRole`, refined `isLocalAdmin` email validation, and resolved lints)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.14.2`)
+  - [package-lock.json](file:///Users/benny2168/Antigravity/home-dashboard/package-lock.json) (updated lockfile version)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - Next.js production build (`npm run build`) succeeded.
+  - ESLint verification (`npx eslint src/lib/authz.ts`) passed cleanly.
+
 ### 2026-08-13 - Dependency Security Upgrade & Next.js 16.3.1 (v1.14.1)
 - **Summary**: Patched 17 npm vulnerabilities (1 low, 4 moderate, 9 high, 3 critical) including `@auth/core` CVE-2026-7rqj-j65f-68wh, `fast-uri` CVE-2026-2826-b924-f7ph, `undici` CVEs, `hono`, `nanoid`, `valibot`, and bumped `next` from `16.2.2` to `16.3.1` (and `eslint-config-next` to `16.3.1`) to resolve Next.js Server Component DoS / XSS / cache-poisoning advisories (GHSA-q4gf-8mx6-v5v3, GHSA-ffhc-5mcf-pf4q, etc.). Removed deprecated `eslint` option block from `next.config.ts`. Ran full `npm audit` verification bringing vulnerability count from 17 down to 0. Preserved fenced security and auth files (`src/auth.ts`, `src/lib/permissions.ts`, `src/lib/iam.ts`, `api/iam/*`, `entrypoint.sh`).
 - **Files Modified**:

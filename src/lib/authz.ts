@@ -12,7 +12,7 @@ export async function requireSession() {
 
 export async function requireAdmin() {
   const user = await requireSession();
-  if (!(user as any).isAdmin) {
+  if (!(user as { isAdmin?: boolean }).isAdmin) {
     throw new Error("Forbidden: Admin access required");
   }
   return user;
@@ -43,7 +43,7 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
     userId: targetUser.id,
     dashboardGroup: targetUser.dashboardGroup || targetUser.department,
     isAdminView: targetUser.isAdmin,
-    isLocalAdmin: targetUser.email === 'admin@local' || targetUser.name === 'Local Admin'
+    isLocalAdmin: targetUser.email === 'admin@local' || targetUser.email === 'admin@local.host' || targetUser.name === 'Local Admin'
   });
   const access = resolveTabAccess(tabObj, context);
   
@@ -72,6 +72,14 @@ export async function requireSectionRole(sectionId: string, action: 'edit' | 'ow
 
   if (!sectionObj) throw new Error("Section not found");
 
+  // Admin bypass following the access-matrix spec (resolveSectionAccess)
+  if ((user as { isAdmin?: boolean }).isAdmin) {
+    const isLocalAdmin = user.email === 'admin@local' || user.email === 'admin@local.host' || user.name === 'Local Admin';
+    if (!sectionObj.isReadOnlySync || isLocalAdmin) {
+      return user;
+    }
+  }
+
   const isOwner = sectionObj.owners.some(u => u.id === user.id);
   const isEditor = sectionObj.editors.some(u => u.id === user.id);
   
@@ -85,7 +93,7 @@ export async function requireSectionRole(sectionId: string, action: 'edit' | 'ow
       await requireTabRole(ts.tabId, action);
       hasTabAccess = true;
       break;
-    } catch (e) {
+    } catch {
       // Ignore
     }
   }
