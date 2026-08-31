@@ -2,6 +2,16 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Outlook Widget Settings Modal Crash Fix & Type Guards (v1.16.2)
+- **Summary**: Fixed client-side crash when clicking the Outlook Calendar widget settings gear. Root cause: `selectedCalendarIds`, `daysAhead`, `calendars`, or account profile variables could be non-array/object types during initial state synchronization, causing React render exceptions inside the settings modal. Added strict type guards and fallbacks for all modal render fields and array operations.
+- **Files Modified**:
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (hardened state parsing and modal rendering)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.2`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - Outlook Subscribed Calendars & Connection State Persistence Fix (v1.16.1)
 - **Summary**: Resolved 2 issues reported with the Microsoft Outlook Calendar widget: (1) Fixed missing subscribed calendar events by querying Microsoft Graph `GET /me/calendarGroups` and enumerating all calendar groups (Subscribed Calendars, Other Calendars, Shared Calendars). Updated `fetchOutlookEvents` to query all calendars in parallel via `/me/calendars/{calId}/calendarView`, attaching calendar names and color swatches. (2) Resolved premature "Outlook Disconnected" status by synchronizing React component state with `rawConfig` in `useEffect` and preventing transient network errors from clearing user authentication state.
 - **Files Modified**:

@@ -44,8 +44,8 @@ export interface OutlookCalendarWidgetProps {
 
 export function OutlookCalendarWidget({
   section,
-  hasEditAccess,
-  isAdmin,
+  hasEditAccess = false,
+  isAdmin = false,
   onRefresh,
   filter: propsFilter,
 }: OutlookCalendarWidgetProps) {
@@ -60,33 +60,55 @@ export function OutlookCalendarWidget({
 
   // Widget Configuration from Section DB
   const rawConfig = useMemo(() => {
-    return typeof section?.widgetConfig === "string"
-      ? JSON.parse(section.widgetConfig) || {}
-      : section?.widgetConfig || {};
+    try {
+      if (typeof section?.widgetConfig === "string") {
+        return JSON.parse(section.widgetConfig) || {};
+      }
+      if (section?.widgetConfig && typeof section.widgetConfig === "object") {
+        return section.widgetConfig as Record<string, unknown>;
+      }
+    } catch {
+      // fallback
+    }
+    return {};
   }, [section?.widgetConfig]);
 
   const [connected, setConnected] = useState<boolean>(!!rawConfig.connected);
-  const [accountEmail, setAccountEmail] = useState<string>(rawConfig.accountEmail || "");
-  const [accountName, setAccountName] = useState<string>(rawConfig.accountName || "");
-  const [daysAhead, setDaysAhead] = useState<number>(rawConfig.daysAhead ?? 7);
+  const [accountEmail, setAccountEmail] = useState<string>(
+    typeof rawConfig.accountEmail === "string" ? rawConfig.accountEmail : ""
+  );
+  const [accountName, setAccountName] = useState<string>(
+    typeof rawConfig.accountName === "string" ? rawConfig.accountName : ""
+  );
+  const [daysAhead, setDaysAhead] = useState<number>(
+    typeof rawConfig.daysAhead === "number" && !isNaN(rawConfig.daysAhead) ? rawConfig.daysAhead : 7
+  );
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>(
-    rawConfig.selectedCalendarIds || []
+    Array.isArray(rawConfig.selectedCalendarIds) ? rawConfig.selectedCalendarIds : []
   );
 
   // Advanced custom credentials
-  const [customClientId, setCustomClientId] = useState<string>(rawConfig.clientId || "");
-  const [customTenantId, setCustomTenantId] = useState<string>(rawConfig.tenantId || "");
-  const [customClientSecret, setCustomClientSecret] = useState<string>(rawConfig.clientSecret || "");
+  const [customClientId, setCustomClientId] = useState<string>(
+    typeof rawConfig.clientId === "string" ? rawConfig.clientId : ""
+  );
+  const [customTenantId, setCustomTenantId] = useState<string>(
+    typeof rawConfig.tenantId === "string" ? rawConfig.tenantId : ""
+  );
+  const [customClientSecret, setCustomClientSecret] = useState<string>(
+    typeof rawConfig.clientSecret === "string" ? rawConfig.clientSecret : ""
+  );
+
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // Sync state with section.widgetConfig when props change or after OAuth
   useEffect(() => {
     if (rawConfig.connected !== undefined) {
       setConnected(!!rawConfig.connected);
     }
-    if (rawConfig.accountEmail) setAccountEmail(rawConfig.accountEmail);
-    if (rawConfig.accountName) setAccountName(rawConfig.accountName);
-    if (rawConfig.daysAhead !== undefined) setDaysAhead(rawConfig.daysAhead);
-    if (rawConfig.selectedCalendarIds !== undefined) setSelectedCalendarIds(rawConfig.selectedCalendarIds);
+    if (typeof rawConfig.accountEmail === "string") setAccountEmail(rawConfig.accountEmail);
+    if (typeof rawConfig.accountName === "string") setAccountName(rawConfig.accountName);
+    if (typeof rawConfig.daysAhead === "number" && !isNaN(rawConfig.daysAhead)) setDaysAhead(rawConfig.daysAhead);
+    if (Array.isArray(rawConfig.selectedCalendarIds)) setSelectedCalendarIds(rawConfig.selectedCalendarIds);
   }, [rawConfig]);
 
   const loadEvents = useCallback(async () => {
@@ -95,17 +117,17 @@ export function OutlookCalendarWidget({
     try {
       const res = await fetchOutlookEventsAction(section.id, {
         daysAhead,
-        selectedCalendarIds,
+        selectedCalendarIds: Array.isArray(selectedCalendarIds) ? selectedCalendarIds : [],
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
 
       if (res.success) {
-        setEvents(res.events || []);
+        setEvents(Array.isArray(res.events) ? res.events : []);
         setConnected(true);
         setNeedsAuth(false);
         setError(null);
-        if (res.accountName) setAccountName(res.accountName);
-        if (res.accountEmail) setAccountEmail(res.accountEmail);
+        if (typeof res.accountName === "string") setAccountName(res.accountName);
+        if (typeof res.accountEmail === "string") setAccountEmail(res.accountEmail);
       } else {
         if (res.needsAuth) {
           setNeedsAuth(true);
@@ -123,7 +145,7 @@ export function OutlookCalendarWidget({
     setCalendarsLoading(true);
     try {
       const res = await fetchOutlookCalendarsAction(section.id);
-      if (res.success && res.calendars) {
+      if (res.success && Array.isArray(res.calendars)) {
         setCalendars(res.calendars);
       }
     } catch (e) {
@@ -143,8 +165,8 @@ export function OutlookCalendarWidget({
       if (event.data?.type === "OUTLOOK_CONNECTED" && event.data?.sectionId === section.id) {
         setConnected(true);
         setNeedsAuth(false);
-        if (event.data.accountName) setAccountName(event.data.accountName);
-        if (event.data.accountEmail) setAccountEmail(event.data.accountEmail);
+        if (typeof event.data.accountEmail === "string") setAccountEmail(event.data.accountEmail);
+        if (typeof event.data.accountName === "string") setAccountName(event.data.accountName);
         loadEvents();
         loadCalendars();
       }
@@ -203,7 +225,7 @@ export function OutlookCalendarWidget({
       const updatedConfig = {
         ...rawConfig,
         daysAhead,
-        selectedCalendarIds,
+        selectedCalendarIds: Array.isArray(selectedCalendarIds) ? selectedCalendarIds : [],
         clientId: customClientId.trim() || undefined,
         tenantId: customTenantId.trim() || undefined,
         clientSecret: customClientSecret.trim() || undefined,
@@ -222,10 +244,11 @@ export function OutlookCalendarWidget({
 
   // Toggle calendar selection
   const toggleCalendar = (calId: string) => {
-    if (selectedCalendarIds.includes(calId)) {
-      setSelectedCalendarIds(selectedCalendarIds.filter((id) => id !== calId));
+    const current = Array.isArray(selectedCalendarIds) ? selectedCalendarIds : [];
+    if (current.includes(calId)) {
+      setSelectedCalendarIds(current.filter((id) => id !== calId));
     } else {
-      setSelectedCalendarIds([...selectedCalendarIds, calId]);
+      setSelectedCalendarIds([...current, calId]);
     }
   };
 
@@ -235,7 +258,7 @@ export function OutlookCalendarWidget({
     if (!q) return events;
     return events.filter(
       (ev) =>
-        ev.subject.toLowerCase().includes(q) ||
+        (ev.subject && ev.subject.toLowerCase().includes(q)) ||
         (ev.location && ev.location.toLowerCase().includes(q)) ||
         (ev.bodyPreview && ev.bodyPreview.toLowerCase().includes(q)) ||
         (ev.calendarName && ev.calendarName.toLowerCase().includes(q))
@@ -250,40 +273,59 @@ export function OutlookCalendarWidget({
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toDateString();
 
-    filteredEvents.forEach((ev) => {
-      const evDate = new Date(ev.start.dateTime);
-      const evDateStr = evDate.toDateString();
-      const isToday = evDateStr === todayStr;
-      const isTomorrow = evDateStr === tomorrowStr;
+    const map = new Map<string, OutlookEventItem[]>();
+    for (const ev of filteredEvents) {
+      if (!ev.start?.dateTime) continue;
+      const d = new Date(ev.start.dateTime);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(ev);
+    }
 
-      let label = evDate.toLocaleDateString(undefined, {
+    const sortedKeys = Array.from(map.keys()).sort();
+    for (const k of sortedKeys) {
+      const items = map.get(k)!;
+      const firstDate = new Date(items[0].start.dateTime);
+      const dateStr = firstDate.toDateString();
+
+      const isToday = dateStr === todayStr;
+      const isTomorrow = dateStr === tomorrowStr;
+
+      let label = firstDate.toLocaleDateString(undefined, {
         weekday: "short",
         month: "short",
         day: "numeric",
       });
 
-      if (isToday) label = `Today • ${label}`;
-      else if (isTomorrow) label = `Tomorrow • ${label}`;
-
-      let existing = groups.find((g) => g.date === evDateStr);
-      if (!existing) {
-        existing = { label, date: evDateStr, isToday, isTomorrow, items: [] };
-        groups.push(existing);
+      if (isToday) {
+        label = `Today (${label})`;
+      } else if (isTomorrow) {
+        label = `Tomorrow (${label})`;
       }
-      existing.items.push(ev);
-    });
+
+      groups.push({
+        label,
+        date: k,
+        isToday,
+        isTomorrow,
+        items,
+      });
+    }
 
     return groups;
   }, [filteredEvents]);
 
+  // Format event time badge
   const formatEventTime = (ev: OutlookEventItem) => {
     if (ev.isAllDay) return "All Day";
     try {
       const s = new Date(ev.start.dateTime);
       const e = new Date(ev.end.dateTime);
-      const startFormatted = s.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-      const endFormatted = e.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-      return `${startFormatted} – ${endFormatted}`;
+      const sStr = s.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      const eStr = e.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      return `${sStr} - ${eStr}`;
     } catch {
       return "";
     }
@@ -316,7 +358,7 @@ export function OutlookCalendarWidget({
                 fontWeight: 600,
                 fontSize: "0.75rem",
               }}
-              title={accountEmail || accountName}
+              title={accountEmail || accountName || "Outlook"}
             >
               <CalendarIcon size={12} />
               {accountName || "Outlook"} • Next {daysAhead}d
@@ -399,16 +441,15 @@ export function OutlookCalendarWidget({
             }}
           />
         </div>
-      ) : needsAuth || (!connected && events.length === 0) ? (
-        /* Not Connected State */
+      ) : !connected && !loading ? (
+        /* Onboarding Disconnected Card */
         <div
-          className="glass-card"
           style={{
             padding: "1.5rem 1rem",
             textAlign: "center",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px dashed var(--glass-border)",
             borderRadius: "12px",
-            background: "rgba(59, 130, 246, 0.06)",
-            border: "1px dashed rgba(59, 130, 246, 0.3)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -419,62 +460,69 @@ export function OutlookCalendarWidget({
             style={{
               width: "44px",
               height: "44px",
-              borderRadius: "50%",
-              background: "rgba(59, 130, 246, 0.15)",
-              color: "#3b82f6",
+              borderRadius: "12px",
+              background: "linear-gradient(135deg, #0078d4 0%, #005a9e 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              color: "#fff",
+              boxShadow: "0 4px 12px rgba(0, 120, 212, 0.3)",
             }}
           >
             <CalendarIcon size={22} />
           </div>
           <div>
-            <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "0.95rem", fontWeight: 700 }}>
-              Connect Microsoft Outlook
-            </h4>
-            <p style={{ margin: 0, fontSize: "0.8rem", opacity: 0.7, maxWidth: "260px" }}>
-              Sign in to view upcoming calendar events and launch Teams meetings directly.
+            <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: "0.25rem" }}>
+              Microsoft Outlook Calendar
+            </div>
+            <p style={{ margin: 0, fontSize: "0.78rem", opacity: 0.7, maxWidth: "260px" }}>
+              Connect your Microsoft 365 or Outlook account to view upcoming calendar events and 1-click Teams meetings.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleConnect}
-            style={{
-              marginTop: "0.25rem",
-              padding: "0.5rem 1.25rem",
-              borderRadius: "8px",
-              background: "linear-gradient(135deg, #0078d4 0%, #005a9e 100%)",
-              color: "#ffffff",
-              border: "none",
-              fontWeight: 700,
-              fontSize: "0.85rem",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              boxShadow: "0 4px 12px rgba(0, 120, 212, 0.3)",
-            }}
-          >
-            <CalendarIcon size={15} />
-            Sign in with Microsoft
-          </button>
+          {(hasEditAccess || isAdmin) ? (
+            <button
+              type="button"
+              onClick={handleConnect}
+              style={{
+                marginTop: "0.25rem",
+                padding: "0.45rem 1.1rem",
+                borderRadius: "8px",
+                background: "linear-gradient(135deg, #0078d4 0%, #005a9e 100%)",
+                color: "#fff",
+                border: "none",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                boxShadow: "0 2px 8px rgba(0, 120, 212, 0.4)",
+              }}
+            >
+              <CalendarIcon size={14} />
+              <span>Connect Outlook</span>
+            </button>
+          ) : (
+            <div style={{ fontSize: "0.75rem", opacity: 0.5 }}>
+              Ask an administrator to connect this widget.
+            </div>
+          )}
         </div>
       ) : error ? (
-        /* Error State */
+        /* Error Card with Reconnect / Retry */
         <div
-          className="glass-card"
           style={{
             padding: "1rem",
-            borderRadius: "10px",
             background: "rgba(239, 68, 68, 0.08)",
-            border: "1px solid rgba(239, 68, 68, 0.25)",
+            border: "1px solid rgba(239, 68, 68, 0.2)",
+            borderRadius: "10px",
+            fontSize: "0.8rem",
             color: "var(--text)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#ef4444", fontWeight: 700, fontSize: "0.85rem" }}>
-            <AlertCircle size={16} />
-            <span>Unable to load calendar events</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#ef4444", fontWeight: 700 }}>
+            <AlertCircle size={14} />
+            <span>Calendar Error</span>
           </div>
           <p style={{ margin: "0.4rem 0 0.75rem 0", fontSize: "0.75rem", opacity: 0.8 }}>
             {error}
@@ -528,64 +576,70 @@ export function OutlookCalendarWidget({
             gap: "0.5rem",
           }}
         >
-          <CalendarIcon size={24} />
-          <span>No upcoming events in the next {daysAhead} days</span>
+          <CalendarIcon size={28} style={{ opacity: 0.4 }} />
+          <span>No events scheduled in the next {daysAhead} days</span>
         </div>
       ) : (
-        /* Event Listings */
+        /* Grouped Events List */
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {groupedEvents.map((group) => (
-            <div key={group.date} style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+            <div key={group.date} style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
               {/* Day Header */}
               <div
                 style={{
                   fontSize: "0.75rem",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   textTransform: "uppercase",
-                  letterSpacing: "0.05em",
+                  letterSpacing: "0.04em",
                   color: group.isToday ? "var(--primary)" : "var(--text)",
-                  opacity: group.isToday ? 1 : 0.6,
-                  padding: "0.1rem 0.25rem",
+                  opacity: group.isToday ? 1 : 0.65,
+                  padding: "0 0.25rem",
                   display: "flex",
                   alignItems: "center",
                   gap: "0.4rem",
                 }}
               >
                 <span>{group.label}</span>
-                {group.isToday && (
-                  <span
-                    style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      background: "var(--primary)",
-                      display: "inline-block",
-                    }}
-                  />
-                )}
+                <div
+                  style={{
+                    flex: 1,
+                    height: "1px",
+                    background: group.isToday ? "rgba(var(--primary-rgb), 0.3)" : "rgba(255,255,255,0.08)",
+                  }}
+                />
               </div>
 
-              {/* Day Events */}
+              {/* Day Items */}
               {group.items.map((ev) => (
                 <div
                   key={ev.id}
-                  className="glass-card"
                   onClick={() => {
-                    if (ev.webLink) window.open(ev.webLink, "_blank", "noopener,noreferrer");
+                    if (ev.webLink) {
+                      window.open(ev.webLink, "_blank", "noopener,noreferrer");
+                    }
                   }}
                   style={{
                     padding: "0.6rem 0.75rem",
                     borderRadius: "10px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid var(--glass-border)",
                     display: "flex",
                     flexDirection: "column",
                     gap: "0.35rem",
-                    cursor: ev.webLink ? "pointer" : "default",
                     transition: "all 0.15s ease",
-                    border: "1px solid var(--glass-border)",
+                    cursor: ev.webLink ? "pointer" : "default",
                     position: "relative",
                   }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.07)";
+                    e.currentTarget.style.borderColor = "rgba(var(--primary-rgb), 0.35)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                    e.currentTarget.style.borderColor = "var(--glass-border)";
+                  }}
                 >
-                  {/* Top row: Time + Teams Button + WebLink */}
+                  {/* Top row: Time + Teams badge */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <div
                       style={{
@@ -806,8 +860,8 @@ export function OutlookCalendarWidget({
 
               {connected ? (
                 <div style={{ fontSize: "0.85rem" }}>
-                  <div style={{ fontWeight: 600 }}>{accountName}</div>
-                  <div style={{ opacity: 0.7, fontSize: "0.75rem" }}>{accountEmail}</div>
+                  <div style={{ fontWeight: 600 }}>{accountName || "Outlook Account"}</div>
+                  <div style={{ opacity: 0.7, fontSize: "0.75rem" }}>{accountEmail || ""}</div>
                   <button
                     type="button"
                     onClick={handleConnect}
@@ -893,7 +947,7 @@ export function OutlookCalendarWidget({
                     >
                       Show All
                     </button>
-                    {calendars.length > 0 && (
+                    {Array.isArray(calendars) && calendars.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setSelectedCalendarIds(calendars.map((c) => c.id))}
@@ -909,7 +963,7 @@ export function OutlookCalendarWidget({
                   <div style={{ padding: "0.75rem", textAlign: "center", fontSize: "0.8rem", opacity: 0.6 }}>
                     Loading calendars...
                   </div>
-                ) : calendars.length === 0 ? (
+                ) : !Array.isArray(calendars) || calendars.length === 0 ? (
                   <div style={{ padding: "0.75rem", textAlign: "center", fontSize: "0.8rem", opacity: 0.6 }}>
                     Default primary calendar active (all events shown).
                   </div>
@@ -928,8 +982,13 @@ export function OutlookCalendarWidget({
                     }}
                   >
                     {calendars.map((cal) => {
+                      if (!cal || !cal.id) return null;
                       const isSelected =
-                        selectedCalendarIds.length === 0 || selectedCalendarIds.includes(cal.id);
+                        !Array.isArray(selectedCalendarIds) ||
+                        selectedCalendarIds.length === 0 ||
+                        selectedCalendarIds.includes(cal.id);
+                      const calName = typeof cal.name === "string" ? cal.name : "Calendar";
+                      const calColor = typeof cal.hexColor === "string" ? cal.hexColor : "#3b82f6";
                       return (
                         <label
                           key={cal.id}
@@ -955,12 +1014,12 @@ export function OutlookCalendarWidget({
                               width: "8px",
                               height: "8px",
                               borderRadius: "50%",
-                              background: cal.hexColor || "#3b82f6",
+                              background: calColor,
                               display: "inline-block",
                               flexShrink: 0,
                             }}
                           />
-                          <span style={{ fontWeight: isSelected ? 600 : 400 }}>{cal.name}</span>
+                          <span style={{ fontWeight: isSelected ? 600 : 400 }}>{calName}</span>
                           {cal.isDefaultCalendar && (
                             <span style={{ fontSize: "0.65rem", opacity: 0.5, marginLeft: "auto" }}>Default</span>
                           )}

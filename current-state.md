@@ -4,10 +4,12 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.16.1` (Outlook Subscribed Calendar Support & Reconnect Persistence Fix)
+- **Current Version**: `v1.16.2` (Outlook Widget Settings Modal Crash Fix & Type Guards)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Outlook Widget Settings Modal Crash Fix (v1.16.2)**:
+  - Resolved client-side React rendering crash when clicking the Outlook Calendar widget settings gear by implementing strict type guards on `selectedCalendarIds` (guaranteeing `Array.isArray`), `daysAhead` (`number`), `calendars` list mapping, and `accountName` / `accountEmail` string primitives.
 - **Outlook Subscribed Calendars & Connection State Persistence Fix (v1.16.1)**:
   - Added full support for Microsoft Outlook subscribed calendars, shared calendars, and custom calendar groups by enumerating `GET /me/calendarGroups` and querying each group's calendars in `src/lib/outlook.ts`.
   - Updated `fetchOutlookEvents` to query all calendars in parallel via `/me/calendars/{calId}/calendarView`, attaching real calendar names and color swatches so events from subscribed / external .ics calendars appear seamlessly.
