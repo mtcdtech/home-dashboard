@@ -196,8 +196,8 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
             const setting = containerSettings[c.name] || containerSettings[c.id] || {};
             const isRunning = c.state === "running";
             
-            // Resolve custom URL or inferred public port
-            let openUrl = setting.customUrl;
+            // Resolve custom URL -> inferred public domain/label URL -> inferred public port fallback
+            let openUrl = setting.customUrl || c.inferredUrl;
             if (!openUrl && c.ports && c.ports.length > 0) {
               const pubPort = c.ports.find((p: any) => p.publicPort);
               if (pubPort) {

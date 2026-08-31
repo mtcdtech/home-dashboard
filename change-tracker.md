@@ -2,6 +2,17 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Automatic Public Container URL Discovery (v1.14.6)
+- **Summary**: Implemented automatic public URL extraction for Portainer container cards. Added `extractPublicUrlFromLabels` in `src/app/admin/actions.ts` to parse container labels, supporting explicit URL labels (`homepage.url`, `homarr.url`, `public_url`, `public.url`, `url`), Nginx `VIRTUAL_HOST` labels, and Traefik `Host(...)` router rules (e.g. `traefik.http.routers.<app>.rule = Host(\`app.domain.com\`)\`). Updated `PortainerWidget.tsx` so clicking a container card automatically uses `c.inferredUrl` (the real public domain) when no custom URL is set, eliminating manual URL configuration.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `extractPublicUrlFromLabels` helper and attached `inferredUrl` to fetched containers)
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (used `c.inferredUrl` as default launch URL before port fallback)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.14.6`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1009ms with 0 errors.
+
 ### 2026-08-31 - Portainer Sort Direction, Visibility Sorting & Icon Drop Zone Race Fix (v1.14.5)
 - **Summary**: Implemented 3 user enhancements. (1) Added `sortOrder` state (`asc` / `desc`) to `PortainerWidget.tsx` allowing ascending or descending sorting for both Name and Status. (2) Fixed drag-and-drop race condition in `IconPicker.tsx` custom drop zone by adding `e.stopPropagation()` and checking `!e.currentTarget.contains(e.relatedTarget)` so dragging images over drop zone children does not toggle drag state or switch background tabs. (3) Sorted the Container Visibility list in Portainer Widget API Settings modal alphabetically by container name.
 - **Files Modified**:

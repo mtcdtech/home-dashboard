@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.14.5` (Portainer Sort Direction & Drop Zone Fixes)
+- **Current Version**: `v1.14.6` (Automatic Public Container URL Discovery)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Automatic Public URL Discovery (v1.14.6)**:
+  - Implemented `extractPublicUrlFromLabels` in `src/app/admin/actions.ts` to automatically detect public container URLs from Docker labels (`homepage.url`, `homarr.url`, `public_url`, `public.url`, `url`, `virtual_host`, and Traefik `Host(...)` router rules).
+  - Updated `PortainerWidget.tsx` to automatically fall back to `c.inferredUrl` when no custom URL is specified, launching containers directly at their real public domains.
 - **Portainer Sort Direction, Visibility Sorting & Drop Zone Race Condition Fix (v1.14.5)**:
   - Added `sortOrder` setting (`asc` / `desc`) to `PortainerWidget.tsx` allowing ascending or descending container sorting by name or status.
   - Sorted the Container Visibility list in Portainer Widget API Settings modal alphabetically by container name (`setting.customName || c.name`).

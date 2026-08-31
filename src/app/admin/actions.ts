@@ -1936,7 +1936,40 @@ export async function updateSectionWidgetConfig(sectionId: string, widgetConfig:
   revalidatePath("/");
 }
 
-// --- PORTAINER WIDGET INTEGRATION ---
+function extractPublicUrlFromLabels(labels: Record<string, string> = {}): string | null {
+  if (!labels || typeof labels !== "object") return null;
+
+  // 1. Explicit public url labels (homepage.url, homarr.url, dashboard.url, public_url, public.url, etc.)
+  for (const key of Object.keys(labels)) {
+    const lkey = key.toLowerCase();
+    if (["homepage.url", "homarr.url", "dashboard.url", "public_url", "public.url", "url"].includes(lkey)) {
+      const val = labels[key]?.trim();
+      if (val) return val.startsWith("http") ? val : `https://${val}`;
+    }
+  }
+
+  // 2. Traefik Host(...) rule parsing (e.g. traefik.http.routers.<app>.rule = Host(`app.abraham16.com`))
+  for (const [key, val] of Object.entries(labels)) {
+    if (key.toLowerCase().includes("traefik.http.routers") && key.toLowerCase().endsWith(".rule")) {
+      const hostMatch = String(val).match(/Host\([`'"\s]*([^`'"\),]+)[`'"\s]*\)/i);
+      if (hostMatch && hostMatch[1]) {
+        const domain = hostMatch[1].trim();
+        if (domain) return `https://${domain}`;
+      }
+    }
+  }
+
+  // 3. Nginx / VIRTUAL_HOST labels
+  for (const key of Object.keys(labels)) {
+    if (key.toLowerCase() === "virtual_host") {
+      const vhost = labels[key]?.split(",")[0]?.trim();
+      if (vhost) return `https://${vhost}`;
+    }
+  }
+
+  return null;
+}
+
 export async function fetchPortainerContainers(config: { url?: string; apiKey?: string; endpointId?: string }) {
   await requireAdmin();
   const startTime = Date.now();
@@ -2063,6 +2096,8 @@ export async function fetchPortainerContainers(config: { url?: string; apiKey?: 
         state: c.State, // "running", "exited", etc.
         status: c.Status,
         created: c.Created,
+        inferredUrl: extractPublicUrlFromLabels(c.Labels || {}),
+        labels: c.Labels || {},
         ports: (c.Ports || []).map((p: any) => ({
           privatePort: p.PrivatePort,
           publicPort: p.PublicPort,
