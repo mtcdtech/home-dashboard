@@ -2,6 +2,22 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Microsoft Outlook Calendar Widget & Teams Integration (v1.16.0)
+- **Summary**: Implemented a full-featured Microsoft Outlook Calendar widget. Features include: (1) Microsoft Graph API and OAuth 2.0 integration (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`) with automatic offline token refresh. (2) Configurable date range (1 to 30 days ahead) for upcoming calendar events. (3) Calendar polling and live multi-select filter checklist allowing users to toggle visible calendars. (4) 1-click Microsoft Teams meeting launch with purple Teams badge/button for events containing online meeting links or Teams join URLs. (5) Widget Settings modal with Microsoft OAuth connect/disconnect, date range slider, and optional custom Azure app credentials. (6) Widget catalog registration in `Dashboard.tsx` with drag-and-drop / 1-click column placement. (7) Global dashboard search integration.
+- **Files Modified**:
+  - [src/lib/outlook.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/outlook.ts) (Microsoft Graph client, OAuth token refresh, event & calendar parser, Teams URL extractor)
+  - [src/app/api/widgets/outlook/auth/route.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/api/widgets/outlook/auth/route.ts) (OAuth authorize route)
+  - [src/app/api/widgets/outlook/callback/route.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/api/widgets/outlook/callback/route.ts) (OAuth callback, token exchange, profile query, postMessage opener notification)
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (React widget component with event grouping, Teams join button, settings modal)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `fetchOutlookCalendarsAction`, `fetchOutlookEventsAction`, `disconnectOutlookAccountAction`)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (catalog drawer item, drop handler, search matching, rendering)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npx eslint` passed with 0 errors / 0 warnings across all new and updated files.
+  - `npm run build` compiled cleanly in 613ms with Turbopack.
+
 ### 2026-08-31 - Portainer Container Global Search & Section Position Persistence Fix (v1.15.1)
 - **Summary**: Resolved 2 critical user issues: (1) Fixed section order mapping bug in `src/app/page.tsx` where `ts.order` was missing in `visibleSections` mapping, causing moved widget sections to revert to creation order when expanded or revalidated. (2) Integrated Portainer Docker containers into global dashboard search (`filteredTabs` and `flatMatchedBookmarks` in `Dashboard.tsx`). Searching in the top search bar now filters Portainer container cards, displays matching containers in keyboard search results, and launches container public URLs on Enter or click.
 - **Files Modified**:

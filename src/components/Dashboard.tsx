@@ -16,6 +16,7 @@ import { TabModal } from "./TabModal";
 import { SectionModal } from "./SectionModal";
 import { BookmarkModal } from "./BookmarkModal";
 import { PortainerWidget } from "./widgets/PortainerWidget";
+import { OutlookCalendarWidget } from "./widgets/OutlookCalendarWidget";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -362,8 +363,15 @@ export function Dashboard({
       if (srcId.startsWith("catalogWidget:")) {
          const widgetType = srcId.replace("catalogWidget:", "");
          try {
-            const title = widgetType === "portainer" ? "Portainer Docker Containers" : "Widget Section";
-            const icon = widgetType === "portainer" ? "Server" : "LayoutGrid";
+            let title = "Widget Section";
+            let icon = "LayoutGrid";
+            if (widgetType === "portainer") {
+               title = "Portainer Docker Containers";
+               icon = "Server";
+            } else if (widgetType === "outlook-calendar" || widgetType === "outlook") {
+               title = "Microsoft Outlook Calendar";
+               icon = "CalendarDays";
+            }
             const newSec = await actions.createSection({
                title,
                icon,
@@ -502,24 +510,28 @@ export function Dashboard({
             );
 
             let matchesWidget = false;
-            if (section.isWidget || section.widgetType === "portainer") {
-               const loadedContainers = portainerContainersMap[section.id] || [];
+            if (section.isWidget || section.widgetType === "portainer" || section.widgetType === "outlook-calendar" || section.widgetType === "outlook") {
                const rawConfig = typeof section.widgetConfig === "string" 
                   ? (JSON.parse(section.widgetConfig) || {}) 
                   : (section.widgetConfig || {});
-               const containerSettings = rawConfig.containers || {};
 
-               const matchedContainers = loadedContainers.filter(c => {
-                  const setting = containerSettings[c.name] || containerSettings[c.id] || {};
-                  const nameToMatch = (setting.customName || c.name || "").toLowerCase();
-                  const imageToMatch = (c.image || "").toLowerCase();
-                  const descToMatch = (setting.description || "").toLowerCase();
-                  const kwToMatch = (setting.keywords || "").toLowerCase();
-                  return nameToMatch.includes(sq) || imageToMatch.includes(sq) || descToMatch.includes(sq) || kwToMatch.includes(sq);
-               });
+               if (section.widgetType === "portainer" || (!section.widgetType && section.isWidget)) {
+                  const loadedContainers = portainerContainersMap[section.id] || [];
+                  const containerSettings = rawConfig.containers || {};
+
+                  const matchedContainers = loadedContainers.filter(c => {
+                     const setting = containerSettings[c.name] || containerSettings[c.id] || {};
+                     const nameToMatch = (setting.customName || c.name || "").toLowerCase();
+                     const imageToMatch = (c.image || "").toLowerCase();
+                     const descToMatch = (setting.description || "").toLowerCase();
+                     const kwToMatch = (setting.keywords || "").toLowerCase();
+                     return nameToMatch.includes(sq) || imageToMatch.includes(sq) || descToMatch.includes(sq) || kwToMatch.includes(sq);
+                  });
+                  if (matchedContainers.length > 0) matchesWidget = true;
+               }
 
                const configStr = JSON.stringify(rawConfig).toLowerCase();
-               if (matchedContainers.length > 0 || configStr.includes(sq) || section.title.toLowerCase().includes(sq)) {
+               if (configStr.includes(sq) || section.title.toLowerCase().includes(sq)) {
                   matchesWidget = true;
                }
             }
@@ -1522,21 +1534,32 @@ export function Dashboard({
 
                                        {/* Widget or Bookmarks */}
                                        {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
-                                          section.isWidget || section.widgetType === "portainer" ? (
-                                             <PortainerWidget 
-                                                section={section}
-                                                showEditControls={showEditControls}
-                                                hasEditAccess={hasSectionEditAccess(section, tab)}
-                                                isAdmin={isAdmin}
-                                                onRefresh={() => router.refresh()}
-                                                filter={searchQuery}
-                                                onContainersLoaded={(sectionId, containersList) => {
-                                                   setPortainerContainersMap(prev => ({
-                                                      ...prev,
-                                                      [sectionId]: containersList
-                                                   }));
-                                                }}
-                                             />
+                                          section.isWidget || section.widgetType === "portainer" || section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
+                                             section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
+                                                <OutlookCalendarWidget
+                                                   section={section}
+                                                   showEditControls={showEditControls}
+                                                   hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                   isAdmin={isAdmin}
+                                                   onRefresh={() => router.refresh()}
+                                                   filter={searchQuery}
+                                                />
+                                             ) : (
+                                                <PortainerWidget 
+                                                   section={section}
+                                                   showEditControls={showEditControls}
+                                                   hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                   isAdmin={isAdmin}
+                                                   onRefresh={() => router.refresh()}
+                                                   filter={searchQuery}
+                                                   onContainersLoaded={(sectionId, containersList) => {
+                                                      setPortainerContainersMap(prev => ({
+                                                         ...prev,
+                                                         [sectionId]: containersList
+                                                      }));
+                                                   }}
+                                                />
+                                             )
                                           ) : (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
                                              {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => {
@@ -1839,6 +1862,13 @@ export function Dashboard({
                                  title: "Portainer Docker Containers",
                                  icon: "Server",
                                  description: "Live interactive status, stats, and shortcuts for all active Docker containers via Portainer API."
+                              },
+                              {
+                                 id: "outlook-calendar-widget",
+                                 type: "outlook-calendar",
+                                 title: "Microsoft Outlook Calendar",
+                                 icon: "CalendarDays",
+                                 description: "Upcoming events from Microsoft Outlook & 365 calendars with calendar filtering and 1-click Microsoft Teams meeting launch."
                               }
                            ].filter(w => w.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || w.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
 

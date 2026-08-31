@@ -2335,3 +2335,126 @@ export async function deleteCustomUploadedIcon(iconUrl: string) {
   }
 }
 
+// --- OUTLOOK CALENDAR WIDGET ACTIONS ---
+
+export async function fetchOutlookCalendarsAction(sectionId: string) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : section.widgetConfig || {};
+
+    const { getValidAccessToken, fetchOutlookCalendars } = await import("@/lib/outlook");
+    const tokenResult = await getValidAccessToken(sectionId, rawConfig);
+    if (!tokenResult) {
+      return { success: false, error: "Outlook account not connected or authentication expired", needsAuth: true };
+    }
+
+    const calendars = await fetchOutlookCalendars(tokenResult.accessToken);
+    return { success: true, calendars };
+  } catch (err: any) {
+    console.error("[actions] fetchOutlookCalendarsAction error:", err);
+    return { success: false, error: err.message || "Failed to fetch calendars" };
+  }
+}
+
+export async function fetchOutlookEventsAction(
+  sectionId: string,
+  options?: { daysAhead?: number; selectedCalendarIds?: string[]; timeZone?: string }
+) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : section.widgetConfig || {};
+
+    if (!rawConfig.connected && !rawConfig.refreshToken) {
+      return { success: false, error: "Outlook account not connected", needsAuth: true };
+    }
+
+    const { getValidAccessToken, fetchOutlookEvents } = await import("@/lib/outlook");
+    const tokenResult = await getValidAccessToken(sectionId, rawConfig);
+    if (!tokenResult) {
+      return { success: false, error: "Outlook session expired. Please reconnect in widget settings.", needsAuth: true };
+    }
+
+    const daysAhead = options?.daysAhead ?? rawConfig.daysAhead ?? 7;
+    const selectedCalendarIds = options?.selectedCalendarIds ?? rawConfig.selectedCalendarIds ?? [];
+
+    const events = await fetchOutlookEvents(tokenResult.accessToken, {
+      daysAhead,
+      selectedCalendarIds,
+      timeZone: options?.timeZone,
+    });
+
+    return {
+      success: true,
+      events,
+      accountName: rawConfig.accountName,
+      accountEmail: rawConfig.accountEmail,
+      daysAhead,
+      selectedCalendarIds,
+    };
+  } catch (err: any) {
+    console.error("[actions] fetchOutlookEventsAction error:", err);
+    return { success: false, error: err.message || "Failed to fetch calendar events" };
+  }
+}
+
+export async function disconnectOutlookAccountAction(sectionId: string) {
+  await requireSectionRole(sectionId, "edit");
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : section.widgetConfig || {};
+
+    const updatedConfig = {
+      ...rawConfig,
+      connected: false,
+      accountEmail: null,
+      accountName: null,
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null,
+    };
+
+    await prisma.section.update({
+      where: { id: sectionId },
+      data: { widgetConfig: updatedConfig },
+    });
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to disconnect account" };
+  }
+}
+
+

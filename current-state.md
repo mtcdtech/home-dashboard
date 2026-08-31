@@ -4,10 +4,17 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.15.1` (Portainer Container Global Search & Section Position Persistence Fix)
+- **Current Version**: `v1.16.0` (Microsoft Outlook Calendar Widget with Teams Integration)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Microsoft Outlook Calendar Widget & Teams Integration (v1.16.0)**:
+  - Added new native dashboard widget: Microsoft Outlook Calendar (`widgetType: "outlook-calendar"`).
+  - Implemented Microsoft Graph API integration and OAuth 2.0 flow with automatic token refresh (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`).
+  - Added settings modal supporting Microsoft account connection/disconnection, configurable date range (1 to 30 days ahead), live calendar filter checklist with show/select-all toggles, and optional custom Azure app registration credentials.
+  - Implemented 1-click Microsoft Teams meeting launch with purple `#464EB8` Teams badge/icon for events containing online meeting links or Teams join URLs.
+  - Added Outlook Calendar to the widget drawer catalog in `Dashboard.tsx` with drag-and-drop and 1-click addition support.
+  - Integrated Outlook events into global dashboard search.
 - **Portainer Container Global Search & Section Order Fix (v1.15.1)**:
   - Fixed section order mapping bug in `src/app/page.tsx` where `ts.order` was omitted during `tabSections` mapping, causing moved sections (including Portainer widgets) to reset to initial creation order upon expanding/collapsing or server re-validation.
   - Integrated Portainer Docker containers into global dashboard search (`filteredTabs` and `flatMatchedBookmarks`). Typing in the dashboard search bar now dynamically filters Portainer container cards, displays matched Docker containers in top search results, and enables keyboard navigation/Enter launch directly to container public URLs.
