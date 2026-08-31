@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import * as LucideIcons from "lucide-react";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Trash2, Search, RefreshCw } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { getIconRegistry, getCachedIconRegistry } from "@/lib/iconRegistry";
-import { downloadAndStoreIcon } from "@/app/admin/actions";
+import { downloadAndStoreIcon, getCustomUploadedIcons, checkIconUsage, deleteCustomUploadedIcon } from "@/app/admin/actions";
 
 export const IconComponent = ({ name, size = 24, className = "", fallback }: { name?: string | null | undefined, size?: number, className?: string, fallback?: React.ReactNode }) => {
   if (!name) return fallback || null;
@@ -75,16 +75,68 @@ export const IconPicker = ({
     }
   };
   
+  const [uploadedIcons, setUploadedIcons] = useState<Array<{ name: string; url: string; mtime: number }>>([]);
+  const [loadingUploaded, setLoadingUploaded] = useState(false);
+  const [customSearchFilter, setCustomSearchFilter] = useState("");
+  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
+
+  const loadUploadedIcons = async () => {
+    setLoadingUploaded(true);
+    try {
+      const res = await getCustomUploadedIcons();
+      setUploadedIcons(res || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingUploaded(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeSource === "custom") {
+      loadUploadedIcons();
+    }
+  }, [activeSource]);
+
   const uploadFile = async (file: File) => {
       const fd = new FormData();
       fd.append("file", file);
       try {
           const res = await fetch("/api/upload", { method: "POST", body: fd });
           const data = await res.json();
-          if (data.url) setIcon(data.url);
+          if (data.url) {
+            setIcon(data.url);
+            loadUploadedIcons();
+          }
       } catch (e) {
           console.error(e);
       }
+  };
+
+  const handleDeleteUploadedIcon = async (url: string) => {
+    setDeletingUrl(url);
+    try {
+      const usage = await checkIconUsage(url);
+      let confirmMsg = `Are you sure you want to delete this uploaded icon (${url.split('/').pop()})?`;
+      if (usage.inUse) {
+        const itemNames = usage.details.slice(0, 5).map(d => `${d.type}: ${d.title}`).join(', ');
+        const moreCount = usage.details.length > 5 ? ` and ${usage.details.length - 5} more` : '';
+        confirmMsg = `WARNING: This icon is currently in use by ${usage.usageCount} item(s) on your dashboard (${itemNames}${moreCount}).\n\nDeleting it will remove the custom icon from those items. Are you sure you want to delete it permanently?`;
+      }
+      if (window.confirm(confirmMsg)) {
+        const res = await deleteCustomUploadedIcon(url);
+        if (res.success) {
+          if (currentIcon === url) setIcon("");
+          await loadUploadedIcons();
+        } else {
+          alert("Failed to delete icon: " + res.error);
+        }
+      }
+    } catch (err: any) {
+      alert("Error checking or deleting icon: " + err.message);
+    } finally {
+      setDeletingUrl(null);
+    }
   };
 
   const handleDropLocal = async (e: React.DragEvent) => {
@@ -255,6 +307,100 @@ export const IconPicker = ({
                       </div>
                   </div>
                   <p style={{ margin: '1rem 0 0 0', fontSize: '0.75rem', opacity: 0.4 }}>Drag and drop SVG / PNG / JPG legacy assets here</p>
+              </div>
+
+              {/* Previously Uploaded Custom Icons Library */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.1)', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6, letterSpacing: '0.05em' }}>
+                    Uploaded Custom Icons ({uploadedIcons.length})
+                  </span>
+                  <button 
+                    type="button"
+                    onClick={loadUploadedIcons}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                  >
+                    <RefreshCw size={12} className={loadingUploaded ? "animate-spin" : ""} />
+                    Refresh
+                  </button>
+                </div>
+
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+                  <input
+                    type="text"
+                    placeholder="Search custom uploaded icons..."
+                    value={customSearchFilter}
+                    onChange={(e) => setCustomSearchFilter(e.target.value)}
+                    className="glass"
+                    style={{ width: '100%', padding: '0.5rem 0.6rem 0.5rem 2rem', borderRadius: '8px', fontSize: '0.8rem', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                {loadingUploaded ? (
+                  <p style={{ fontSize: '0.75rem', opacity: 0.5, textAlign: 'center', margin: '0.5rem 0' }}>Loading custom icons...</p>
+                ) : uploadedIcons.length === 0 ? (
+                  <p style={{ fontSize: '0.75rem', opacity: 0.5, textAlign: 'center', margin: '0.5rem 0' }}>No custom icons uploaded yet.</p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {uploadedIcons
+                      .filter(item => !customSearchFilter || item.name.toLowerCase().includes(customSearchFilter.toLowerCase()))
+                      .map(item => {
+                        const isSelected = currentIcon === item.url;
+                        return (
+                          <div
+                            key={item.url}
+                            style={{
+                              position: 'relative',
+                              padding: '6px',
+                              borderRadius: '10px',
+                              border: isSelected ? '2px solid var(--primary)' : '1px solid var(--glass-border)',
+                              background: isSelected ? 'rgba(var(--primary-rgb), 0.15)' : 'rgba(255,255,255,0.03)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '4px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => handleSelectIcon(item.url)}
+                          >
+                            <img src={item.url} alt={item.name} style={{ width: '32px', height: '32px', objectFit: 'contain' }} title={item.name} />
+                            <span style={{ fontSize: '0.6rem', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                              {item.name}
+                            </span>
+
+                            <button
+                              type="button"
+                              title={`Delete ${item.name}`}
+                              disabled={deletingUrl === item.url}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteUploadedIcon(item.url);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                top: '2px',
+                                right: '2px',
+                                background: 'rgba(239, 68, 68, 0.85)',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                width: '16px',
+                                height: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
           </div>
       )}

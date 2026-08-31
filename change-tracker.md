@@ -2,6 +2,21 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Two-Tier Sorting, Uploaded Icon Library & Modal Drag Isolation (v1.15.0)
+- **Summary**: Implemented 4 major user feature enhancements: (1) Added 2-tier sorting configuration (`primarySortBy`, `primarySortOrder`, `secondarySortBy`, `secondarySortOrder`) supporting Name, Status, and Manual ordering in `PortainerWidget.tsx`. Added Up/Down position movement buttons for manual container reordering. (2) Fixed inadvertent background and modal dragging when modals are open by stopping drag event propagation (`onDragStart`, `onDragOver`, `onDrop`) on modal overlays (`.modal-overlay`). (3) Added Uploaded Custom Icon Library to the "Custom" tab of `IconPicker.tsx` (shared across all icon pickers), allowing users to search, preview, and select previously uploaded custom icons. (4) Added icon deletion functionality with automated database usage checks (`checkIconUsage` in `src/app/admin/actions.ts`), displaying detailed warning alerts before deleting icons that are currently in use by bookmarks, sections, tabs, or themes.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `getCustomUploadedIcons`, `checkIconUsage`, and `deleteCustomUploadedIcon` server actions)
+  - [src/components/IconPicker.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/IconPicker.tsx) (rendered searchable uploaded custom icon library and delete handler with in-use warnings)
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (implemented 2-tier sorting, manual reordering controls, and modal drag isolation)
+  - [src/components/BookmarkModal.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/BookmarkModal.tsx) (stopped drag propagation on modal overlay)
+  - [src/components/SectionModal.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/SectionModal.tsx) (stopped drag propagation on modal overlay)
+  - [src/components/TabModal.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/TabModal.tsx) (stopped drag propagation on modal overlay)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.15.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1421ms with 0 errors.
+
 ### 2026-08-31 - Automatic Public Container URL Discovery (v1.14.6)
 - **Summary**: Implemented automatic public URL extraction for Portainer container cards. Added `extractPublicUrlFromLabels` in `src/app/admin/actions.ts` to parse container labels, supporting explicit URL labels (`homepage.url`, `homarr.url`, `public_url`, `public.url`, `url`), Nginx `VIRTUAL_HOST` labels, and Traefik `Host(...)` router rules (e.g. `traefik.http.routers.<app>.rule = Host(\`app.domain.com\`)\`). Updated `PortainerWidget.tsx` so clicking a container card automatically uses `c.inferredUrl` (the real public domain) when no custom URL is set, eliminating manual URL configuration.
 - **Files Modified**:

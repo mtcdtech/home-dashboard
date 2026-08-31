@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Server, Activity, Power, RefreshCw, Eye, EyeOff, ExternalLink, Settings, X, Search, Check, AlertCircle, Edit3 } from "lucide-react";
+import { Server, Activity, Power, RefreshCw, Eye, EyeOff, ExternalLink, Settings, X, Search, Check, AlertCircle, Edit3, ChevronUp, ChevronDown } from "lucide-react";
 import { fetchPortainerContainers, updateSectionWidgetConfig } from "@/app/admin/actions";
 import { IconComponent } from "../IconPicker";
 import { BookmarkModal } from "../BookmarkModal";
@@ -32,11 +32,15 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
   const [portainerUrl, setPortainerUrl] = useState(rawConfig.url || "");
   const [apiKey, setApiKey] = useState(rawConfig.apiKey || "");
   const [endpointId, setEndpointId] = useState(rawConfig.endpointId || "5");
-  const [sortBy, setSortBy] = useState<"name" | "status">(rawConfig.sortBy || "name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(rawConfig.sortOrder || "asc");
   
-  // Custom container settings: { [containerIdOrName]: { hidden?: boolean, customUrl?: string, customName?: string, icon?: string, description?: string, keywords?: string } }
-  const [containerSettings, setContainerSettings] = useState<Record<string, { hidden?: boolean; customUrl?: string; customName?: string; icon?: string; description?: string; keywords?: string }>>(rawConfig.containers || {});
+  // 2-Tier Sorting State
+  const [primarySortBy, setPrimarySortBy] = useState<"name" | "status" | "manual">(rawConfig.primarySortBy || rawConfig.sortBy || "name");
+  const [primarySortOrder, setPrimarySortOrder] = useState<"asc" | "desc">(rawConfig.primarySortOrder || rawConfig.sortOrder || "asc");
+  const [secondarySortBy, setSecondarySortBy] = useState<"name" | "status" | "manual" | "none">(rawConfig.secondarySortBy || "none");
+  const [secondarySortOrder, setSecondarySortOrder] = useState<"asc" | "desc">(rawConfig.secondarySortOrder || "asc");
+  
+  // Custom container settings: { [containerIdOrName]: { hidden?: boolean, customUrl?: string, customName?: string, icon?: string, description?: string, keywords?: string, customOrder?: number } }
+  const [containerSettings, setContainerSettings] = useState<Record<string, { hidden?: boolean; customUrl?: string; customName?: string; icon?: string; description?: string; keywords?: string; customOrder?: number }>>(rawConfig.containers || {});
 
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -65,6 +69,35 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
     loadContainers();
   }, [section?.id]);
 
+  const moveContainerOrder = (containerName: string, direction: "up" | "down") => {
+    const sorted = [...containers].sort((a, b) => {
+      const settingA = containerSettings[a.name] || containerSettings[a.id] || {};
+      const settingB = containerSettings[b.name] || containerSettings[b.id] || {};
+      const orderA = settingA.customOrder ?? 9999;
+      const orderB = settingB.customOrder ?? 9999;
+      if (orderA !== orderB) return orderA - orderB;
+      const nameA = (settingA.customName || a.name || "").toLowerCase();
+      const nameB = (settingB.customName || b.name || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    const index = sorted.findIndex(c => c.name === containerName || c.id === containerName);
+    if (index === -1) return;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) return;
+
+    const updated = { ...containerSettings };
+    sorted.forEach((c, idx) => {
+      let finalOrder = idx;
+      if (idx === index) finalOrder = targetIndex;
+      else if (idx === targetIndex) finalOrder = index;
+      updated[c.name] = { ...updated[c.name], customOrder: finalOrder };
+    });
+
+    setContainerSettings(updated);
+  };
+
   const handleSaveConfig = async (newContainerSettings?: any) => {
     setSavingSettings(true);
     try {
@@ -72,8 +105,12 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
         url: portainerUrl.trim(),
         apiKey: apiKey.trim(),
         endpointId: endpointId.trim(),
-        sortBy,
-        sortOrder,
+        primarySortBy,
+        primarySortOrder,
+        secondarySortBy,
+        secondarySortOrder,
+        sortBy: primarySortBy,
+        sortOrder: primarySortOrder,
         containers: newContainerSettings || containerSettings
       };
       await updateSectionWidgetConfig(section.id, updatedConfig);
@@ -104,20 +141,30 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
       const nameA = (settingA.customName || a.name || "").toLowerCase();
       const nameB = (settingB.customName || b.name || "").toLowerCase();
 
-      let comparison = 0;
-      if (sortBy === "status") {
-        const isRunningA = a.state === "running" ? 0 : 1;
-        const isRunningB = b.state === "running" ? 0 : 1;
-        if (isRunningA !== isRunningB) {
-          comparison = isRunningA - isRunningB;
+      const compareTier = (sortByField: "name" | "status" | "manual", orderDir: "asc" | "desc") => {
+        let comp = 0;
+        if (sortByField === "status") {
+          const isRunningA = a.state === "running" ? 0 : 1;
+          const isRunningB = b.state === "running" ? 0 : 1;
+          comp = isRunningA - isRunningB;
+        } else if (sortByField === "manual") {
+          const orderA = settingA.customOrder ?? 9999;
+          const orderB = settingB.customOrder ?? 9999;
+          comp = orderA - orderB;
         } else {
-          comparison = nameA.localeCompare(nameB);
+          comp = nameA.localeCompare(nameB);
         }
-      } else {
-        comparison = nameA.localeCompare(nameB);
+        return orderDir === "desc" ? -comp : comp;
+      };
+
+      const primaryComp = compareTier(primarySortBy, primarySortOrder);
+      if (primaryComp !== 0) return primaryComp;
+
+      if (secondarySortBy && secondarySortBy !== "none" && secondarySortBy !== primarySortBy) {
+        return compareTier(secondarySortBy as any, secondarySortOrder);
       }
 
-      return sortOrder === "desc" ? -comparison : comparison;
+      return 0;
     });
 
   const totalCount = containers.length;
@@ -331,7 +378,13 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
 
       {/* Portainer Connection Settings Modal (Admin Only) */}
       {showSettingsModal && isAdmin && (
-        <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+        <div 
+          className="modal-overlay fade-in" 
+          onDragStart={(e) => e.stopPropagation()}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onDrop={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
+        >
           <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', borderRadius: '24px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--glass-border)', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -377,64 +430,131 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Sort By</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as "name" | "status")}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                  >
-                    <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Name</option>
-                    <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Status</option>
-                  </select>
+              {/* 2-Tier Sorting Controls */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Sorting Configuration</span>
+                
+                {/* Tier 1 Primary Sort */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Primary Sort Field</label>
+                    <select
+                      value={primarySortBy}
+                      onChange={(e) => setPrimarySortBy(e.target.value as any)}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                    >
+                      <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Name</option>
+                      <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Status</option>
+                      <option value="manual" style={{ background: '#1e1e2d', color: '#fff' }}>Manual Order</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Primary Direction</label>
+                    <select
+                      value={primarySortOrder}
+                      onChange={(e) => setPrimarySortOrder(e.target.value as any)}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                    >
+                      <option value="asc" style={{ background: '#1e1e2d', color: '#fff' }}>Ascending (A-Z / Running first)</option>
+                      <option value="desc" style={{ background: '#1e1e2d', color: '#fff' }}>Descending (Z-A / Stopped first)</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Sort Direction</label>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                  >
-                    <option value="asc" style={{ background: '#1e1e2d', color: '#fff' }}>Ascending (A-Z / Running first)</option>
-                    <option value="desc" style={{ background: '#1e1e2d', color: '#fff' }}>Descending (Z-A / Stopped first)</option>
-                  </select>
+
+                {/* Tier 2 Secondary Sort */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Secondary Sort (Tie-Breaker)</label>
+                    <select
+                      value={secondarySortBy}
+                      onChange={(e) => setSecondarySortBy(e.target.value as any)}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                    >
+                      <option value="none" style={{ background: '#1e1e2d', color: '#fff' }}>None</option>
+                      <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Name</option>
+                      <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Status</option>
+                      <option value="manual" style={{ background: '#1e1e2d', color: '#fff' }}>Manual Order</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Secondary Direction</label>
+                    <select
+                      value={secondarySortOrder}
+                      disabled={secondarySortBy === "none"}
+                      onChange={(e) => setSecondarySortOrder(e.target.value as any)}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box', opacity: secondarySortBy === "none" ? 0.5 : 1 }}
+                    >
+                      <option value="asc" style={{ background: '#1e1e2d', color: '#fff' }}>Ascending</option>
+                      <option value="desc" style={{ background: '#1e1e2d', color: '#fff' }}>Descending</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Container Visibility List */}
+            {/* Container Visibility & Order List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Container Visibility</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Container Visibility & Order</span>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto' }}>
                 {[...containers]
                   .sort((a, b) => {
+                    if (primarySortBy === "manual") {
+                      const orderA = containerSettings[a.name]?.customOrder ?? 9999;
+                      const orderB = containerSettings[b.name]?.customOrder ?? 9999;
+                      if (orderA !== orderB) return orderA - orderB;
+                    }
                     const settingA = containerSettings[a.name] || containerSettings[a.id] || {};
                     const settingB = containerSettings[b.name] || containerSettings[b.id] || {};
                     const nameA = (settingA.customName || a.name || "").toLowerCase();
                     const nameB = (settingB.customName || b.name || "").toLowerCase();
                     return nameA.localeCompare(nameB);
                   })
-                  .map(c => {
+                  .map((c, idx, arr) => {
                     const setting = containerSettings[c.name] || {};
                     return (
                       <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{setting.customName || c.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{setting.customName || c.name}</span>
+                        </div>
                         
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setContainerSettings(prev => ({
-                              ...prev,
-                              [c.name]: { ...prev[c.name], hidden: !prev[c.name]?.hidden }
-                            }));
-                          }}
-                          style={{ padding: '0.4rem 0.6rem', borderRadius: '6px', border: 'none', background: setting.hidden ? 'rgba(239, 68, 68, 0.2)' : 'rgba(var(--primary-rgb), 0.1)', color: setting.hidden ? '#ef4444' : 'var(--text)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                        >
-                          {setting.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
-                          {setting.hidden ? "Hidden" : "Visible"}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          {/* Manual Reordering Controls */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                            <button
+                              type="button"
+                              title="Move Up"
+                              disabled={idx === 0}
+                              onClick={() => moveContainerOrder(c.name, "up")}
+                              style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--text)', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 0.8 }}
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Move Down"
+                              disabled={idx === arr.length - 1}
+                              onClick={() => moveContainerOrder(c.name, "down")}
+                              style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--text)', cursor: idx === arr.length - 1 ? 'default' : 'pointer', opacity: idx === arr.length - 1 ? 0.3 : 0.8 }}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setContainerSettings(prev => ({
+                                ...prev,
+                                [c.name]: { ...prev[c.name], hidden: !prev[c.name]?.hidden }
+                              }));
+                            }}
+                            style={{ padding: '0.4rem 0.6rem', borderRadius: '6px', border: 'none', background: setting.hidden ? 'rgba(239, 68, 68, 0.2)' : 'rgba(var(--primary-rgb), 0.1)', color: setting.hidden ? '#ef4444' : 'var(--text)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                          >
+                            {setting.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                            {setting.hidden ? "Hidden" : "Visible"}
+                          </button>
+                        </div>
                       </div>
                     );
                   })}

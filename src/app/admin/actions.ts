@@ -2200,3 +2200,138 @@ export async function regenerateIamApiKey() {
   return { success: true, apiKey: newKey };
 }
 
+// --- CUSTOM UPLOADED ICONS LIBRARY & USAGE CHECK ---
+export async function getCustomUploadedIcons() {
+  await requireSession();
+  const icons: Array<{ name: string; url: string; mtime: number }> = [];
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    
+    const scanDir = (dirPath: string, urlPrefix: string) => {
+      if (fs.existsSync(dirPath)) {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+          const fullPath = path.join(dirPath, file);
+          const stat = fs.statSync(fullPath);
+          if (stat.isFile() && file.match(/\.(png|jpe?g|svg|webp|gif|ico)$/i)) {
+            icons.push({
+              name: file,
+              url: `${urlPrefix}/${file}`,
+              mtime: stat.mtimeMs,
+            });
+          }
+        }
+      }
+    };
+
+    scanDir(path.join(process.cwd(), "public", "uploads"), "/api/uploads");
+    scanDir(path.join(process.cwd(), "public", "uploads", "icons"), "/api/uploads/icons");
+
+    // Sort newest first
+    icons.sort((a, b) => b.mtime - a.mtime);
+  } catch (err) {
+    console.error("Failed to list custom uploaded icons:", err);
+  }
+  return icons;
+}
+
+export async function checkIconUsage(iconUrl: string) {
+  await requireSession();
+  const path = await import("path");
+  const filename = path.basename(iconUrl || "").trim();
+  if (!filename) return { inUse: false, usageCount: 0, details: [] };
+
+  const details: Array<{ type: string; title: string }> = [];
+
+  try {
+    // 1. Check Bookmarks
+    const bookmarks = await prisma.bookmark.findMany({
+      where: { icon: { contains: filename } },
+      select: { id: true, title: true }
+    });
+    for (const b of bookmarks) {
+      details.push({ type: "Bookmark", title: b.title });
+    }
+
+    // 2. Check Sections
+    const sections = await prisma.section.findMany({
+      where: {
+        OR: [
+          { icon: { contains: filename } },
+          { widgetConfig: { contains: filename } }
+        ]
+      },
+      select: { id: true, title: true }
+    });
+    for (const s of sections) {
+      details.push({ type: "Section", title: s.title });
+    }
+
+    // 3. Check Tabs
+    const tabs = await prisma.tab.findMany({
+      where: { icon: { contains: filename } },
+      select: { id: true, title: true }
+    });
+    for (const t of tabs) {
+      details.push({ type: "Tab", title: t.title });
+    }
+
+    // 4. Check Themes
+    const themes = await (prisma as any).theme.findMany({
+      where: {
+        OR: [
+          { icon: { contains: filename } },
+          { background: { contains: filename } }
+        ]
+      },
+      select: { id: true, name: true }
+    });
+    for (const th of themes) {
+      details.push({ type: "Theme", title: th.name });
+    }
+  } catch (err) {
+    console.error("Error checking icon usage:", err);
+  }
+
+  return {
+    inUse: details.length > 0,
+    usageCount: details.length,
+    details
+  };
+}
+
+export async function deleteCustomUploadedIcon(iconUrl: string) {
+  await requireSession();
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const filename = path.basename(iconUrl || "").trim();
+    if (!filename || filename.includes("..")) {
+      throw new Error("Invalid filename");
+    }
+
+    const path1 = path.join(process.cwd(), "public", "uploads", filename);
+    const path2 = path.join(process.cwd(), "public", "uploads", "icons", filename);
+
+    let deleted = false;
+    if (fs.existsSync(path1)) {
+      fs.unlinkSync(path1);
+      deleted = true;
+    }
+    if (fs.existsSync(path2)) {
+      fs.unlinkSync(path2);
+      deleted = true;
+    }
+
+    if (!deleted) {
+      throw new Error("Icon file not found on server disk");
+    }
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete icon" };
+  }
+}
+

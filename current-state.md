@@ -4,10 +4,16 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.14.6` (Automatic Public Container URL Discovery)
+- **Current Version**: `v1.15.0` (Two-Tier Sorting, Uploaded Icon Library & Modal Drag Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Two-Tier Sorting, Uploaded Icon Library & Modal Drag Isolation (v1.15.0)**:
+  - Added 2-tier sorting configuration (`primarySortBy`, `primarySortOrder`, `secondarySortBy`, `secondarySortOrder`) supporting Name, Status, and Manual custom ordering in `PortainerWidget.tsx`.
+  - Added Up/Down manual reordering controls for each container in Portainer widget settings (`moveContainerOrder`).
+  - Added Uploaded Custom Icon Library to the "Custom" tab of `IconPicker.tsx` (shared by all icon pickers), featuring real-time icon search, selection, and deletion.
+  - Implemented `checkIconUsage` in `src/app/admin/actions.ts` to check database references (Bookmarks, Sections, Tabs, Themes) before deleting uploaded icons, displaying detailed warning alerts before deletion.
+  - Stopped drag event propagation (`onDragStart`, `onDragOver`, `onDrop`) on modal overlays (`.modal-overlay`) to prevent inadvertent background/modal dragging when modals are open.
 - **Automatic Public URL Discovery (v1.14.6)**:
   - Implemented `extractPublicUrlFromLabels` in `src/app/admin/actions.ts` to automatically detect public container URLs from Docker labels (`homepage.url`, `homarr.url`, `public_url`, `public.url`, `url`, `virtual_host`, and Traefik `Host(...)` router rules).
   - Updated `PortainerWidget.tsx` to automatically fall back to `c.inferredUrl` when no custom URL is specified, launching containers directly at their real public domains.
