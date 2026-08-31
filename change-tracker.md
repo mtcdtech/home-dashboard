@@ -2,6 +2,18 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Portainer Container Global Search & Section Position Persistence Fix (v1.15.1)
+- **Summary**: Resolved 2 critical user issues: (1) Fixed section order mapping bug in `src/app/page.tsx` where `ts.order` was missing in `visibleSections` mapping, causing moved widget sections to revert to creation order when expanded or revalidated. (2) Integrated Portainer Docker containers into global dashboard search (`filteredTabs` and `flatMatchedBookmarks` in `Dashboard.tsx`). Searching in the top search bar now filters Portainer container cards, displays matching containers in keyboard search results, and launches container public URLs on Enter or click.
+- **Files Modified**:
+  - [src/app/page.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/app/page.tsx) (added `order: ts.order` mapping to preserve section column & order on re-renders)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (integrated Docker container search matching into `filteredTabs` & `flatMatchedBookmarks`)
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (added `filter` and `onContainersLoaded` props)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.15.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 811ms with 0 errors.
+
 ### 2026-08-31 - Two-Tier Sorting, Uploaded Icon Library & Modal Drag Isolation (v1.15.0)
 - **Summary**: Implemented 4 major user feature enhancements: (1) Added 2-tier sorting configuration (`primarySortBy`, `primarySortOrder`, `secondarySortBy`, `secondarySortOrder`) supporting Name, Status, and Manual ordering in `PortainerWidget.tsx`. Added Up/Down position movement buttons for manual container reordering. (2) Fixed inadvertent background and modal dragging when modals are open by stopping drag event propagation (`onDragStart`, `onDragOver`, `onDrop`) on modal overlays (`.modal-overlay`). (3) Added Uploaded Custom Icon Library to the "Custom" tab of `IconPicker.tsx` (shared across all icon pickers), allowing users to search, preview, and select previously uploaded custom icons. (4) Added icon deletion functionality with automated database usage checks (`checkIconUsage` in `src/app/admin/actions.ts`), displaying detailed warning alerts before deleting icons that are currently in use by bookmarks, sections, tabs, or themes.
 - **Files Modified**:

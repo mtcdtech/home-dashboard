@@ -192,6 +192,7 @@ export default async function Home(props: { searchParams: Promise<{ [key: string
         .map((ts: any) => ({
           ...ts.section,
           column: ts.column,
+          order: ts.order ?? ts.section?.order ?? 0,
           height: ts.height,
           defaultCollapsed: ts.defaultCollapsed || false,
           tabId: tab.id,

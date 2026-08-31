@@ -229,6 +229,7 @@ export function Dashboard({
    const adminBypass = isAdmin && !impersonating;
    const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+   const [portainerContainersMap, setPortainerContainersMap] = useState<Record<string, any[]>>({});
 
    // Modal States
    const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -499,7 +500,31 @@ export function Dashboard({
                (b.url || "").toLowerCase().includes(sq) || 
                (b.keywords || "").toLowerCase().includes(sq)
             );
-            if (matchedBookmarks.length > 0 || section.title.toLowerCase().includes(sq)) {
+
+            let matchesWidget = false;
+            if (section.isWidget || section.widgetType === "portainer") {
+               const loadedContainers = portainerContainersMap[section.id] || [];
+               const rawConfig = typeof section.widgetConfig === "string" 
+                  ? (JSON.parse(section.widgetConfig) || {}) 
+                  : (section.widgetConfig || {});
+               const containerSettings = rawConfig.containers || {};
+
+               const matchedContainers = loadedContainers.filter(c => {
+                  const setting = containerSettings[c.name] || containerSettings[c.id] || {};
+                  const nameToMatch = (setting.customName || c.name || "").toLowerCase();
+                  const imageToMatch = (c.image || "").toLowerCase();
+                  const descToMatch = (setting.description || "").toLowerCase();
+                  const kwToMatch = (setting.keywords || "").toLowerCase();
+                  return nameToMatch.includes(sq) || imageToMatch.includes(sq) || descToMatch.includes(sq) || kwToMatch.includes(sq);
+               });
+
+               const configStr = JSON.stringify(rawConfig).toLowerCase();
+               if (matchedContainers.length > 0 || configStr.includes(sq) || section.title.toLowerCase().includes(sq)) {
+                  matchesWidget = true;
+               }
+            }
+
+            if (matchedBookmarks.length > 0 || section.title.toLowerCase().includes(sq) || matchesWidget) {
                return { ...section, bookmarks: matchedBookmarks };
             }
             return null;
@@ -507,12 +532,13 @@ export function Dashboard({
          if (matchedSections.length > 0) return { ...tab, sections: matchedSections };
          return null;
       }).filter(Boolean) as Tab[];
-   }, [tabs, activeTab, searchQuery]);
+   }, [tabs, activeTab, searchQuery, portainerContainersMap]);
 
    const displayedTabs = searchQuery.trim() ? filteredTabs : ([activeTab].filter(Boolean) as Tab[]);
 
    const flatMatchedBookmarks = useMemo(() => {
       if (!searchQuery.trim()) return [];
+      const sq = searchQuery.toLowerCase();
       const list: any[] = [];
       displayedTabs.forEach(tab => {
          const cols = tab.columns || 3;
@@ -521,16 +547,52 @@ export function Dashboard({
                .filter(s => (s.column ?? 0) === colIdx)
                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                .forEach(section => {
-                  section.bookmarks
-                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-                     .forEach(b => {
-                        list.push(b);
+                  if (section.isWidget || section.widgetType === "portainer") {
+                     const loadedContainers = portainerContainersMap[section.id] || [];
+                     const rawConfig = typeof section.widgetConfig === "string" 
+                        ? (JSON.parse(section.widgetConfig) || {}) 
+                        : (section.widgetConfig || {});
+                     const containerSettings = rawConfig.containers || {};
+
+                     loadedContainers.forEach(c => {
+                        const setting = containerSettings[c.name] || containerSettings[c.id] || {};
+                        if (setting.hidden) return;
+                        const name = setting.customName || c.name;
+                        const image = c.image || "";
+                        const desc = setting.description || "";
+                        const kw = setting.keywords || "";
+                        const launchUrl = setting.customUrl || c.inferredUrl || (c.ports?.[0] ? `http://${c.ports[0].host}:${c.ports[0].publicPort}` : "#");
+
+                        if (
+                           name.toLowerCase().includes(sq) || 
+                           image.toLowerCase().includes(sq) || 
+                           desc.toLowerCase().includes(sq) || 
+                           kw.toLowerCase().includes(sq) || 
+                           section.title.toLowerCase().includes(sq)
+                        ) {
+                           list.push({
+                              id: `container_${section.id}_${c.id || c.name}`,
+                              title: name,
+                              url: launchUrl,
+                              description: desc || `Docker Image: ${image} (${c.state})`,
+                              icon: setting.icon || "Server",
+                              isContainer: true,
+                              state: c.state
+                           });
+                        }
                      });
+                  } else {
+                     section.bookmarks
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                        .forEach(b => {
+                           list.push(b);
+                        });
+                  }
                });
          }
       });
       return list;
-   }, [displayedTabs, searchQuery]);
+   }, [displayedTabs, searchQuery, portainerContainersMap]);
 
    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (!searchQuery.trim()) return;
@@ -1467,6 +1529,13 @@ export function Dashboard({
                                                 hasEditAccess={hasSectionEditAccess(section, tab)}
                                                 isAdmin={isAdmin}
                                                 onRefresh={() => router.refresh()}
+                                                filter={searchQuery}
+                                                onContainersLoaded={(sectionId, containersList) => {
+                                                   setPortainerContainersMap(prev => ({
+                                                      ...prev,
+                                                      [sectionId]: containersList
+                                                   }));
+                                                }}
                                              />
                                           ) : (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>

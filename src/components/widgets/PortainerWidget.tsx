@@ -12,9 +12,11 @@ export interface PortainerWidgetProps {
   hasEditAccess?: boolean;
   isAdmin?: boolean;
   onRefresh?: () => void;
+  filter?: string;
+  onContainersLoaded?: (sectionId: string, containers: any[]) => void;
 }
 
-export function PortainerWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh }: PortainerWidgetProps) {
+export function PortainerWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh, filter: propsFilter, onContainersLoaded }: PortainerWidgetProps) {
   const [containers, setContainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,9 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
       });
       if (res.success && res.containers) {
         setContainers(res.containers);
+        if (onContainersLoaded) {
+          onContainersLoaded(section.id, res.containers);
+        }
       } else {
         setError(res.error || "Failed to load containers");
       }
@@ -130,8 +135,15 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
       const setting = containerSettings[c.name] || containerSettings[c.id];
       if (setting?.hidden && !showSettingsModal) return false;
       const nameToMatch = setting?.customName || c.name;
-      if (filter && !nameToMatch.toLowerCase().includes(filter.toLowerCase()) && !c.image.toLowerCase().includes(filter.toLowerCase())) {
-        return false;
+      const activeFilter = (propsFilter || filter || "").trim().toLowerCase();
+      if (activeFilter) {
+        const nameMatch = nameToMatch.toLowerCase().includes(activeFilter);
+        const imageMatch = c.image.toLowerCase().includes(activeFilter);
+        const descMatch = (setting?.description || "").toLowerCase().includes(activeFilter);
+        const kwMatch = (setting?.keywords || "").toLowerCase().includes(activeFilter);
+        if (!nameMatch && !imageMatch && !descMatch && !kwMatch) {
+          return false;
+        }
       }
       return true;
     })
