@@ -2,6 +2,18 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Teams Link in Descriptions & Settings Token Preservation Fix (v1.16.3)
+- **Summary**: Resolved 2 issues: (1) Added full `body` selection and regex/href link cleaner in `src/lib/outlook.ts` to detect Microsoft Teams meeting links in event descriptions/body. (2) Resolved "Calendar Error: Outlook account not connected" when saving widget settings or changing filters. Root cause: `handleSaveConfig` was passing client-side `rawConfig` that lacked newly acquired OAuth tokens, overwriting `section.widgetConfig` in the database. Added `saveOutlookWidgetSettingsAction` to merge settings safely in PostgreSQL while preserving OAuth tokens and account credentials across all tab sections.
+- **Files Modified**:
+  - [src/lib/outlook.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/outlook.ts) (added body field and enhanced Teams URL extractor)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `saveOutlookWidgetSettingsAction` and safe merge in `updateSectionWidgetConfig`)
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (used `saveOutlookWidgetSettingsAction`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.3`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - Outlook Widget Settings Modal Crash Fix & Type Guards (v1.16.2)
 - **Summary**: Fixed client-side crash when clicking the Outlook Calendar widget settings gear. Root cause: `selectedCalendarIds`, `daysAhead`, `calendars`, or account profile variables could be non-array/object types during initial state synchronization, causing React render exceptions inside the settings modal. Added strict type guards and fallbacks for all modal render fields and array operations.
 - **Files Modified**:

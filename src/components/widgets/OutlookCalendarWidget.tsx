@@ -22,7 +22,7 @@ import {
   fetchOutlookEventsAction,
   fetchOutlookCalendarsAction,
   disconnectOutlookAccountAction,
-  updateSectionWidgetConfig,
+  saveOutlookWidgetSettingsAction,
 } from "@/app/admin/actions";
 import type { OutlookEventItem, OutlookCalendarItem } from "@/lib/outlook";
 
@@ -222,16 +222,18 @@ export function OutlookCalendarWidget({
   const handleSaveConfig = async () => {
     setSavingSettings(true);
     try {
-      const updatedConfig = {
-        ...rawConfig,
+      const res = await saveOutlookWidgetSettingsAction(section.id, {
         daysAhead,
         selectedCalendarIds: Array.isArray(selectedCalendarIds) ? selectedCalendarIds : [],
-        clientId: customClientId.trim() || undefined,
-        tenantId: customTenantId.trim() || undefined,
-        clientSecret: customClientSecret.trim() || undefined,
-      };
+        clientId: customClientId,
+        tenantId: customTenantId,
+        clientSecret: customClientSecret,
+      });
 
-      await updateSectionWidgetConfig(section.id, updatedConfig);
+      if (!res.success) {
+        throw new Error(res.error || "Failed to save configuration");
+      }
+
       setShowSettingsModal(false);
       await loadEvents();
       if (onRefresh) onRefresh();

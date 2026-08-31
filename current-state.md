@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.16.2` (Outlook Widget Settings Modal Crash Fix & Type Guards)
+- **Current Version**: `v1.16.3` (Teams Link in Descriptions & Settings Token Preservation Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Teams Link in Event Descriptions & Settings Token Preservation Fix (v1.16.3)**:
+  - Added full event body selection and multi-pattern parsing (href and plain text regex scan over `body`, `bodyPreview`, and `location`) to detect Microsoft Teams meeting links in event descriptions.
+  - Implemented `saveOutlookWidgetSettingsAction` to safely merge widget settings (days ahead, selected calendars, credentials) without risking or overwriting OAuth tokens in PostgreSQL, allowing multi-tab widgets to maintain separate account connections without dropping connection state.
 - **Outlook Widget Settings Modal Crash Fix (v1.16.2)**:
   - Resolved client-side React rendering crash when clicking the Outlook Calendar widget settings gear by implementing strict type guards on `selectedCalendarIds` (guaranteeing `Array.isArray`), `daysAhead` (`number`), `calendars` list mapping, and `accountName` / `accountEmail` string primitives.
 - **Outlook Subscribed Calendars & Connection State Persistence Fix (v1.16.1)**:

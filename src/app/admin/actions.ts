@@ -1929,9 +1929,22 @@ export async function updateLocalAdminSettings(data: { disableLocalAdmin?: boole
 
 export async function updateSectionWidgetConfig(sectionId: string, widgetConfig: any) {
   await requireSectionRole(sectionId, "edit");
+  const section = await prisma.section.findUnique({
+    where: { id: sectionId },
+  });
+  const existingConfig =
+    typeof section?.widgetConfig === "string"
+      ? JSON.parse(section.widgetConfig) || {}
+      : (section?.widgetConfig as Record<string, unknown>) || {};
+
+  const merged = {
+    ...existingConfig,
+    ...(typeof widgetConfig === "object" && widgetConfig !== null ? widgetConfig : {}),
+  };
+
   await prisma.section.update({
     where: { id: sectionId },
-    data: { widgetConfig }
+    data: { widgetConfig: JSON.parse(JSON.stringify(merged)) }
   });
   revalidatePath("/");
 }
@@ -2454,6 +2467,55 @@ export async function disconnectOutlookAccountAction(sectionId: string) {
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to disconnect account" };
+  }
+}
+
+export async function saveOutlookWidgetSettingsAction(
+  sectionId: string,
+  settings: {
+    daysAhead?: number;
+    selectedCalendarIds?: string[];
+    clientId?: string;
+    tenantId?: string;
+    clientSecret?: string;
+  }
+) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const existingConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : (section.widgetConfig as Record<string, unknown>) || {};
+
+    const mergedConfig = {
+      ...existingConfig,
+      daysAhead: typeof settings.daysAhead === "number" ? settings.daysAhead : (existingConfig.daysAhead ?? 7),
+      selectedCalendarIds: Array.isArray(settings.selectedCalendarIds)
+        ? settings.selectedCalendarIds
+        : (existingConfig.selectedCalendarIds ?? []),
+      ...(settings.clientId !== undefined ? { clientId: settings.clientId.trim() || undefined } : {}),
+      ...(settings.tenantId !== undefined ? { tenantId: settings.tenantId.trim() || undefined } : {}),
+      ...(settings.clientSecret !== undefined ? { clientSecret: settings.clientSecret.trim() || undefined } : {}),
+    };
+
+    await prisma.section.update({
+      where: { id: sectionId },
+      data: { widgetConfig: JSON.parse(JSON.stringify(mergedConfig)) },
+    });
+
+    revalidatePath("/");
+    return { success: true, updatedConfig: mergedConfig };
+  } catch (err: any) {
+    console.error("[actions] saveOutlookWidgetSettingsAction error:", err);
+    return { success: false, error: err.message || "Failed to save settings" };
   }
 }
 

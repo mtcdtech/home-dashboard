@@ -228,36 +228,52 @@ export async function getValidAccessToken(
   return { accessToken: refreshed.accessToken, updatedConfig };
 }
 
+function cleanTeamsUrl(rawUrl: string): string {
+  let cleaned = rawUrl.trim();
+  cleaned = cleaned.replace(/^[<"'(]+/, "").replace(/[>"');,.]+$/, "");
+  cleaned = cleaned.replace(/&amp;/g, "&");
+  return cleaned;
+}
+
 export function extractTeamsMeetingUrl(event: GraphEventResponse): string | null {
   // 1. Direct joinUrl from onlineMeeting object
   if (event.onlineMeeting?.joinUrl) {
-    return event.onlineMeeting.joinUrl;
+    return cleanTeamsUrl(event.onlineMeeting.joinUrl);
   }
 
   // 2. onlineMeetingUrl property
   if (event.onlineMeetingUrl && event.onlineMeetingUrl.startsWith("http")) {
-    return event.onlineMeetingUrl;
+    return cleanTeamsUrl(event.onlineMeetingUrl);
   }
+
+  const teamsRegex = /https:\/\/(?:teams\.microsoft\.com\/(?:l\/meetup-join|meet)\/[^\s<>"'\\]+|teams\.live\.com\/meet\/[^\s<>"'\\]+|gov\.teams\.microsoft\.us\/(?:l\/meetup-join|meet)\/[^\s<>"'\\]+)/i;
 
   // 3. Check location displayName or address
   const locName = event.location?.displayName || "";
-  const locMatch = locName.match(/https:\/\/(teams\.microsoft\.com\/l\/meetup-join\/[^\s<>"]+|teams\.live\.com\/meet\/[^\s<>"]+)/i);
+  const locMatch = locName.match(teamsRegex);
   if (locMatch) {
-    return locMatch[0];
+    return cleanTeamsUrl(locMatch[0]);
   }
 
   // 4. Regex scan bodyPreview
   const preview = event.bodyPreview || "";
-  const previewMatch = preview.match(/https:\/\/(teams\.microsoft\.com\/l\/meetup-join\/[^\s<>"]+|teams\.live\.com\/meet\/[^\s<>"]+)/i);
+  const previewMatch = preview.match(teamsRegex);
   if (previewMatch) {
-    return previewMatch[0];
+    return cleanTeamsUrl(previewMatch[0]);
   }
 
-  // 5. If isOnlineMeeting is true and onlineMeetingProvider is teamsForBusiness, fallback search in body content
+  // 5. Search in full body content (HTML or plain text)
   if (event.body?.content) {
-    const bodyMatch = event.body.content.match(/https:\/\/(teams\.microsoft\.com\/l\/meetup-join\/[^\s<>"'\\]+|teams\.live\.com\/meet\/[^\s<>"'\\]+)/i);
+    // Look for href="https://teams..."
+    const hrefMatch = event.body.content.match(/href=["'](https:\/\/[^"']*(?:teams\.microsoft\.com|teams\.live\.com|gov\.teams\.microsoft\.us)[^"']*)["']/i);
+    if (hrefMatch && hrefMatch[1]) {
+      return cleanTeamsUrl(hrefMatch[1]);
+    }
+
+    // Scan general body text
+    const bodyMatch = event.body.content.match(teamsRegex);
     if (bodyMatch) {
-      return bodyMatch[0];
+      return cleanTeamsUrl(bodyMatch[0]);
     }
   }
 
@@ -372,6 +388,7 @@ export async function fetchOutlookEvents(
     "id",
     "subject",
     "bodyPreview",
+    "body",
     "start",
     "end",
     "isAllDay",
