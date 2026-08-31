@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.16.0` (Microsoft Outlook Calendar Widget with Teams Integration)
+- **Current Version**: `v1.16.1` (Outlook Subscribed Calendar Support & Reconnect Persistence Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Outlook Subscribed Calendars & Connection State Persistence Fix (v1.16.1)**:
+  - Added full support for Microsoft Outlook subscribed calendars, shared calendars, and custom calendar groups by enumerating `GET /me/calendarGroups` and querying each group's calendars in `src/lib/outlook.ts`.
+  - Updated `fetchOutlookEvents` to query all calendars in parallel via `/me/calendars/{calId}/calendarView`, attaching real calendar names and color swatches so events from subscribed / external .ics calendars appear seamlessly.
+  - Fixed premature "Outlook Disconnected" status by synchronizing component state with `rawConfig` in `useEffect` and preventing transient network errors from clearing user connection state.
 - **Microsoft Outlook Calendar Widget & Teams Integration (v1.16.0)**:
   - Added new native dashboard widget: Microsoft Outlook Calendar (`widgetType: "outlook-calendar"`).
   - Implemented Microsoft Graph API integration and OAuth 2.0 flow with automatic token refresh (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`).

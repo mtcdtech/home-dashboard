@@ -130,6 +130,7 @@ export function getMicrosoftAuthConfig(customConfig?: {
     customConfig?.tenantId?.trim() ||
     process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID?.trim() ||
     process.env.MICROSOFT_TENANT_ID?.trim() ||
+    process.env.AZURE_TENANT_ID?.trim() ||
     "common";
 
   return { clientId, clientSecret, tenantId };
@@ -197,9 +198,13 @@ export async function getValidAccessToken(
     return { accessToken: widgetConfig.accessToken };
   }
 
-  // Refresh token
+  // Attempt refresh token
   const refreshed = await refreshOutlookToken(widgetConfig.refreshToken, authConfig);
   if (!refreshed) {
+    // If refresh failed (e.g. network hiccup) but token is still technically valid, fallback to current token
+    if (widgetConfig.accessToken && widgetConfig.expiresAt && widgetConfig.expiresAt > now) {
+      return { accessToken: widgetConfig.accessToken };
+    }
     return null;
   }
 
@@ -260,32 +265,89 @@ export function extractTeamsMeetingUrl(event: GraphEventResponse): string | null
 }
 
 export async function fetchOutlookCalendars(accessToken: string): Promise<OutlookCalendarItem[]> {
-  const url = "https://graph.microsoft.com/v1.0/me/calendars?$select=id,name,color,hexColor,isDefaultCalendar,canEdit,owner&$top=50";
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Prefer: 'outlook.timezone="UTC"',
-    },
-    signal: AbortSignal.timeout(8000),
-  });
+  const calendarMap = new Map<string, OutlookCalendarItem>();
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Failed to fetch calendars (${res.status}): ${errText}`);
+  // 1. Query /me/calendars (default calendar group)
+  try {
+    const url = "https://graph.microsoft.com/v1.0/me/calendars?$select=id,name,color,hexColor,isDefaultCalendar,canEdit,owner&$top=50";
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Prefer: 'outlook.timezone="UTC"',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const rawList: GraphCalendarResponse[] = data.value || [];
+      for (const c of rawList) {
+        calendarMap.set(c.id, {
+          id: c.id,
+          name: c.name || "Calendar",
+          color: c.color || "auto",
+          hexColor: c.hexColor || undefined,
+          isDefaultCalendar: !!c.isDefaultCalendar,
+          canEdit: !!c.canEdit,
+          owner: c.owner ? { name: c.owner.name, address: c.owner.address } : undefined,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("[outlook] Error fetching /me/calendars:", e);
   }
 
-  const data = await res.json();
-  const rawList: GraphCalendarResponse[] = data.value || [];
+  // 2. Query /me/calendarGroups to find Subscribed Calendars, Shared Calendars, and Other Calendars
+  try {
+    const groupsRes = await fetch("https://graph.microsoft.com/v1.0/me/calendarGroups?$top=25", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
 
-  return rawList.map((c) => ({
-    id: c.id,
-    name: c.name || "Calendar",
-    color: c.color || "auto",
-    hexColor: c.hexColor || undefined,
-    isDefaultCalendar: !!c.isDefaultCalendar,
-    canEdit: !!c.canEdit,
-    owner: c.owner ? { name: c.owner.name, address: c.owner.address } : undefined,
-  }));
+    if (groupsRes.ok) {
+      const groupsData = await groupsRes.json();
+      const groups = groupsData.value || [];
+      for (const grp of groups) {
+        try {
+          const grpCalRes = await fetch(
+            `https://graph.microsoft.com/v1.0/me/calendarGroups/${encodeURIComponent(grp.id)}/calendars?$select=id,name,color,hexColor,isDefaultCalendar,canEdit,owner&$top=50`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                Prefer: 'outlook.timezone="UTC"',
+              },
+              signal: AbortSignal.timeout(8000),
+            }
+          );
+          if (grpCalRes.ok) {
+            const grpCalData = await grpCalRes.json();
+            const grpCals: GraphCalendarResponse[] = grpCalData.value || [];
+            for (const c of grpCals) {
+              if (!calendarMap.has(c.id)) {
+                calendarMap.set(c.id, {
+                  id: c.id,
+                  name: c.name || "Calendar",
+                  color: c.color || "auto",
+                  hexColor: c.hexColor || undefined,
+                  isDefaultCalendar: !!c.isDefaultCalendar,
+                  canEdit: !!c.canEdit,
+                  owner: c.owner ? { name: c.owner.name, address: c.owner.address } : undefined,
+                });
+              }
+            }
+          }
+        } catch (grpErr) {
+          console.warn(`[outlook] Failed to fetch calendars for group ${grp.name || grp.id}:`, grpErr);
+        }
+      }
+    }
+  } catch (groupsErr) {
+    console.warn("[outlook] Error fetching /me/calendarGroups:", groupsErr);
+  }
+
+  return Array.from(calendarMap.values());
 }
 
 export async function fetchOutlookEvents(
@@ -325,54 +387,83 @@ export async function fetchOutlookEvents(
     "showAs",
   ].join(",");
 
-  const selectedCalIds = options.selectedCalendarIds || [];
-
-  // If no calendar filtering or empty array, query the primary calendarView across all default calendars
-  if (selectedCalIds.length === 0) {
-    const url = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(
-      startDateTime
-    )}&endDateTime=${encodeURIComponent(endDateTime)}&$select=${selectFields}&$top=100&$orderby=start/dateTime`;
-
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Prefer: `outlook.timezone="${tz}"`,
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Failed to fetch events (${res.status}): ${err}`);
-    }
-
-    const data = await res.json();
-    const rawEvents: GraphEventResponse[] = data.value || [];
-
-    return rawEvents.map((ev) => ({
-      id: ev.id,
-      subject: ev.subject || "(No title)",
-      bodyPreview: ev.bodyPreview,
-      start: ev.start,
-      end: ev.end,
-      isAllDay: !!ev.isAllDay,
-      location: ev.location?.displayName || undefined,
-      isOnlineMeeting: !!ev.isOnlineMeeting || !!ev.onlineMeetingUrl,
-      teamsUrl: extractTeamsMeetingUrl(ev),
-      webLink: ev.webLink,
-      responseStatus: ev.responseStatus?.response,
-      importance: ev.importance,
-      categories: ev.categories,
-      showAs: ev.showAs,
-    }));
+  // Fetch all calendars first so we know their names, colors, and IDs (including subscribed calendars)
+  const allCalendars = await fetchOutlookCalendars(accessToken);
+  const calMap = new Map<string, OutlookCalendarItem>();
+  for (const cal of allCalendars) {
+    calMap.set(cal.id, cal);
   }
 
-  // Fetch per-selected calendar in parallel
-  const calPromises = selectedCalIds.map(async (calId) => {
+  // Determine which calendar IDs to query
+  let targetCalIds: string[] = [];
+  if (options.selectedCalendarIds && options.selectedCalendarIds.length > 0) {
+    targetCalIds = options.selectedCalendarIds;
+  } else if (allCalendars.length > 0) {
+    targetCalIds = allCalendars.map((c) => c.id);
+  }
+
+  const allEvents: OutlookEventItem[] = [];
+
+  // Query each calendar view in parallel
+  if (targetCalIds.length > 0) {
+    const promises = targetCalIds.map(async (calId) => {
+      const calInfo = calMap.get(calId);
+      try {
+        const url = `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(
+          calId
+        )}/calendarView?startDateTime=${encodeURIComponent(
+          startDateTime
+        )}&endDateTime=${encodeURIComponent(endDateTime)}&$select=${selectFields}&$top=100&$orderby=start/dateTime`;
+
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Prefer: `outlook.timezone="${tz}"`,
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok) {
+          console.warn(`[outlook] Failed to fetch events for calendar ${calInfo?.name || calId}:`, res.status);
+          return [];
+        }
+
+        const data = await res.json();
+        const rawEvents: GraphEventResponse[] = data.value || [];
+
+        return rawEvents.map((ev) => ({
+          id: ev.id,
+          calendarId: calId,
+          calendarName: calInfo?.name || "Calendar",
+          calendarColor: calInfo?.hexColor || undefined,
+          subject: ev.subject || "(No title)",
+          bodyPreview: ev.bodyPreview,
+          start: ev.start,
+          end: ev.end,
+          isAllDay: !!ev.isAllDay,
+          location: ev.location?.displayName || undefined,
+          isOnlineMeeting: !!ev.isOnlineMeeting || !!ev.onlineMeetingUrl,
+          teamsUrl: extractTeamsMeetingUrl(ev),
+          webLink: ev.webLink,
+          responseStatus: ev.responseStatus?.response,
+          importance: ev.importance,
+          categories: ev.categories,
+          showAs: ev.showAs,
+        }));
+      } catch (calErr) {
+        console.warn(`[outlook] Error querying calendar ${calInfo?.name || calId}:`, calErr);
+        return [];
+      }
+    });
+
+    const results = await Promise.all(promises);
+    for (const r of results) {
+      allEvents.push(...r);
+    }
+  } else {
+    // Fallback if no calendars enumerated: query primary calendarView
     try {
-      const url = `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(
-        calId
-      )}/calendarView?startDateTime=${encodeURIComponent(
+      const url = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(
         startDateTime
       )}&endDateTime=${encodeURIComponent(endDateTime)}&$select=${selectFields}&$top=100&$orderby=start/dateTime`;
 
@@ -381,46 +472,39 @@ export async function fetchOutlookEvents(
           Authorization: `Bearer ${accessToken}`,
           Prefer: `outlook.timezone="${tz}"`,
         },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(10000),
       });
 
-      if (!res.ok) {
-        console.warn(`[outlook] Failed to fetch events for calendar ${calId}:`, res.status);
-        return [];
+      if (res.ok) {
+        const data = await res.json();
+        const rawEvents: GraphEventResponse[] = data.value || [];
+        allEvents.push(
+          ...rawEvents.map((ev) => ({
+            id: ev.id,
+            subject: ev.subject || "(No title)",
+            bodyPreview: ev.bodyPreview,
+            start: ev.start,
+            end: ev.end,
+            isAllDay: !!ev.isAllDay,
+            location: ev.location?.displayName || undefined,
+            isOnlineMeeting: !!ev.isOnlineMeeting || !!ev.onlineMeetingUrl,
+            teamsUrl: extractTeamsMeetingUrl(ev),
+            webLink: ev.webLink,
+            responseStatus: ev.responseStatus?.response,
+            importance: ev.importance,
+            categories: ev.categories,
+            showAs: ev.showAs,
+          }))
+        );
       }
-
-      const data = await res.json();
-      const rawEvents: GraphEventResponse[] = data.value || [];
-
-      return rawEvents.map((ev) => ({
-        id: ev.id,
-        calendarId: calId,
-        subject: ev.subject || "(No title)",
-        bodyPreview: ev.bodyPreview,
-        start: ev.start,
-        end: ev.end,
-        isAllDay: !!ev.isAllDay,
-        location: ev.location?.displayName || undefined,
-        isOnlineMeeting: !!ev.isOnlineMeeting || !!ev.onlineMeetingUrl,
-        teamsUrl: extractTeamsMeetingUrl(ev),
-        webLink: ev.webLink,
-        responseStatus: ev.responseStatus?.response,
-        importance: ev.importance,
-        categories: ev.categories,
-        showAs: ev.showAs,
-      }));
     } catch (e) {
-      console.warn(`[outlook] Error querying calendar ${calId}:`, e);
-      return [];
+      console.warn("[outlook] Fallback /me/calendarView failed:", e);
     }
-  });
+  }
 
-  const results = await Promise.all(calPromises);
-  const flattened = results.flat();
-
-  // Deduplicate and sort chronologically by start dateTime
+  // Deduplicate events by id and sort chronologically
   const uniqueMap = new Map<string, OutlookEventItem>();
-  for (const ev of flattened) {
+  for (const ev of allEvents) {
     if (!uniqueMap.has(ev.id)) {
       uniqueMap.set(ev.id, ev);
     }

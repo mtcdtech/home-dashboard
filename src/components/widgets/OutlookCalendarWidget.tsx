@@ -78,7 +78,16 @@ export function OutlookCalendarWidget({
   const [customTenantId, setCustomTenantId] = useState<string>(rawConfig.tenantId || "");
   const [customClientSecret, setCustomClientSecret] = useState<string>(rawConfig.clientSecret || "");
 
-  const [savingSettings, setSavingSettings] = useState(false);
+  // Sync state with section.widgetConfig when props change or after OAuth
+  useEffect(() => {
+    if (rawConfig.connected !== undefined) {
+      setConnected(!!rawConfig.connected);
+    }
+    if (rawConfig.accountEmail) setAccountEmail(rawConfig.accountEmail);
+    if (rawConfig.accountName) setAccountName(rawConfig.accountName);
+    if (rawConfig.daysAhead !== undefined) setDaysAhead(rawConfig.daysAhead);
+    if (rawConfig.selectedCalendarIds !== undefined) setSelectedCalendarIds(rawConfig.selectedCalendarIds);
+  }, [rawConfig]);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -93,13 +102,13 @@ export function OutlookCalendarWidget({
       if (res.success) {
         setEvents(res.events || []);
         setConnected(true);
+        setNeedsAuth(false);
+        setError(null);
         if (res.accountName) setAccountName(res.accountName);
         if (res.accountEmail) setAccountEmail(res.accountEmail);
-        setNeedsAuth(false);
       } else {
         if (res.needsAuth) {
           setNeedsAuth(true);
-          setConnected(false);
         }
         setError(res.error || "Failed to load events");
       }
@@ -654,14 +663,29 @@ export function OutlookCalendarWidget({
                       {ev.calendarName && (
                         <span
                           style={{
-                            padding: "0.1rem 0.35rem",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.3rem",
+                            padding: "0.1rem 0.4rem",
                             borderRadius: "4px",
                             background: "rgba(255,255,255,0.08)",
                             fontSize: "0.68rem",
                             fontWeight: 600,
                           }}
                         >
-                          {ev.calendarName}
+                          {ev.calendarColor && (
+                            <span
+                              style={{
+                                width: "6px",
+                                height: "6px",
+                                borderRadius: "50%",
+                                background: ev.calendarColor,
+                                display: "inline-block",
+                                flexShrink: 0,
+                              }}
+                            />
+                          )}
+                          <span>{ev.calendarName}</span>
                         </span>
                       )}
                     </div>

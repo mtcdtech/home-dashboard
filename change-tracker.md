@@ -2,6 +2,18 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Outlook Subscribed Calendars & Connection State Persistence Fix (v1.16.1)
+- **Summary**: Resolved 2 issues reported with the Microsoft Outlook Calendar widget: (1) Fixed missing subscribed calendar events by querying Microsoft Graph `GET /me/calendarGroups` and enumerating all calendar groups (Subscribed Calendars, Other Calendars, Shared Calendars). Updated `fetchOutlookEvents` to query all calendars in parallel via `/me/calendars/{calId}/calendarView`, attaching calendar names and color swatches. (2) Resolved premature "Outlook Disconnected" status by synchronizing React component state with `rawConfig` in `useEffect` and preventing transient network errors from clearing user authentication state.
+- **Files Modified**:
+  - [src/lib/outlook.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/outlook.ts) (added calendarGroups traversal and per-calendar view querying)
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (synced state with rawConfig and added calendar color dot)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npx eslint` passed with 0 errors and 0 warnings.
+  - `npm run build` compiled cleanly with Turbopack.
+
 ### 2026-08-31 - Microsoft Outlook Calendar Widget & Teams Integration (v1.16.0)
 - **Summary**: Implemented a full-featured Microsoft Outlook Calendar widget. Features include: (1) Microsoft Graph API and OAuth 2.0 integration (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`) with automatic offline token refresh. (2) Configurable date range (1 to 30 days ahead) for upcoming calendar events. (3) Calendar polling and live multi-select filter checklist allowing users to toggle visible calendars. (4) 1-click Microsoft Teams meeting launch with purple Teams badge/button for events containing online meeting links or Teams join URLs. (5) Widget Settings modal with Microsoft OAuth connect/disconnect, date range slider, and optional custom Azure app credentials. (6) Widget catalog registration in `Dashboard.tsx` with drag-and-drop / 1-click column placement. (7) Global dashboard search integration.
 - **Files Modified**:

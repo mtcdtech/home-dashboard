@@ -44,8 +44,10 @@
      - Apply external icon migration: `docker exec homedashboard-app node /app/scripts/migrate-icons-to-disk.mjs --apply`
 - **Verification**: Run `SELECT count(*) FROM "Bookmark" WHERE icon LIKE '/uploads/%';` against DB — expect 0 rows remaining after `fix-icon-paths.mjs --apply`.
 
-## Microsoft Outlook Calendar Widget & Teams Integration (v1.16.0)
+## Microsoft Outlook Calendar Widget & Teams Integration (v1.16.1)
 - **Widget Shipped**: Full-featured Microsoft Outlook Calendar widget (`widgetType: "outlook-calendar"`).
+- **Subscribed Calendars & Groups**: Traverses `GET /me/calendarGroups` and queries each group's calendars (e.g. Subscribed Calendars, Other Calendars, Shared Calendars), and queries per-calendar views so events from subscribed .ics calendars appear on the dashboard with real calendar names and color swatches.
+- **Connection Persistence**: Synchronizes component state with `rawConfig` in `useEffect` and handles transient errors gracefully to prevent premature disconnected states.
 - **Authentication**:
   - OAuth 2.0 Auth Code flow with offline refresh token support (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`).
   - Supports Microsoft 365 work/school accounts and personal Outlook accounts.
