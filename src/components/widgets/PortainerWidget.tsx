@@ -33,6 +33,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
   const [apiKey, setApiKey] = useState(rawConfig.apiKey || "");
   const [endpointId, setEndpointId] = useState(rawConfig.endpointId || "5");
   const [sortBy, setSortBy] = useState<"name" | "status">(rawConfig.sortBy || "name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(rawConfig.sortOrder || "asc");
   
   // Custom container settings: { [containerIdOrName]: { hidden?: boolean, customUrl?: string, customName?: string, icon?: string, description?: string, keywords?: string } }
   const [containerSettings, setContainerSettings] = useState<Record<string, { hidden?: boolean; customUrl?: string; customName?: string; icon?: string; description?: string; keywords?: string }>>(rawConfig.containers || {});
@@ -72,6 +73,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
         apiKey: apiKey.trim(),
         endpointId: endpointId.trim(),
         sortBy,
+        sortOrder,
         containers: newContainerSettings || containerSettings
       };
       await updateSectionWidgetConfig(section.id, updatedConfig);
@@ -102,14 +104,20 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
       const nameA = (settingA.customName || a.name || "").toLowerCase();
       const nameB = (settingB.customName || b.name || "").toLowerCase();
 
+      let comparison = 0;
       if (sortBy === "status") {
         const isRunningA = a.state === "running" ? 0 : 1;
         const isRunningB = b.state === "running" ? 0 : 1;
         if (isRunningA !== isRunningB) {
-          return isRunningA - isRunningB;
+          comparison = isRunningA - isRunningB;
+        } else {
+          comparison = nameA.localeCompare(nameB);
         }
+      } else {
+        comparison = nameA.localeCompare(nameB);
       }
-      return nameA.localeCompare(nameB);
+
+      return sortOrder === "desc" ? -comparison : comparison;
     });
 
   const totalCount = containers.length;
@@ -369,16 +377,29 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Container Sort Order</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as "name" | "status")}
-                  style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                >
-                  <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Sort by Name (Alphabetical)</option>
-                  <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Sort by Status (Running first)</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as "name" | "status")}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                  >
+                    <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Name</option>
+                    <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Status</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Sort Direction</label>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                  >
+                    <option value="asc" style={{ background: '#1e1e2d', color: '#fff' }}>Ascending (A-Z / Running first)</option>
+                    <option value="desc" style={{ background: '#1e1e2d', color: '#fff' }}>Descending (Z-A / Stopped first)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -387,28 +408,36 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
               <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Container Visibility</span>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto' }}>
-                {containers.map(c => {
-                  const setting = containerSettings[c.name] || {};
-                  return (
-                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{setting.customName || c.name}</span>
-                      
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setContainerSettings(prev => ({
-                            ...prev,
-                            [c.name]: { ...prev[c.name], hidden: !prev[c.name]?.hidden }
-                          }));
-                        }}
-                        style={{ padding: '0.4rem 0.6rem', borderRadius: '6px', border: 'none', background: setting.hidden ? 'rgba(239, 68, 68, 0.2)' : 'rgba(var(--primary-rgb), 0.1)', color: setting.hidden ? '#ef4444' : 'var(--text)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                      >
-                        {setting.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
-                        {setting.hidden ? "Hidden" : "Visible"}
-                      </button>
-                    </div>
-                  );
-                })}
+                {[...containers]
+                  .sort((a, b) => {
+                    const settingA = containerSettings[a.name] || containerSettings[a.id] || {};
+                    const settingB = containerSettings[b.name] || containerSettings[b.id] || {};
+                    const nameA = (settingA.customName || a.name || "").toLowerCase();
+                    const nameB = (settingB.customName || b.name || "").toLowerCase();
+                    return nameA.localeCompare(nameB);
+                  })
+                  .map(c => {
+                    const setting = containerSettings[c.name] || {};
+                    return (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{setting.customName || c.name}</span>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setContainerSettings(prev => ({
+                              ...prev,
+                              [c.name]: { ...prev[c.name], hidden: !prev[c.name]?.hidden }
+                            }));
+                          }}
+                          style={{ padding: '0.4rem 0.6rem', borderRadius: '6px', border: 'none', background: setting.hidden ? 'rgba(239, 68, 68, 0.2)' : 'rgba(var(--primary-rgb), 0.1)', color: setting.hidden ? '#ef4444' : 'var(--text)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                        >
+                          {setting.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                          {setting.hidden ? "Hidden" : "Visible"}
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
 

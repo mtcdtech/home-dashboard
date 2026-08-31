@@ -89,6 +89,7 @@ export const IconPicker = ({
 
   const handleDropLocal = async (e: React.DragEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
       if (file) await uploadFile(file);
@@ -206,8 +207,15 @@ export const IconPicker = ({
       {activeSource === "custom" && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div 
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDragging(false);
+                  }
+                }}
                 onDrop={handleDropLocal}
                 style={{ 
                   border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--glass-border)'}`,

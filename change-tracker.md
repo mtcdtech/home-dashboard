@@ -2,6 +2,17 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Portainer Sort Direction, Visibility Sorting & Icon Drop Zone Race Fix (v1.14.5)
+- **Summary**: Implemented 3 user enhancements. (1) Added `sortOrder` state (`asc` / `desc`) to `PortainerWidget.tsx` allowing ascending or descending sorting for both Name and Status. (2) Fixed drag-and-drop race condition in `IconPicker.tsx` custom drop zone by adding `e.stopPropagation()` and checking `!e.currentTarget.contains(e.relatedTarget)` so dragging images over drop zone children does not toggle drag state or switch background tabs. (3) Sorted the Container Visibility list in Portainer Widget API Settings modal alphabetically by container name.
+- **Files Modified**:
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (added `sortOrder` state/select, updated visible container sort, and sorted visibility list by name)
+  - [src/components/IconPicker.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/IconPicker.tsx) (stopped drag event propagation and fixed child element leave checking)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.14.5`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1135ms with 0 errors.
+
 ### 2026-08-31 - Portainer Widget Enhancements & Title Space Key Unblocking (v1.14.4)
 - **Summary**: Resolved 3 Portainer widget and input editing requests. (1) Fixed issue where spaces could not be typed into title inputs in modals/widgets by checking `target.tagName` in `handleGridKeyDown` and `handleTabsKeyDown` in `src/components/Dashboard.tsx`. (2) Added status indicator dot badge (`#10b981` running / `#ef4444` stopped) overlaid on container icons in `src/components/widgets/PortainerWidget.tsx` so container state is visible even when custom logos are used. (3) Added `sortBy` setting (`name` | `status`) in Portainer widget settings with option dropdown to sort containers by status (running first) or alphabetically by name.
 - **Files Modified**:

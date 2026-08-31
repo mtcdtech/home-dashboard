@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.14.4` (Portainer Widget Fixes & Keyboard Handling)
+- **Current Version**: `v1.14.5` (Portainer Sort Direction & Drop Zone Fixes)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Portainer Sort Direction, Visibility Sorting & Drop Zone Race Condition Fix (v1.14.5)**:
+  - Added `sortOrder` setting (`asc` / `desc`) to `PortainerWidget.tsx` allowing ascending or descending container sorting by name or status.
+  - Sorted the Container Visibility list in Portainer Widget API Settings modal alphabetically by container name (`setting.customName || c.name`).
+  - Fixed drag-and-drop race condition in `IconPicker.tsx` custom icon drop zone by stopping drag event propagation and checking child element boundaries (`!e.currentTarget.contains(e.relatedTarget)`).
 - **Portainer Widget Fixes & Keyboard Input Unblocking (v1.14.4)**:
   - Fixed input title space key blocking by adding input/textarea target checks in `handleGridKeyDown` and `handleTabsKeyDown` in `src/components/Dashboard.tsx`.
   - Added status indicator dot badge to container icon box in `src/components/widgets/PortainerWidget.tsx` (glowing green dot for running, red for stopped).
