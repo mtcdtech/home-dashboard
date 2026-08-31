@@ -854,6 +854,8 @@ export function Dashboard({
    }) : [];
 
    const handleGridKeyDown = (e: React.KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       if (!activeTabObj || sortedSections.length === 0) return;
       if (e.key === 'Tab' && !e.shiftKey) {
          e.preventDefault();
@@ -918,6 +920,8 @@ export function Dashboard({
    };
 
    const handleTabsKeyDown = (e: React.KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
          e.preventDefault();
          const currentIndex = tabs.findIndex(t => t.id === activeTabId);

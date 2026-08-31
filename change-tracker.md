@@ -2,6 +2,17 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Portainer Widget Enhancements & Title Space Key Unblocking (v1.14.4)
+- **Summary**: Resolved 3 Portainer widget and input editing requests. (1) Fixed issue where spaces could not be typed into title inputs in modals/widgets by checking `target.tagName` in `handleGridKeyDown` and `handleTabsKeyDown` in `src/components/Dashboard.tsx`. (2) Added status indicator dot badge (`#10b981` running / `#ef4444` stopped) overlaid on container icons in `src/components/widgets/PortainerWidget.tsx` so container state is visible even when custom logos are used. (3) Added `sortBy` setting (`name` | `status`) in Portainer widget settings with option dropdown to sort containers by status (running first) or alphabetically by name.
+- **Files Modified**:
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (bypassed input/textarea elements in grid and tab keydown listeners)
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (added `sortBy` state, sort logic, status dot indicator badge, and sort dropdown in settings modal)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.14.4`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 811ms with zero errors.
+
 ### 2026-08-29 - Bookmark Duplication Feature (v1.14.3)
 - **Summary**: Implemented a bookmark duplication feature. Added a `duplicateBookmark(id)` server action in `src/app/admin/actions.ts` that copies the original bookmark and places it right below it in the same section (shifting subsequent bookmarks up in order). Added a duplicate button (using Lucide `<Copy />` icon) in edit mode next to the delete button on bookmark cards in `src/components/Dashboard.tsx` with proper event propagation blocking (`stopPropagation`).
 - **Files Modified**:

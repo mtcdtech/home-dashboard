@@ -32,6 +32,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
   const [portainerUrl, setPortainerUrl] = useState(rawConfig.url || "");
   const [apiKey, setApiKey] = useState(rawConfig.apiKey || "");
   const [endpointId, setEndpointId] = useState(rawConfig.endpointId || "5");
+  const [sortBy, setSortBy] = useState<"name" | "status">(rawConfig.sortBy || "name");
   
   // Custom container settings: { [containerIdOrName]: { hidden?: boolean, customUrl?: string, customName?: string, icon?: string, description?: string, keywords?: string } }
   const [containerSettings, setContainerSettings] = useState<Record<string, { hidden?: boolean; customUrl?: string; customName?: string; icon?: string; description?: string; keywords?: string }>>(rawConfig.containers || {});
@@ -70,6 +71,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
         url: portainerUrl.trim(),
         apiKey: apiKey.trim(),
         endpointId: endpointId.trim(),
+        sortBy,
         containers: newContainerSettings || containerSettings
       };
       await updateSectionWidgetConfig(section.id, updatedConfig);
@@ -84,15 +86,31 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
     }
   };
 
-  const visibleContainers = containers.filter(c => {
-    const setting = containerSettings[c.name] || containerSettings[c.id];
-    if (setting?.hidden && !showSettingsModal) return false;
-    const nameToMatch = setting?.customName || c.name;
-    if (filter && !nameToMatch.toLowerCase().includes(filter.toLowerCase()) && !c.image.toLowerCase().includes(filter.toLowerCase())) {
-      return false;
-    }
-    return true;
-  });
+  const visibleContainers = containers
+    .filter(c => {
+      const setting = containerSettings[c.name] || containerSettings[c.id];
+      if (setting?.hidden && !showSettingsModal) return false;
+      const nameToMatch = setting?.customName || c.name;
+      if (filter && !nameToMatch.toLowerCase().includes(filter.toLowerCase()) && !c.image.toLowerCase().includes(filter.toLowerCase())) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const settingA = containerSettings[a.name] || containerSettings[a.id] || {};
+      const settingB = containerSettings[b.name] || containerSettings[b.id] || {};
+      const nameA = (settingA.customName || a.name || "").toLowerCase();
+      const nameB = (settingB.customName || b.name || "").toLowerCase();
+
+      if (sortBy === "status") {
+        const isRunningA = a.state === "running" ? 0 : 1;
+        const isRunningB = b.state === "running" ? 0 : 1;
+        if (isRunningA !== isRunningB) {
+          return isRunningA - isRunningB;
+        }
+      }
+      return nameA.localeCompare(nameB);
+    });
 
   const totalCount = containers.length;
   const runningCount = containers.filter(c => c.state === "running").length;
@@ -220,12 +238,26 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
-                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: isRunning ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }}>
+                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: isRunning ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: 'relative' }}>
                     {setting.icon ? (
                       <IconComponent name={setting.icon} size={16} />
                     ) : (
                       <Server size={15} color={isRunning ? '#10b981' : '#ef4444'} />
                     )}
+                    <span 
+                      title={`Status: ${c.status || c.state}`}
+                      style={{ 
+                        position: 'absolute', 
+                        bottom: '-2px', 
+                        right: '-2px', 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        background: isRunning ? '#10b981' : '#ef4444',
+                        border: '1.5px solid var(--glass-border, #1a1b26)',
+                        boxShadow: isRunning ? '0 0 5px rgba(16, 185, 129, 0.8)' : '0 0 5px rgba(239, 68, 68, 0.8)'
+                      }} 
+                    />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)' }}>
@@ -335,6 +367,18 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                   onChange={(e) => setApiKey(e.target.value)}
                   style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
                 />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Container Sort Order</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as "name" | "status")}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Sort by Name (Alphabetical)</option>
+                  <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Sort by Status (Running first)</option>
+                </select>
               </div>
             </div>
 
