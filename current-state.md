@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.18.2` (FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering)
+- **Current Version**: `v1.18.3` (FreeScout In Progress Label, Draggable Mailbox Ordering & Draggable Status Priority)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **FreeScout In Progress Label, Draggable Mailbox & Status Ordering (v1.18.3)**:
+  - Renamed "Pending" status label across all widget surfaces (header counter badges, conversation status pills, and settings modal) to "In Progress".
+  - Implemented drag-and-drop reordering for mailboxes in the settings modal (`mailboxOrder`), with tab rendering respecting this custom order.
+  - Implemented drag-and-drop reordering for ticket statuses in the settings modal (`statusOrder`), with header status filter badges and status sorting reflecting this custom priority.
 - **FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering (v1.18.2)**:
   - Ensured mailbox tabs bar is strictly hidden when only 1 mailbox is active or enabled in widget settings.
   - Added filter to exclude draft and deleted conversations (`state: "draft"`, `state: "deleted"`, `status: "draft"`, `deletedAt`) from the FreeScout conversation list.

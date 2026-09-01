@@ -48,7 +48,9 @@ export interface FreeScoutWidgetConfig {
   serverUrl?: string;
   apiKey?: string;
   selectedMailboxIds?: number[];
+  mailboxOrder?: number[];
   selectedStatuses?: string[]; // e.g. ["active", "pending"]
+  statusOrder?: string[]; // e.g. ["active", "pending", "closed", "spam"]
   sortBy?: "updatedAt" | "createdAt" | "number" | "status";
   sortOrder?: "desc" | "asc";
   maxItems?: number; // e.g. 10, 25, 50
@@ -175,8 +177,10 @@ export async function fetchFreeScoutConversations(
   apiKey: string,
   options: {
     mailboxIds?: number[];
+    mailboxOrder?: number[];
     statuses?: string[];
-    sortBy?: "updatedAt" | "createdAt" | "number";
+    statusOrder?: string[];
+    sortBy?: "updatedAt" | "createdAt" | "number" | "status";
     sortOrder?: "desc" | "asc";
     maxItems?: number;
   }
@@ -347,19 +351,17 @@ export async function fetchFreeScoutConversations(
     }
   }
 
-  // Status priority map for sorting
-  const statusPriority: Record<string, number> = {
-    active: 1,
-    pending: 2,
-    closed: 3,
-    spam: 4,
-  };
+  const customStatusOrder = options.statusOrder && options.statusOrder.length > 0
+    ? options.statusOrder
+    : ["active", "pending", "closed", "spam"];
 
   // Sort collected conversations
   collectedConversations.sort((a, b) => {
     if (sortBy === "status") {
-      const pA = statusPriority[a.status] || 99;
-      const pB = statusPriority[b.status] || 99;
+      const idxA = customStatusOrder.indexOf(a.status);
+      const idxB = customStatusOrder.indexOf(b.status);
+      const pA = idxA !== -1 ? idxA : 99;
+      const pB = idxB !== -1 ? idxB : 99;
       if (pA !== pB) {
         return sortOrder === "asc" ? pB - pA : pA - pB;
       }
@@ -380,10 +382,21 @@ export async function fetchFreeScoutConversations(
     return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
   });
 
-  const activeMailboxes = mailboxes.filter((m) => targetMailboxIds.includes(m.id));
+  const customMailboxOrder = options.mailboxOrder || [];
+  let activeMailboxes = mailboxes.filter((m) => targetMailboxIds.includes(m.id));
+  if (activeMailboxes.length === 0) activeMailboxes = mailboxes;
+
+  activeMailboxes.sort((a, b) => {
+    const idxA = customMailboxOrder.indexOf(a.id);
+    const idxB = customMailboxOrder.indexOf(b.id);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.id - b.id;
+  });
 
   return {
     conversations: collectedConversations.slice(0, maxItems),
-    mailboxes: activeMailboxes.length > 0 ? activeMailboxes : mailboxes,
+    mailboxes: activeMailboxes,
   };
 }

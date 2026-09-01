@@ -2695,7 +2695,9 @@ export async function fetchFreeScoutConversationsAction(sectionId: string) {
 
     const res = await fetchFreeScoutConversations(serverUrl, apiKey, {
       mailboxIds: rawConfig.selectedMailboxIds,
+      mailboxOrder: rawConfig.mailboxOrder,
       statuses: rawConfig.selectedStatuses,
+      statusOrder: rawConfig.statusOrder,
       sortBy: rawConfig.sortBy,
       sortOrder: rawConfig.sortOrder,
       maxItems: rawConfig.maxItems,
@@ -2723,7 +2725,9 @@ export async function saveFreeScoutWidgetSettingsAction(
     serverUrl?: string;
     apiKey?: string;
     selectedMailboxIds?: number[];
+    mailboxOrder?: number[];
     selectedStatuses?: string[];
+    statusOrder?: string[];
     sortBy?: "updatedAt" | "createdAt" | "number" | "status";
     sortOrder?: "desc" | "asc";
     maxItems?: number;
@@ -2749,9 +2753,15 @@ export async function saveFreeScoutWidgetSettingsAction(
       selectedMailboxIds: Array.isArray(settings.selectedMailboxIds)
         ? settings.selectedMailboxIds
         : existingConfig.selectedMailboxIds ?? [],
+      mailboxOrder: Array.isArray(settings.mailboxOrder)
+        ? settings.mailboxOrder
+        : existingConfig.mailboxOrder ?? [],
       selectedStatuses: Array.isArray(settings.selectedStatuses)
         ? settings.selectedStatuses
         : existingConfig.selectedStatuses ?? ["active", "pending"],
+      statusOrder: Array.isArray(settings.statusOrder)
+        ? settings.statusOrder
+        : existingConfig.statusOrder ?? ["active", "pending", "closed", "spam"],
       sortBy: settings.sortBy || existingConfig.sortBy || "updatedAt",
       sortOrder: settings.sortOrder || existingConfig.sortOrder || "desc",
       maxItems: typeof settings.maxItems === "number" ? settings.maxItems : existingConfig.maxItems ?? 25,

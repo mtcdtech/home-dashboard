@@ -14,7 +14,7 @@ import {
   User,
   X,
   Inbox,
-  Tag,
+  GripVertical,
 } from "lucide-react";
 import {
   fetchFreeScoutConversationsAction,
@@ -39,6 +39,39 @@ export interface FreeScoutWidgetProps {
   onRefresh?: () => void;
   filter?: string;
 }
+
+const DEFAULT_STATUS_ORDER = ["active", "pending", "closed", "spam"];
+
+const STATUS_METADATA: Record<string, { label: string; shortLabel: string; color: string; bg: string; border: string }> = {
+  active: {
+    label: "Open / Unresolved",
+    shortLabel: "Unresolved",
+    color: "#fbbf24",
+    bg: "rgba(245, 158, 11, 0.2)",
+    border: "rgba(245, 158, 11, 0.3)",
+  },
+  pending: {
+    label: "In Progress",
+    shortLabel: "In Progress",
+    color: "#c084fc",
+    bg: "rgba(139, 92, 246, 0.2)",
+    border: "rgba(139, 92, 246, 0.3)",
+  },
+  closed: {
+    label: "Closed",
+    shortLabel: "Closed",
+    color: "#34d399",
+    bg: "rgba(16, 185, 129, 0.2)",
+    border: "rgba(16, 185, 129, 0.3)",
+  },
+  spam: {
+    label: "Spam",
+    shortLabel: "Spam",
+    color: "#f87171",
+    bg: "rgba(239, 68, 68, 0.2)",
+    border: "rgba(239, 68, 68, 0.3)",
+  },
+};
 
 export function FreeScoutWidget({
   section,
@@ -80,8 +113,16 @@ export function FreeScoutWidget({
   const [selectedMailboxIds, setSelectedMailboxIds] = useState<number[]>(
     Array.isArray(rawConfig.selectedMailboxIds) ? rawConfig.selectedMailboxIds : []
   );
+  const [mailboxOrder, setMailboxOrder] = useState<number[]>(
+    Array.isArray(rawConfig.mailboxOrder) ? rawConfig.mailboxOrder : []
+  );
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
     Array.isArray(rawConfig.selectedStatuses) ? rawConfig.selectedStatuses : ["active", "pending"]
+  );
+  const [statusOrder, setStatusOrder] = useState<string[]>(
+    Array.isArray(rawConfig.statusOrder) && rawConfig.statusOrder.length > 0
+      ? rawConfig.statusOrder
+      : DEFAULT_STATUS_ORDER
   );
   const [sortBy, setSortBy] = useState<"updatedAt" | "createdAt" | "number" | "status">(
     rawConfig.sortBy || "updatedAt"
@@ -91,6 +132,10 @@ export function FreeScoutWidget({
   const [autoRefreshMinutes, setAutoRefreshMinutes] = useState<number>(rawConfig.autoRefreshMinutes ?? 0);
   const [availableMailboxes, setAvailableMailboxes] = useState<FreeScoutMailbox[]>([]);
   const [loadingMailboxes, setLoadingMailboxes] = useState<boolean>(false);
+
+  // Drag-and-drop state for settings modal
+  const [draggedMailboxIndex, setDraggedMailboxIndex] = useState<number | null>(null);
+  const [draggedStatusIndex, setDraggedStatusIndex] = useState<number | null>(null);
 
   // Load Conversations
   const loadConversations = useCallback(async (showSpinner = true) => {
@@ -135,8 +180,14 @@ export function FreeScoutWidget({
     setServerUrl(rawConfig.serverUrl || "");
     setApiKey(rawConfig.apiKey || "");
     setSelectedMailboxIds(Array.isArray(rawConfig.selectedMailboxIds) ? rawConfig.selectedMailboxIds : []);
+    setMailboxOrder(Array.isArray(rawConfig.mailboxOrder) ? rawConfig.mailboxOrder : []);
     setSelectedStatuses(
       Array.isArray(rawConfig.selectedStatuses) ? rawConfig.selectedStatuses : ["active", "pending"]
+    );
+    setStatusOrder(
+      Array.isArray(rawConfig.statusOrder) && rawConfig.statusOrder.length > 0
+        ? rawConfig.statusOrder
+        : DEFAULT_STATUS_ORDER
     );
     setSortBy(rawConfig.sortBy || "updatedAt");
     setSortOrder(rawConfig.sortOrder || "desc");
@@ -153,7 +204,17 @@ export function FreeScoutWidget({
           apiKey: rawConfig.apiKey,
         });
         if (res.success && Array.isArray(res.mailboxes)) {
-          setAvailableMailboxes(res.mailboxes);
+          // Sort available mailboxes according to mailboxOrder
+          const ordered = [...res.mailboxes].sort((a, b) => {
+            const currentOrder = rawConfig.mailboxOrder || [];
+            const idxA = currentOrder.indexOf(a.id);
+            const idxB = currentOrder.indexOf(b.id);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.id - b.id;
+          });
+          setAvailableMailboxes(ordered);
         }
       } catch (e) {
         console.warn("[freescout] Failed to fetch mailboxes:", e);
@@ -180,7 +241,15 @@ export function FreeScoutWidget({
         });
         const mbRes = await fetchFreeScoutMailboxesAction(section.id, { serverUrl, apiKey });
         if (mbRes.success && Array.isArray(mbRes.mailboxes)) {
-          setAvailableMailboxes(mbRes.mailboxes);
+          const ordered = [...mbRes.mailboxes].sort((a, b) => {
+            const idxA = mailboxOrder.indexOf(a.id);
+            const idxB = mailboxOrder.indexOf(b.id);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.id - b.id;
+          });
+          setAvailableMailboxes(ordered);
         }
       } else {
         setTestResult({ success: false, message: res.error || "Failed to connect to FreeScout." });
@@ -199,11 +268,14 @@ export function FreeScoutWidget({
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
+      const currentMailboxOrder = availableMailboxes.map((m) => m.id);
       const res = await saveFreeScoutWidgetSettingsAction(section.id, {
         serverUrl,
         apiKey,
         selectedMailboxIds,
+        mailboxOrder: currentMailboxOrder,
         selectedStatuses,
+        statusOrder,
         sortBy,
         sortOrder,
         maxItems,
@@ -224,26 +296,35 @@ export function FreeScoutWidget({
     }
   };
 
-  // Priority map for status sorting
-  const statusPriority: Record<string, number> = useMemo(
-    () => ({
-      active: 1,
-      pending: 2,
-      closed: 3,
-      spam: 4,
-    }),
-    []
-  );
+  // Active / Configured Status Order
+  const activeStatusOrder = useMemo(() => {
+    const list = Array.isArray(rawConfig.statusOrder) && rawConfig.statusOrder.length > 0
+      ? rawConfig.statusOrder
+      : DEFAULT_STATUS_ORDER;
+    return list;
+  }, [rawConfig.statusOrder]);
 
-  // Filter available mailboxes strictly by active/selected configuration
+  // Filter available mailboxes strictly by active/selected configuration and custom mailboxOrder
   const activeMailboxes = useMemo(() => {
     const configuredIds = Array.isArray(rawConfig.selectedMailboxIds) ? rawConfig.selectedMailboxIds : [];
+    const currentOrder = Array.isArray(rawConfig.mailboxOrder) ? rawConfig.mailboxOrder : [];
+
+    let filtered = mailboxes;
     if (configuredIds.length > 0) {
-      const filtered = mailboxes.filter((m) => configuredIds.includes(m.id));
-      if (filtered.length > 0) return filtered;
+      const subset = mailboxes.filter((m) => configuredIds.includes(m.id));
+      if (subset.length > 0) filtered = subset;
     }
-    return mailboxes;
-  }, [mailboxes, rawConfig.selectedMailboxIds]);
+
+    // Sort by custom mailboxOrder
+    return [...filtered].sort((a, b) => {
+      const idxA = currentOrder.indexOf(a.id);
+      const idxB = currentOrder.indexOf(b.id);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.id - b.id;
+    });
+  }, [mailboxes, rawConfig.selectedMailboxIds, rawConfig.mailboxOrder]);
 
   // Filter and sort conversations
   const filteredConversations = useMemo(() => {
@@ -276,8 +357,10 @@ export function FreeScoutWidget({
     // Client-side sort
     list.sort((a, b) => {
       if (sortBy === "status") {
-        const pA = statusPriority[a.status] || 99;
-        const pB = statusPriority[b.status] || 99;
+        const idxA = activeStatusOrder.indexOf(a.status);
+        const idxB = activeStatusOrder.indexOf(b.status);
+        const pA = idxA !== -1 ? idxA : 99;
+        const pB = idxB !== -1 ? idxB : 99;
         if (pA !== pB) {
           return sortOrder === "asc" ? pB - pA : pA - pB;
         }
@@ -298,15 +381,19 @@ export function FreeScoutWidget({
     });
 
     return list;
-  }, [conversations, localSearch, filter, selectedMailboxFilter, selectedStatusFilter, sortBy, sortOrder, statusPriority]);
+  }, [conversations, localSearch, filter, selectedMailboxFilter, selectedStatusFilter, sortBy, sortOrder, activeStatusOrder]);
 
   // Counts
   const unresolvedCount = useMemo(() => {
     return conversations.filter((c) => c.status === "active").length;
   }, [conversations]);
 
-  const pendingCount = useMemo(() => {
+  const inProgressCount = useMemo(() => {
     return conversations.filter((c) => c.status === "pending").length;
+  }, [conversations]);
+
+  const closedCount = useMemo(() => {
+    return conversations.filter((c) => c.status === "closed").length;
   }, [conversations]);
 
   // Time format helper
@@ -353,55 +440,66 @@ export function FreeScoutWidget({
           width: "100%",
         }}
       >
-        {/* Left Side: Status Badges */}
+        {/* Left Side: Status Badges (rendered in custom status order) */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", flex: 1, minWidth: 0 }}>
-          <button
-            type="button"
-            onClick={() => setSelectedStatusFilter(selectedStatusFilter === "active" ? "all" : "active")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.3rem",
-              padding: "0.2rem 0.5rem",
-              borderRadius: "20px",
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              border: selectedStatusFilter === "active" ? "1px solid #f59e0b" : "1px solid rgba(245, 158, 11, 0.3)",
-              background:
-                selectedStatusFilter === "active" ? "rgba(245, 158, 11, 0.25)" : "rgba(245, 158, 11, 0.1)",
-              color: "#fbbf24",
-              transition: "all 0.15s ease",
-            }}
-            title="Filter by Open/Unresolved issues"
-          >
-            <AlertCircle size={11} />
-            <span>{unresolvedCount} Unresolved</span>
-          </button>
+          {activeStatusOrder.map((statusKey) => {
+            const isSelected = selectedStatusFilter === statusKey;
+            const meta = STATUS_METADATA[statusKey] || {
+              label: statusKey,
+              shortLabel: statusKey,
+              color: "#fff",
+              bg: "rgba(255,255,255,0.1)",
+              border: "rgba(255,255,255,0.2)",
+            };
 
-          <button
-            type="button"
-            onClick={() => setSelectedStatusFilter(selectedStatusFilter === "pending" ? "all" : "pending")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.3rem",
-              padding: "0.2rem 0.5rem",
-              borderRadius: "20px",
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              border: selectedStatusFilter === "pending" ? "1px solid #8b5cf6" : "1px solid rgba(139, 92, 246, 0.3)",
-              background:
-                selectedStatusFilter === "pending" ? "rgba(139, 92, 246, 0.25)" : "rgba(139, 92, 246, 0.1)",
-              color: "#c084fc",
-              transition: "all 0.15s ease",
-            }}
-            title="Filter by Pending issues"
-          >
-            <Clock size={11} />
-            <span>{pendingCount} Pending</span>
-          </button>
+            const count =
+              statusKey === "active"
+                ? unresolvedCount
+                : statusKey === "pending"
+                ? inProgressCount
+                : statusKey === "closed"
+                ? closedCount
+                : conversations.filter((c) => c.status === statusKey).length;
+
+            // Only show status badge in header if it's active/pending or has items
+            if (statusKey !== "active" && statusKey !== "pending" && count === 0) {
+              return null;
+            }
+
+            return (
+              <button
+                key={statusKey}
+                type="button"
+                onClick={() => setSelectedStatusFilter(isSelected ? "all" : statusKey)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  padding: "0.2rem 0.5rem",
+                  borderRadius: "20px",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  border: isSelected ? `1px solid ${meta.color}` : `1px solid ${meta.border}`,
+                  background: isSelected ? meta.bg.replace("0.2", "0.35") : meta.bg,
+                  color: meta.color,
+                  transition: "all 0.15s ease",
+                }}
+                title={`Filter by ${meta.label} issues`}
+              >
+                {statusKey === "active" ? (
+                  <AlertCircle size={11} />
+                ) : statusKey === "pending" ? (
+                  <Clock size={11} />
+                ) : (
+                  <CheckCircle2 size={11} />
+                )}
+                <span>
+                  {count} {meta.shortLabel}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Right Corner: Fixed Controls (Pinned to top-right corner) */}
@@ -600,7 +698,7 @@ export function FreeScoutWidget({
           <div>
             <div style={{ fontSize: "0.9rem", fontWeight: 700 }}>FreeScout Help Desk</div>
             <div style={{ fontSize: "0.75rem", opacity: 0.6, marginTop: "0.2rem" }}>
-              Connect to your FreeScout server to view unresolved and pending issues.
+              Connect to your FreeScout server to view unresolved and in progress issues.
             </div>
           </div>
           {(showEditControls || hasEditAccess) && (
@@ -685,7 +783,7 @@ export function FreeScoutWidget({
           <div style={{ fontSize: "0.72rem" }}>
             {localSearch || selectedStatusFilter !== "all" || selectedMailboxFilter !== "all"
               ? "No issues match your current filter."
-              : "No unresolved or pending issues across selected mailboxes."}
+              : "No unresolved or in progress issues across selected mailboxes."}
           </div>
         </div>
       ) : (
@@ -701,7 +799,7 @@ export function FreeScoutWidget({
         >
           {filteredConversations.map((conv) => {
             const isUnresolved = conv.status === "active";
-            const isPending = conv.status === "pending";
+            const isInProgress = conv.status === "pending";
             const isClosed = conv.status === "closed";
 
             const customerName =
@@ -730,7 +828,7 @@ export function FreeScoutWidget({
                   border: "1px solid rgba(255, 255, 255, 0.05)",
                   background: isUnresolved
                     ? "rgba(245, 158, 11, 0.04)"
-                    : isPending
+                    : isInProgress
                     ? "rgba(139, 92, 246, 0.04)"
                     : isClosed
                     ? "rgba(16, 185, 129, 0.04)"
@@ -778,14 +876,14 @@ export function FreeScoutWidget({
                         textTransform: "capitalize",
                         background: isUnresolved
                           ? "rgba(245, 158, 11, 0.2)"
-                          : isPending
+                          : isInProgress
                           ? "rgba(139, 92, 246, 0.2)"
                           : isClosed
                           ? "rgba(16, 185, 129, 0.2)"
                           : "rgba(255, 255, 255, 0.1)",
                         color: isUnresolved
                           ? "#fbbf24"
-                          : isPending
+                          : isInProgress
                           ? "#c084fc"
                           : isClosed
                           ? "#34d399"
@@ -794,10 +892,10 @@ export function FreeScoutWidget({
                     >
                       {conv.status === "active"
                         ? "Unresolved"
+                        : conv.status === "pending"
+                        ? "In Progress"
                         : conv.status === "closed"
                         ? "Closed"
-                        : conv.status === "pending"
-                        ? "Pending"
                         : conv.status}
                     </span>
                   </div>
@@ -1008,10 +1106,13 @@ export function FreeScoutWidget({
               </div>
             </div>
 
-            {/* Mailboxes Multi-Select Checklist */}
+            {/* Draggable Mailboxes List (with checkbox toggle) */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Filter Mailboxes</label>
+                <div>
+                  <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Filter & Order Mailboxes</label>
+                  <span style={{ fontSize: "0.7rem", opacity: 0.5, marginLeft: "6px" }}>(Drag to reorder tabs)</span>
+                </div>
                 {availableMailboxes.length > 0 && (
                   <button
                     type="button"
@@ -1048,7 +1149,7 @@ export function FreeScoutWidget({
                     display: "flex",
                     flexDirection: "column",
                     gap: "0.3rem",
-                    maxHeight: "130px",
+                    maxHeight: "150px",
                     overflowY: "auto",
                     padding: "0.4rem",
                     borderRadius: "8px",
@@ -1056,81 +1157,158 @@ export function FreeScoutWidget({
                     border: "1px solid rgba(255,255,255,0.05)",
                   }}
                 >
-                  {availableMailboxes.map((mb) => {
+                  {availableMailboxes.map((mb, idx) => {
                     const isChecked =
                       selectedMailboxIds.length === 0 || selectedMailboxIds.includes(mb.id);
                     return (
-                      <label
+                      <div
                         key={mb.id}
+                        draggable
+                        onDragStart={() => setDraggedMailboxIndex(idx)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                        }}
+                        onDrop={() => {
+                          if (draggedMailboxIndex === null || draggedMailboxIndex === idx) return;
+                          const reordered = [...availableMailboxes];
+                          const [removed] = reordered.splice(draggedMailboxIndex, 1);
+                          reordered.splice(idx, 0, removed);
+                          setAvailableMailboxes(reordered);
+                          setDraggedMailboxIndex(null);
+                        }}
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "0.5rem",
-                          fontSize: "0.78rem",
-                          cursor: "pointer",
-                          padding: "2px 4px",
-                          borderRadius: "4px",
+                          justifyContent: "space-between",
+                          padding: "4px 6px",
+                          borderRadius: "6px",
+                          background:
+                            draggedMailboxIndex === idx
+                              ? "rgba(var(--primary-rgb), 0.2)"
+                              : "rgba(255,255,255,0.03)",
+                          border: "1px solid rgba(255,255,255,0.05)",
+                          cursor: "grab",
                         }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {
-                            if (selectedMailboxIds.length === 0) {
-                              setSelectedMailboxIds([mb.id]);
-                            } else if (selectedMailboxIds.includes(mb.id)) {
-                              setSelectedMailboxIds(selectedMailboxIds.filter((id) => id !== mb.id));
-                            } else {
-                              setSelectedMailboxIds([...selectedMailboxIds, mb.id]);
-                            }
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            fontSize: "0.78rem",
+                            cursor: "pointer",
+                            flex: 1,
                           }}
-                        />
-                        <span>{mb.name}</span>
-                        {mb.email && <span style={{ opacity: 0.4, fontSize: "0.7rem" }}>({mb.email})</span>}
-                      </label>
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (selectedMailboxIds.length === 0) {
+                                setSelectedMailboxIds([mb.id]);
+                              } else if (selectedMailboxIds.includes(mb.id)) {
+                                setSelectedMailboxIds(selectedMailboxIds.filter((id) => id !== mb.id));
+                              } else {
+                                setSelectedMailboxIds([...selectedMailboxIds, mb.id]);
+                              }
+                            }}
+                          />
+                          <span>{mb.name}</span>
+                          {mb.email && <span style={{ opacity: 0.4, fontSize: "0.7rem" }}>({mb.email})</span>}
+                        </label>
+
+                        <GripVertical size={13} style={{ opacity: 0.4, cursor: "grab" }} />
+                      </div>
                     );
                   })}
                 </div>
               )}
             </div>
 
-            {/* Statuses Checklist */}
+            {/* Draggable Ticket Statuses Order */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-              <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Ticket Statuses to Show</label>
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                {[
-                  { key: "active", label: "Open / Unresolved", color: "#fbbf24" },
-                  { key: "pending", label: "Pending", color: "#c084fc" },
-                  { key: "closed", label: "Closed", color: "#34d399" },
-                  { key: "spam", label: "Spam", color: "#f87171" },
-                ].map((st) => {
-                  const isChecked = selectedStatuses.includes(st.key);
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Filter & Order Ticket Statuses</label>
+                  <span style={{ fontSize: "0.7rem", opacity: 0.5, marginLeft: "6px" }}>(Drag to reorder priority)</span>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.3rem",
+                  padding: "0.4rem",
+                  borderRadius: "8px",
+                  background: "rgba(0,0,0,0.2)",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                {statusOrder.map((statusKey, idx) => {
+                  const meta = STATUS_METADATA[statusKey] || {
+                    label: statusKey,
+                    color: "#fff",
+                    bg: "rgba(255,255,255,0.1)",
+                    border: "rgba(255,255,255,0.2)",
+                  };
+                  const isChecked = selectedStatuses.includes(statusKey);
                   return (
-                    <label
-                      key={st.key}
+                    <div
+                      key={statusKey}
+                      draggable
+                      onDragStart={() => setDraggedStatusIndex(idx)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (draggedStatusIndex === null || draggedStatusIndex === idx) return;
+                        const reordered = [...statusOrder];
+                        const [removed] = reordered.splice(draggedStatusIndex, 1);
+                        reordered.splice(idx, 0, removed);
+                        setStatusOrder(reordered);
+                        setDraggedStatusIndex(null);
+                      }}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "0.4rem",
-                        fontSize: "0.78rem",
-                        cursor: "pointer",
+                        justifyContent: "space-between",
+                        padding: "4px 6px",
+                        borderRadius: "6px",
+                        background:
+                          draggedStatusIndex === idx
+                            ? "rgba(var(--primary-rgb), 0.2)"
+                            : "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        cursor: "grab",
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {
-                          if (isChecked) {
-                            if (selectedStatuses.length > 1) {
-                              setSelectedStatuses(selectedStatuses.filter((s) => s !== st.key));
-                            }
-                          } else {
-                            setSelectedStatuses([...selectedStatuses, st.key]);
-                          }
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          fontSize: "0.78rem",
+                          cursor: "pointer",
+                          flex: 1,
                         }}
-                      />
-                      <span style={{ color: st.color }}>{st.label}</span>
-                    </label>
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              if (selectedStatuses.length > 1) {
+                                setSelectedStatuses(selectedStatuses.filter((s) => s !== statusKey));
+                              }
+                            } else {
+                              setSelectedStatuses([...selectedStatuses, statusKey]);
+                            }
+                          }}
+                        />
+                        <span style={{ color: meta.color, fontWeight: 600 }}>{meta.label}</span>
+                      </label>
+
+                      <GripVertical size={13} style={{ opacity: 0.4, cursor: "grab" }} />
+                    </div>
                   );
                 })}
               </div>
@@ -1154,7 +1332,7 @@ export function FreeScoutWidget({
                     boxSizing: "border-box",
                   }}
                 >
-                  <option value="status">Ticket Status (Unresolved ➔ Pending ➔ Closed)</option>
+                  <option value="status">Ticket Status (Custom Status Order)</option>
                   <option value="updatedAt">Last Updated</option>
                   <option value="createdAt">Created Date</option>
                   <option value="number">Ticket Number</option>

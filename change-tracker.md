@@ -2,6 +2,22 @@
 
 ## Running Change Log
 
+### 2026-08-31 - FreeScout In Progress Label, Draggable Mailbox Ordering & Draggable Status Priority (v1.18.3)
+- **Summary**:
+  1. Renamed "Pending" status label to "In Progress" across all widget badges, counter chips, cards, and modal checklists.
+  2. Implemented drag-and-drop ordering for mailboxes in the settings modal with `mailboxOrder` state, allowing tabs to render in custom user-defined sequence.
+  3. Implemented drag-and-drop ordering for ticket statuses in the settings modal with `statusOrder` state, dictating both header counter badge order and status sorting order.
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (added `mailboxOrder` and `statusOrder` support)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated actions to pass through and persist `mailboxOrder` and `statusOrder`)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) ("In Progress" rename, draggable mailbox list, draggable status list)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.3`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering (v1.18.2)
 - **Summary**:
   1. Updated mailbox tab bar condition in `FreeScoutWidget.tsx` to check `activeMailboxes.length > 1` (calculated against `selectedMailboxIds`), ensuring the tab bar is hidden when only a single mailbox is active.
