@@ -280,6 +280,25 @@ export async function fetchFreeScoutConversations(
     for (const item of rawList) {
       const id = Number(item.id);
       if (!id || seenIds.has(id)) continue;
+
+      // Filter out drafts and deleted conversations
+      const stateStr = String(item.state || "").toLowerCase();
+      const statusStr = String(item.status || "").toLowerCase();
+      const isDraft =
+        stateStr === "draft" ||
+        statusStr === "draft" ||
+        item.isDraft === true ||
+        item.draft === true;
+      const isDeleted =
+        stateStr === "deleted" ||
+        statusStr === "deleted" ||
+        Boolean(item.deletedAt) ||
+        Boolean(item.deleted_at);
+
+      if (isDraft || isDeleted) {
+        continue;
+      }
+
       seenIds.add(id);
 
       const mbId = Number(item.mailboxId || item.mailbox_id || (item.mailbox ? item.mailbox.id : 0));
@@ -361,8 +380,10 @@ export async function fetchFreeScoutConversations(
     return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
   });
 
+  const activeMailboxes = mailboxes.filter((m) => targetMailboxIds.includes(m.id));
+
   return {
     conversations: collectedConversations.slice(0, maxItems),
-    mailboxes,
+    mailboxes: activeMailboxes.length > 0 ? activeMailboxes : mailboxes,
   };
 }

@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.18.1` (FreeScout Mailbox Tabs, Header Control Pinning, Status Sorting & Closed Issues Fix)
+- **Current Version**: `v1.18.2` (FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering (v1.18.2)**:
+  - Ensured mailbox tabs bar is strictly hidden when only 1 mailbox is active or enabled in widget settings.
+  - Added filter to exclude draft and deleted conversations (`state: "draft"`, `state: "deleted"`, `status: "draft"`, `deletedAt`) from the FreeScout conversation list.
 - **FreeScout Mailbox Tabs, Status Sorting & Closed Fix (v1.18.1)**:
   - Added horizontal mailbox tabs (e.g. All Mailboxes, Support, Billing) rendered automatically whenever more than one mailbox is configured.
   - Pinned widget refresh and settings gear buttons permanently to the top-right corner to prevent wrapping.

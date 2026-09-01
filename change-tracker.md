@@ -2,6 +2,20 @@
 
 ## Running Change Log
 
+### 2026-08-31 - FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering (v1.18.2)
+- **Summary**:
+  1. Updated mailbox tab bar condition in `FreeScoutWidget.tsx` to check `activeMailboxes.length > 1` (calculated against `selectedMailboxIds`), ensuring the tab bar is hidden when only a single mailbox is active.
+  2. Added filtering in `src/lib/freescout.ts` to exclude draft and deleted conversations (`state === "draft"`, `status === "draft"`, `item.isDraft`, `state === "deleted"`, `item.deletedAt`).
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (drafts & deleted conversations filter)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (active mailbox computation for tab visibility)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.2`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - FreeScout Mailbox Tabs, Header Control Pinning, Status Sorting & Closed Issues Fix (v1.18.1)
 - **Summary**: Refined the FreeScout Help Desk widget based on user feedback:
   1. Added mailbox tabs (All Mailboxes + individual mailbox tabs) with issue counts, displayed whenever more than 1 mailbox is configured.

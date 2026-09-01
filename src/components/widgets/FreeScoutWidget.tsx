@@ -235,6 +235,16 @@ export function FreeScoutWidget({
     []
   );
 
+  // Filter available mailboxes strictly by active/selected configuration
+  const activeMailboxes = useMemo(() => {
+    const configuredIds = Array.isArray(rawConfig.selectedMailboxIds) ? rawConfig.selectedMailboxIds : [];
+    if (configuredIds.length > 0) {
+      const filtered = mailboxes.filter((m) => configuredIds.includes(m.id));
+      if (filtered.length > 0) return filtered;
+    }
+    return mailboxes;
+  }, [mailboxes, rawConfig.selectedMailboxIds]);
+
   // Filter and sort conversations
   const filteredConversations = useMemo(() => {
     const activeQuery = (localSearch || filter || "").toLowerCase().trim();
@@ -441,8 +451,8 @@ export function FreeScoutWidget({
         </div>
       </div>
 
-      {/* Mailbox Tabs Row (Rendered ONLY if more than one mailbox is enabled/available) */}
-      {mailboxes.length > 1 && (
+      {/* Mailbox Tabs Row (Rendered ONLY if more than one mailbox is active/enabled) */}
+      {activeMailboxes.length > 1 && (
         <div
           style={{
             display: "flex",
@@ -482,7 +492,7 @@ export function FreeScoutWidget({
             <span>All Mailboxes ({conversations.length})</span>
           </button>
 
-          {mailboxes.map((mb) => {
+          {activeMailboxes.map((mb) => {
             const count = conversations.filter((c) => c.mailboxId === mb.id).length;
             const isSelected = selectedMailboxFilter === mb.id;
             return (
