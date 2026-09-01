@@ -49,10 +49,29 @@ export interface FreeScoutWidgetConfig {
   apiKey?: string;
   selectedMailboxIds?: number[];
   selectedStatuses?: string[]; // e.g. ["active", "pending"]
-  sortBy?: "updatedAt" | "createdAt" | "number";
+  sortBy?: "updatedAt" | "createdAt" | "number" | "status";
   sortOrder?: "desc" | "asc";
   maxItems?: number; // e.g. 10, 25, 50
   autoRefreshMinutes?: number; // e.g. 0 (disabled), 1, 5, 15
+}
+
+export function normalizeFreeScoutStatus(rawStatus: any, closedAt?: any): "active" | "pending" | "closed" | "spam" {
+  if (closedAt && typeof closedAt === "string" && closedAt.trim() !== "" && closedAt !== "null") {
+    return "closed";
+  }
+
+  if (rawStatus === 1 || rawStatus === "1" || rawStatus === "active" || rawStatus === "open") return "active";
+  if (rawStatus === 2 || rawStatus === "2" || rawStatus === "pending") return "pending";
+  if (rawStatus === 3 || rawStatus === "3" || rawStatus === "closed" || rawStatus === "close") return "closed";
+  if (rawStatus === 4 || rawStatus === "4" || rawStatus === "spam") return "spam";
+
+  const s = String(rawStatus || "").toLowerCase().trim();
+  if (s.includes("close")) return "closed";
+  if (s.includes("pend")) return "pending";
+  if (s.includes("spam")) return "spam";
+  if (s.includes("act") || s.includes("open")) return "active";
+
+  return "active";
 }
 
 export function normalizeFreeScoutUrls(rawUrl: string): { apiBase: string; webBase: string } {
@@ -266,13 +285,18 @@ export async function fetchFreeScoutConversations(
       const mbId = Number(item.mailboxId || item.mailbox_id || (item.mailbox ? item.mailbox.id : 0));
       const mbName = mbId ? mailboxMap.get(mbId) || `Mailbox #${mbId}` : "Mailbox";
 
+      const normalizedStatus = normalizeFreeScoutStatus(
+        item.status,
+        item.closedAt || item.closed_at || item.closed_by || item.closedBy
+      );
+
       collectedConversations.push({
         id,
         number: Number(item.number || id),
         threadsCount: item.threadsCount ?? item.threads_count ?? 1,
         type: item.type || "email",
         folderId: item.folderId ?? item.folder_id,
-        status: String(item.status || "active").toLowerCase(),
+        status: normalizedStatus,
         state: item.state || "published",
         subject: item.subject || "(No Subject)",
         preview: item.preview ? String(item.preview).slice(0, 200) : undefined,
@@ -304,8 +328,25 @@ export async function fetchFreeScoutConversations(
     }
   }
 
+  // Status priority map for sorting
+  const statusPriority: Record<string, number> = {
+    active: 1,
+    pending: 2,
+    closed: 3,
+    spam: 4,
+  };
+
   // Sort collected conversations
   collectedConversations.sort((a, b) => {
+    if (sortBy === "status") {
+      const pA = statusPriority[a.status] || 99;
+      const pB = statusPriority[b.status] || 99;
+      if (pA !== pB) {
+        return sortOrder === "asc" ? pB - pA : pA - pB;
+      }
+      // Secondary sort: newest updated first
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    }
     if (sortBy === "number") {
       return sortOrder === "asc" ? a.number - b.number : b.number - a.number;
     }

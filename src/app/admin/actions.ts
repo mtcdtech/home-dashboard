@@ -2724,7 +2724,7 @@ export async function saveFreeScoutWidgetSettingsAction(
     apiKey?: string;
     selectedMailboxIds?: number[];
     selectedStatuses?: string[];
-    sortBy?: "updatedAt" | "createdAt" | "number";
+    sortBy?: "updatedAt" | "createdAt" | "number" | "status";
     sortOrder?: "desc" | "asc";
     maxItems?: number;
     autoRefreshMinutes?: number;

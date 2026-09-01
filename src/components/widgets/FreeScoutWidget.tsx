@@ -13,11 +13,8 @@ import {
   Mail,
   User,
   X,
-  SlidersHorizontal,
-  ChevronDown,
-  ChevronUp,
   Inbox,
-  Filter,
+  Tag,
 } from "lucide-react";
 import {
   fetchFreeScoutConversationsAction,
@@ -86,7 +83,9 @@ export function FreeScoutWidget({
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
     Array.isArray(rawConfig.selectedStatuses) ? rawConfig.selectedStatuses : ["active", "pending"]
   );
-  const [sortBy, setSortBy] = useState<"updatedAt" | "createdAt" | "number">(rawConfig.sortBy || "updatedAt");
+  const [sortBy, setSortBy] = useState<"updatedAt" | "createdAt" | "number" | "status">(
+    rawConfig.sortBy || "updatedAt"
+  );
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">(rawConfig.sortOrder || "desc");
   const [maxItems, setMaxItems] = useState<number>(rawConfig.maxItems ?? 25);
   const [autoRefreshMinutes, setAutoRefreshMinutes] = useState<number>(rawConfig.autoRefreshMinutes ?? 0);
@@ -179,7 +178,6 @@ export function FreeScoutWidget({
           success: true,
           message: `Connected successfully! Found ${res.mailboxCount ?? 0} mailbox(es).`,
         });
-        // Fetch mailboxes for the checklist
         const mbRes = await fetchFreeScoutMailboxesAction(section.id, { serverUrl, apiKey });
         if (mbRes.success && Array.isArray(mbRes.mailboxes)) {
           setAvailableMailboxes(mbRes.mailboxes);
@@ -226,15 +224,26 @@ export function FreeScoutWidget({
     }
   };
 
-  // Filter conversations
+  // Priority map for status sorting
+  const statusPriority: Record<string, number> = useMemo(
+    () => ({
+      active: 1,
+      pending: 2,
+      closed: 3,
+      spam: 4,
+    }),
+    []
+  );
+
+  // Filter and sort conversations
   const filteredConversations = useMemo(() => {
     const activeQuery = (localSearch || filter || "").toLowerCase().trim();
-    return conversations.filter((c) => {
-      // Mailbox filter
+    const list = conversations.filter((c) => {
+      // Mailbox tab filter
       if (selectedMailboxFilter !== "all" && c.mailboxId !== selectedMailboxFilter) {
         return false;
       }
-      // Status filter
+      // Status badge filter
       if (selectedStatusFilter !== "all" && c.status.toLowerCase() !== selectedStatusFilter.toLowerCase()) {
         return false;
       }
@@ -253,7 +262,33 @@ export function FreeScoutWidget({
 
       return matchSubject || matchPreview || matchNum || matchCustomer || matchAssignee || matchMailbox;
     });
-  }, [conversations, localSearch, filter, selectedMailboxFilter, selectedStatusFilter]);
+
+    // Client-side sort
+    list.sort((a, b) => {
+      if (sortBy === "status") {
+        const pA = statusPriority[a.status] || 99;
+        const pB = statusPriority[b.status] || 99;
+        if (pA !== pB) {
+          return sortOrder === "asc" ? pB - pA : pA - pB;
+        }
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+      if (sortBy === "number") {
+        return sortOrder === "asc" ? a.number - b.number : b.number - a.number;
+      }
+      if (sortBy === "createdAt") {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+      }
+      // Default updatedAt
+      const timeA = new Date(a.updatedAt).getTime();
+      const timeB = new Date(b.updatedAt).getTime();
+      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+    });
+
+    return list;
+  }, [conversations, localSearch, filter, selectedMailboxFilter, selectedStatusFilter, sortBy, sortOrder, statusPriority]);
 
   // Counts
   const unresolvedCount = useMemo(() => {
@@ -290,26 +325,26 @@ export function FreeScoutWidget({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "0.75rem",
+        gap: "0.6rem",
         padding: "0.5rem",
         borderRadius: "12px",
         minHeight: "140px",
       }}
     >
-      {/* Widget Header Controls */}
+      {/* Widget Top Header Bar: Status Filters (Left) & Controls (Right Corner, No Wrap) */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: "0.5rem",
-          flexWrap: "wrap",
-          paddingBottom: "0.25rem",
+          paddingBottom: "0.35rem",
           borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          width: "100%",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-          {/* Status Badges */}
+        {/* Left Side: Status Badges */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", flex: 1, minWidth: 0 }}>
           <button
             type="button"
             onClick={() => setSelectedStatusFilter(selectedStatusFilter === "active" ? "all" : "active")}
@@ -357,56 +392,29 @@ export function FreeScoutWidget({
             <Clock size={11} />
             <span>{pendingCount} Pending</span>
           </button>
-
-          {/* Mailbox Selector Chip */}
-          {mailboxes.length > 1 && (
-            <div style={{ position: "relative" }}>
-              <select
-                value={selectedMailboxFilter}
-                onChange={(e) =>
-                  setSelectedMailboxFilter(e.target.value === "all" ? "all" : Number(e.target.value))
-                }
-                className="glass"
-                style={{
-                  padding: "0.2rem 0.5rem",
-                  fontSize: "0.72rem",
-                  borderRadius: "6px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  color: "var(--text)",
-                }}
-              >
-                <option value="all">All Mailboxes ({mailboxes.length})</option>
-                {mailboxes.map((mb) => (
-                  <option key={mb.id} value={mb.id}>
-                    {mb.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+        {/* Right Corner: Fixed Controls (Pinned to top-right corner) */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginLeft: "auto", flexShrink: 0 }}>
           <button
             type="button"
             onClick={() => loadConversations(true)}
             disabled={loading}
             title="Refresh FreeScout Issues"
             style={{
-              background: "none",
-              border: "none",
+              background: "rgba(255, 255, 255, 0.04)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "6px",
               cursor: "pointer",
               color: "var(--text)",
-              opacity: 0.6,
-              padding: "4px",
+              opacity: 0.75,
+              padding: "5px",
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
           </button>
 
           {(showEditControls || hasEditAccess) && (
@@ -415,21 +423,101 @@ export function FreeScoutWidget({
               onClick={handleOpenSettings}
               title="Configure FreeScout Widget"
               style={{
-                background: "none",
-                border: "none",
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "6px",
                 cursor: "pointer",
                 color: "var(--text)",
-                opacity: 0.6,
-                padding: "4px",
+                opacity: 0.75,
+                padding: "5px",
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <Settings size={14} />
+              <Settings size={13} />
             </button>
           )}
         </div>
       </div>
+
+      {/* Mailbox Tabs Row (Rendered ONLY if more than one mailbox is enabled/available) */}
+      {mailboxes.length > 1 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            overflowX: "auto",
+            paddingBottom: "0.25rem",
+            scrollbarWidth: "none",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setSelectedMailboxFilter("all")}
+            style={{
+              padding: "0.25rem 0.6rem",
+              borderRadius: "8px",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              border:
+                selectedMailboxFilter === "all"
+                  ? "1px solid var(--primary)"
+                  : "1px solid rgba(255, 255, 255, 0.08)",
+              background:
+                selectedMailboxFilter === "all"
+                  ? "rgba(var(--primary-rgb), 0.2)"
+                  : "rgba(255, 255, 255, 0.03)",
+              color: selectedMailboxFilter === "all" ? "#fff" : "rgba(255, 255, 255, 0.7)",
+              whiteSpace: "nowrap",
+              transition: "all 0.15s ease",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.3rem",
+            }}
+          >
+            <Inbox size={11} />
+            <span>All Mailboxes ({conversations.length})</span>
+          </button>
+
+          {mailboxes.map((mb) => {
+            const count = conversations.filter((c) => c.mailboxId === mb.id).length;
+            const isSelected = selectedMailboxFilter === mb.id;
+            return (
+              <button
+                key={mb.id}
+                type="button"
+                onClick={() => setSelectedMailboxFilter(mb.id)}
+                style={{
+                  padding: "0.25rem 0.6rem",
+                  borderRadius: "8px",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: isSelected
+                    ? "1px solid var(--primary)"
+                    : "1px solid rgba(255, 255, 255, 0.08)",
+                  background: isSelected
+                    ? "rgba(var(--primary-rgb), 0.2)"
+                    : "rgba(255, 255, 255, 0.03)",
+                  color: isSelected ? "#fff" : "rgba(255, 255, 255, 0.7)",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                }}
+              >
+                <Mail size={11} style={{ opacity: 0.6 }} />
+                <span>{mb.name}</span>
+                <span style={{ fontSize: "0.65rem", opacity: 0.55 }}>({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Local Filter Bar (if there are items) */}
       {conversations.length > 5 && (
@@ -634,6 +722,8 @@ export function FreeScoutWidget({
                     ? "rgba(245, 158, 11, 0.04)"
                     : isPending
                     ? "rgba(139, 92, 246, 0.04)"
+                    : isClosed
+                    ? "rgba(16, 185, 129, 0.04)"
                     : "rgba(255, 255, 255, 0.02)",
                   transition: "all 0.15s ease",
                   cursor: "pointer",
@@ -692,7 +782,13 @@ export function FreeScoutWidget({
                           : "var(--text)",
                       }}
                     >
-                      {conv.status === "active" ? "Unresolved" : conv.status}
+                      {conv.status === "active"
+                        ? "Unresolved"
+                        : conv.status === "closed"
+                        ? "Closed"
+                        : conv.status === "pending"
+                        ? "Pending"
+                        : conv.status}
                     </span>
                   </div>
 
@@ -971,7 +1067,6 @@ export function FreeScoutWidget({
                           checked={isChecked}
                           onChange={() => {
                             if (selectedMailboxIds.length === 0) {
-                              // Switching from 'all' to specific
                               setSelectedMailboxIds([mb.id]);
                             } else if (selectedMailboxIds.includes(mb.id)) {
                               setSelectedMailboxIds(selectedMailboxIds.filter((id) => id !== mb.id));
@@ -1049,6 +1144,7 @@ export function FreeScoutWidget({
                     boxSizing: "border-box",
                   }}
                 >
+                  <option value="status">Ticket Status (Unresolved ➔ Pending ➔ Closed)</option>
                   <option value="updatedAt">Last Updated</option>
                   <option value="createdAt">Created Date</option>
                   <option value="number">Ticket Number</option>
@@ -1071,8 +1167,8 @@ export function FreeScoutWidget({
                     boxSizing: "border-box",
                   }}
                 >
-                  <option value="desc">Newest First (Desc)</option>
-                  <option value="asc">Oldest First (Asc)</option>
+                  <option value="desc">Primary / Newest First (Desc)</option>
+                  <option value="asc">Reverse / Oldest First (Asc)</option>
                 </select>
               </div>
 

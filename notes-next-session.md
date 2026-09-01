@@ -67,14 +67,14 @@
 4. **Modal Lazy Loading**: Lazy-load heavy modals (`ThemeModal`, `TabModal`, `SectionModal`, `BookmarkModal`) using `next/dynamic` to reduce initial client bundle size.
 5. **Prisma Permission Filtering**: Push per-user permission filtering into Prisma `where` queries directly rather than filtering in JavaScript post-fetch (`resolveTabAccess`/`resolveSectionAccess`).
 
-## FreeScout Help Desk Widget (v1.18.0)
+## FreeScout Help Desk Widget (v1.18.1)
 - **Widget Shipped**: Native FreeScout widget (`widgetType: "freescout"`).
-- **Features**: Live unresolved and pending issues across mailboxes, status filters, search filter, customer and assignee details, 1-click issue link navigation.
-- **Settings**: FreeScout server URL, API key with live connection test, mailbox selector checklist, status checkboxes, sort order, and auto-refresh timers.
+- **Features**: Mailbox tabs with issue counts (when >1 mailbox enabled), pinned top-right header controls, status sorting (Unresolved ➔ Pending ➔ Closed), status normalization for numeric statuses and `closedAt` timestamps, search filter, customer and assignee details, 1-click issue link navigation.
+- **Settings**: FreeScout server URL, API key with live connection test, mailbox selector checklist, status checkboxes, sort order (including Ticket Status), and auto-refresh timers.
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.18.0).
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.18.1).
 - In any icon picker, open the **Custom** tab and verify the "Purge Unused" button exists next to "Refresh".
 - Open the Dashboard Widget drawer (Catalog), drag or add "FreeScout Help Desk" to any dashboard column.
-- Open Widget Settings, test FreeScout connection, select mailboxes, and save changes.
-- Verify unresolved/pending issues render with badges and open direct ticket URLs on click.
+- Open Widget Settings, test FreeScout connection, select mailboxes, choose sort options, and save changes.
+- Verify unresolved/pending/closed issues render with proper badges and direct ticket URLs on click.

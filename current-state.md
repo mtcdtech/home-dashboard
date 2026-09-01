@@ -4,10 +4,15 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.18.0` (FreeScout Help Desk Widget)
+- **Current Version**: `v1.18.1` (FreeScout Mailbox Tabs, Header Control Pinning, Status Sorting & Closed Issues Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **FreeScout Mailbox Tabs, Status Sorting & Closed Fix (v1.18.1)**:
+  - Added horizontal mailbox tabs (e.g. All Mailboxes, Support, Billing) rendered automatically whenever more than one mailbox is configured.
+  - Pinned widget refresh and settings gear buttons permanently to the top-right corner to prevent wrapping.
+  - Added "Ticket Status (Unresolved ➔ Pending ➔ Closed)" to widget sorting options.
+  - Implemented `normalizeFreeScoutStatus` to parse numeric status codes (`1` active, `2` pending, `3` closed, `4` spam) and `closedAt` timestamps, ensuring closed tickets are correctly identified and categorized as Closed rather than Unresolved.
 - **FreeScout Help Desk Widget (v1.18.0)**:
   - Added new native dashboard widget: FreeScout Help Desk (`widgetType: "freescout"`).
   - Connects to any self-hosted FreeScout server via REST API (`X-FreeScout-API-Key`).

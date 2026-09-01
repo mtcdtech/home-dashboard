@@ -2,6 +2,23 @@
 
 ## Running Change Log
 
+### 2026-08-31 - FreeScout Mailbox Tabs, Header Control Pinning, Status Sorting & Closed Issues Fix (v1.18.1)
+- **Summary**: Refined the FreeScout Help Desk widget based on user feedback:
+  1. Added mailbox tabs (All Mailboxes + individual mailbox tabs) with issue counts, displayed whenever more than 1 mailbox is configured.
+  2. Fixed header control layout to permanently pin Refresh and Settings buttons to the top right corner without wrapping.
+  3. Added ticket status sorting (`sortBy: "status"` - Unresolved ➔ Pending ➔ Closed) to widget settings and client-side sorting.
+  4. Fixed closed tickets displaying as open/unresolved by adding `normalizeFreeScoutStatus` to parse numeric status codes (`1`, `2`, `3`, `4`) and check `closedAt` / `closed_at` timestamps.
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (added `normalizeFreeScoutStatus` and status sorting)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `sortBy` union type)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (mailbox tabs, pinned header controls, status sorting)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - FreeScout Help Desk Widget (v1.18.0)
 - **Summary**: Built and shipped a native FreeScout Help Desk widget (`widgetType: "freescout"`). Connects to self-hosted FreeScout instances via REST API to display mailboxes with unresolved (active) and pending issues. Features interactive status filters, mailbox selection chips, text search, sorting by updated/created/ticket #, customer & assignee info, and direct 1-click issue link navigation. Includes a comprehensive settings modal with live connection testing and multi-mailbox checklists.
 - **Files Modified**:
