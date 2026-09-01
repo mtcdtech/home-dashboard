@@ -17,6 +17,7 @@ import { SectionModal } from "./SectionModal";
 import { BookmarkModal } from "./BookmarkModal";
 import { PortainerWidget } from "./widgets/PortainerWidget";
 import { OutlookCalendarWidget } from "./widgets/OutlookCalendarWidget";
+import { FreeScoutWidget } from "./widgets/FreeScoutWidget";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -510,7 +511,13 @@ export function Dashboard({
             );
 
             let matchesWidget = false;
-            if (section.isWidget || section.widgetType === "portainer" || section.widgetType === "outlook-calendar" || section.widgetType === "outlook") {
+            if (
+               section.isWidget ||
+               section.widgetType === "portainer" ||
+               section.widgetType === "outlook-calendar" ||
+               section.widgetType === "outlook" ||
+               section.widgetType === "freescout"
+            ) {
                const rawConfig = typeof section.widgetConfig === "string" 
                   ? (JSON.parse(section.widgetConfig) || {}) 
                   : (section.widgetConfig || {});
@@ -1534,8 +1541,21 @@ export function Dashboard({
 
                                        {/* Widget or Bookmarks */}
                                        {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
-                                          section.isWidget || section.widgetType === "portainer" || section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
-                                             section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
+                                          section.isWidget ||
+                                          section.widgetType === "portainer" ||
+                                          section.widgetType === "outlook-calendar" ||
+                                          section.widgetType === "outlook" ||
+                                          section.widgetType === "freescout" ? (
+                                             section.widgetType === "freescout" ? (
+                                                <FreeScoutWidget
+                                                   section={section}
+                                                   showEditControls={showEditControls}
+                                                   hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                   isAdmin={isAdmin}
+                                                   onRefresh={() => router.refresh()}
+                                                   filter={searchQuery}
+                                                />
+                                             ) : section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
                                                 <OutlookCalendarWidget
                                                    section={section}
                                                    showEditControls={showEditControls}
@@ -1869,6 +1889,13 @@ export function Dashboard({
                                  title: "Microsoft Outlook Calendar",
                                  icon: "CalendarDays",
                                  description: "Upcoming events from Microsoft Outlook & 365 calendars with calendar filtering and 1-click Microsoft Teams meeting launch."
+                              },
+                              {
+                                 id: "freescout-widget",
+                                 type: "freescout",
+                                 title: "FreeScout Help Desk",
+                                 icon: "LifeBuoy",
+                                 description: "Live unresolved and pending issues across FreeScout mailboxes with mailbox filtering, status filters, and 1-click issue navigation."
                               }
                            ].filter(w => w.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || w.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
 

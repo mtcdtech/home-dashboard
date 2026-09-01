@@ -2623,4 +2623,156 @@ export async function saveOutlookWidgetSettingsAction(
   }
 }
 
+// --- FREESCOUT HELP DESK WIDGET ACTIONS ---
+
+export async function testFreeScoutConnectionAction(serverUrl: string, apiKey: string) {
+  await requireSession();
+  const { testFreeScoutConnection } = await import("@/lib/freescout");
+  return testFreeScoutConnection(serverUrl, apiKey);
+}
+
+export async function fetchFreeScoutMailboxesAction(
+  sectionId: string,
+  credentials?: { serverUrl?: string; apiKey?: string }
+) {
+  await requireSession();
+  const { fetchFreeScoutMailboxes } = await import("@/lib/freescout");
+
+  try {
+    let serverUrl = credentials?.serverUrl?.trim();
+    let apiKey = credentials?.apiKey?.trim();
+
+    if (!serverUrl || !apiKey) {
+      const section = await prisma.section.findUnique({ where: { id: sectionId } });
+      const rawConfig =
+        typeof section?.widgetConfig === "string"
+          ? JSON.parse(section.widgetConfig) || {}
+          : (section?.widgetConfig as Record<string, any>) || {};
+
+      serverUrl = serverUrl || rawConfig.serverUrl || process.env.FREESCOUT_URL;
+      apiKey = apiKey || rawConfig.apiKey || process.env.FREESCOUT_API_KEY;
+    }
+
+    if (!serverUrl || !apiKey) {
+      return { success: false, error: "FreeScout server URL and API key are required.", mailboxes: [] };
+    }
+
+    const mailboxes = await fetchFreeScoutMailboxes(serverUrl, apiKey);
+    return { success: true, mailboxes };
+  } catch (err: any) {
+    console.error("[actions] fetchFreeScoutMailboxesAction error:", err);
+    return { success: false, error: err.message || "Failed to fetch FreeScout mailboxes", mailboxes: [] };
+  }
+}
+
+export async function fetchFreeScoutConversationsAction(sectionId: string) {
+  await requireSession();
+  const { fetchFreeScoutConversations } = await import("@/lib/freescout");
+
+  try {
+    const section = await prisma.section.findUnique({ where: { id: sectionId } });
+    if (!section) {
+      return { success: false, error: "Section not found", conversations: [], mailboxes: [] };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : (section.widgetConfig as Record<string, any>) || {};
+
+    const serverUrl = rawConfig.serverUrl || process.env.FREESCOUT_URL;
+    const apiKey = rawConfig.apiKey || process.env.FREESCOUT_API_KEY;
+
+    if (!serverUrl || !apiKey) {
+      return {
+        success: false,
+        error: "FreeScout server URL and API key not configured.",
+        needsSetup: true,
+        conversations: [],
+        mailboxes: [],
+      };
+    }
+
+    const res = await fetchFreeScoutConversations(serverUrl, apiKey, {
+      mailboxIds: rawConfig.selectedMailboxIds,
+      statuses: rawConfig.selectedStatuses,
+      sortBy: rawConfig.sortBy,
+      sortOrder: rawConfig.sortOrder,
+      maxItems: rawConfig.maxItems,
+    });
+
+    return {
+      success: true,
+      conversations: res.conversations,
+      mailboxes: res.mailboxes,
+    };
+  } catch (err: any) {
+    console.error("[actions] fetchFreeScoutConversationsAction error:", err);
+    return {
+      success: false,
+      error: err.message || "Failed to fetch FreeScout conversations",
+      conversations: [],
+      mailboxes: [],
+    };
+  }
+}
+
+export async function saveFreeScoutWidgetSettingsAction(
+  sectionId: string,
+  settings: {
+    serverUrl?: string;
+    apiKey?: string;
+    selectedMailboxIds?: number[];
+    selectedStatuses?: string[];
+    sortBy?: "updatedAt" | "createdAt" | "number";
+    sortOrder?: "desc" | "asc";
+    maxItems?: number;
+    autoRefreshMinutes?: number;
+  }
+) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({ where: { id: sectionId } });
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const existingConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : (section.widgetConfig as Record<string, unknown>) || {};
+
+    const mergedConfig = {
+      ...existingConfig,
+      serverUrl: settings.serverUrl !== undefined ? settings.serverUrl.trim() : existingConfig.serverUrl,
+      apiKey: settings.apiKey !== undefined ? settings.apiKey.trim() : existingConfig.apiKey,
+      selectedMailboxIds: Array.isArray(settings.selectedMailboxIds)
+        ? settings.selectedMailboxIds
+        : existingConfig.selectedMailboxIds ?? [],
+      selectedStatuses: Array.isArray(settings.selectedStatuses)
+        ? settings.selectedStatuses
+        : existingConfig.selectedStatuses ?? ["active", "pending"],
+      sortBy: settings.sortBy || existingConfig.sortBy || "updatedAt",
+      sortOrder: settings.sortOrder || existingConfig.sortOrder || "desc",
+      maxItems: typeof settings.maxItems === "number" ? settings.maxItems : existingConfig.maxItems ?? 25,
+      autoRefreshMinutes:
+        typeof settings.autoRefreshMinutes === "number"
+          ? settings.autoRefreshMinutes
+          : existingConfig.autoRefreshMinutes ?? 0,
+    };
+
+    await prisma.section.update({
+      where: { id: sectionId },
+      data: { widgetConfig: JSON.parse(JSON.stringify(mergedConfig)) },
+    });
+
+    revalidatePath("/");
+    return { success: true, updatedConfig: mergedConfig };
+  } catch (err: any) {
+    console.error("[actions] saveFreeScoutWidgetSettingsAction error:", err);
+    return { success: false, error: err.message || "Failed to save FreeScout settings" };
+  }
+}
+
+
 

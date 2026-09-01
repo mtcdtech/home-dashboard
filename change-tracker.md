@@ -2,6 +2,20 @@
 
 ## Running Change Log
 
+### 2026-08-31 - FreeScout Help Desk Widget (v1.18.0)
+- **Summary**: Built and shipped a native FreeScout Help Desk widget (`widgetType: "freescout"`). Connects to self-hosted FreeScout instances via REST API to display mailboxes with unresolved (active) and pending issues. Features interactive status filters, mailbox selection chips, text search, sorting by updated/created/ticket #, customer & assignee info, and direct 1-click issue link navigation. Includes a comprehensive settings modal with live connection testing and multi-mailbox checklists.
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (FreeScout REST API client, mailbox & conversation parser, connection tester)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (widget React UI, settings modal, status pills, filter chips)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added FreeScout server actions)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (widget rendering, catalog drawer, and global search matching)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - Purge Unused Icons Schema Field Fix (v1.17.1)
 - **Summary**: Fixed Prisma query invocation error in `checkIconUsage` and `purgeUnusedCustomUploadedIcons`. `Theme` model fields are `logoIcon` and `backgroundColor` (not `icon`/`background`). Also added `GlobalSettings` app logo fields (`logoUrlLight`, `logoUrlDark`, `logoUrlSquareLight`, `logoUrlSquareDark`) to ensure custom app logos are never inadvertently purged.
 - **Files Modified**:

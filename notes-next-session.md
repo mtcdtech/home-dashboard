@@ -67,9 +67,14 @@
 4. **Modal Lazy Loading**: Lazy-load heavy modals (`ThemeModal`, `TabModal`, `SectionModal`, `BookmarkModal`) using `next/dynamic` to reduce initial client bundle size.
 5. **Prisma Permission Filtering**: Push per-user permission filtering into Prisma `where` queries directly rather than filtering in JavaScript post-fetch (`resolveTabAccess`/`resolveSectionAccess`).
 
+## FreeScout Help Desk Widget (v1.18.0)
+- **Widget Shipped**: Native FreeScout widget (`widgetType: "freescout"`).
+- **Features**: Live unresolved and pending issues across mailboxes, status filters, search filter, customer and assignee details, 1-click issue link navigation.
+- **Settings**: FreeScout server URL, API key with live connection test, mailbox selector checklist, status checkboxes, sort order, and auto-refresh timers.
+
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.17.1).
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.18.0).
 - In any icon picker, open the **Custom** tab and verify the "Purge Unused" button exists next to "Refresh".
-- Open the Dashboard Widget drawer (Catalog), drag or add "Microsoft Outlook Calendar" to any dashboard column.
-- Open Widget Settings, connect a Microsoft Outlook / 365 account, configure days ahead (e.g. 7 days), and filter calendars.
-- Verify events appear grouped by date, and verify that clicking "Join Teams" on any event containing a Teams link launches the meeting invite directly in a new tab.
+- Open the Dashboard Widget drawer (Catalog), drag or add "FreeScout Help Desk" to any dashboard column.
+- Open Widget Settings, test FreeScout connection, select mailboxes, and save changes.
+- Verify unresolved/pending issues render with badges and open direct ticket URLs on click.

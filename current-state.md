@@ -4,10 +4,16 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.17.1` (Purge Unused Icons Schema Field Fix)
+- **Current Version**: `v1.18.0` (FreeScout Help Desk Widget)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **FreeScout Help Desk Widget (v1.18.0)**:
+  - Added new native dashboard widget: FreeScout Help Desk (`widgetType: "freescout"`).
+  - Connects to any self-hosted FreeScout server via REST API (`X-FreeScout-API-Key`).
+  - Displays live unresolved and pending issues across all or selected mailboxes.
+  - Interactive status badges (Unresolved in amber, Pending in purple, Closed in green), mailbox chips, search filter, relative timestamps, customer/assignee info, and 1-click issue link navigation.
+  - Comprehensive settings modal supporting server URL, API key with live connection testing, mailbox multi-select checklist, status checkboxes, sorting options, and auto-refresh timers.
 - **Purge Unused Custom Uploaded Icons & Schema Fix (v1.17.1)**:
   - Fixed Prisma query field names in `checkIconUsage` and `purgeUnusedCustomUploadedIcons` by referencing `logoIcon` and `backgroundColor` on the `Theme` model and adding `GlobalSettings` app logo URL verification.
 - **Purge Unused Custom Uploaded Icons (v1.17.0)**:
