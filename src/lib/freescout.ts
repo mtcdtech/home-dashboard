@@ -44,6 +44,22 @@ export interface FreeScoutConversation {
   ticketUrl: string;
 }
 
+export interface FreeScoutSortRule {
+  field: "status" | "updatedAt" | "createdAt" | "number" | "customer" | "subject";
+  order: "asc" | "desc";
+  enabled?: boolean;
+}
+
+export interface FreeScoutVisibleElements {
+  number?: boolean;
+  mailbox?: boolean;
+  status?: boolean;
+  date?: boolean;
+  preview?: boolean;
+  customer?: boolean;
+  assignee?: boolean;
+}
+
 export interface FreeScoutWidgetConfig {
   serverUrl?: string;
   apiKey?: string;
@@ -53,6 +69,8 @@ export interface FreeScoutWidgetConfig {
   statusOrder?: string[]; // e.g. ["active", "pending", "closed", "spam"]
   sortBy?: "updatedAt" | "createdAt" | "number" | "status";
   sortOrder?: "desc" | "asc";
+  sortRules?: FreeScoutSortRule[];
+  visibleElements?: FreeScoutVisibleElements;
   maxItems?: number; // e.g. 10, 25, 50
   autoRefreshMinutes?: number; // e.g. 0 (disabled), 1, 5, 15
 }

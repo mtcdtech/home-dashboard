@@ -2,6 +2,35 @@
 
 ## Running Change Log
 
+### 2026-09-01 - Card Elements Visibility & Draggable Multi-Tier Sort Priority for FreeScout & Portainer (v1.19.0)
+- **Summary**:
+  1. Added card elements visibility checklist in FreeScout settings modal to selectively toggle Ticket #, Mailbox Name, Status Pill, Date / Time, Message Preview, Customer / Submitter, and Assigned Owner.
+  2. Implemented multi-tier draggable sorting priority with independent Asc/Desc order direction for FreeScout (supporting Status, Last Updated, Created Date, Ticket #, Customer Name, and Subject).
+  3. Implemented multi-tier draggable sorting priority with independent Asc/Desc direction for Portainer (supporting Status, Name, Manual Order, Image, and Created Date).
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (added `FreeScoutSortRule` and `FreeScoutVisibleElements`)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (supported `sortRules` and `visibleElements` persistence)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (card elements visibility & draggable sort rules)
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (draggable multi-tier sort rules with Asc/Desc selectors)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.19.0`)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled 100% cleanly.
+
+### 2026-09-01 - FreeScout Widget Mailbox & Filter Drag-and-Drop Fix + Up/Down Controls (v1.18.4)
+- **Summary**:
+  1. Fixed HTML5 drag-and-drop event handling on mailbox and status items in `FreeScoutWidget.tsx` by setting `e.dataTransfer.effectAllowed = "move"`, `e.dataTransfer.setData("text/plain", ...)`, and `e.dataTransfer.dropEffect = "move"`.
+  2. Fixed drag event interception by separating checkbox `<input>` and `<label>` controls from capturing drag gestures, adding drag-end cleanup handlers (`onDragEnd`) and visual drag-over border/background highlights.
+  3. Added explicit 1-click `ChevronUp` and `ChevronDown` reorder buttons alongside the `GripVertical` handle for instant accessibility and mobile/trackpad convenience.
+- **Files Modified**:
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (HTML5 drag-and-drop event fix, Up/Down chevron buttons, drag-over styles)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.4`)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `DATABASE_URL="postgresql://user:pass@localhost:5432/db" npm run build` compiled 100% cleanly.
+
 ### 2026-08-31 - FreeScout In Progress Label, Draggable Mailbox Ordering & Draggable Status Priority (v1.18.3)
 - **Summary**:
   1. Renamed "Pending" status label to "In Progress" across all widget badges, counter chips, cards, and modal checklists.

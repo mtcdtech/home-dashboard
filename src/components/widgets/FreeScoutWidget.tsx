@@ -15,6 +15,8 @@ import {
   X,
   Inbox,
   GripVertical,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   fetchFreeScoutConversationsAction,
@@ -22,7 +24,13 @@ import {
   testFreeScoutConnectionAction,
   saveFreeScoutWidgetSettingsAction,
 } from "@/app/admin/actions";
-import type { FreeScoutConversation, FreeScoutMailbox, FreeScoutWidgetConfig } from "@/lib/freescout";
+import type {
+  FreeScoutConversation,
+  FreeScoutMailbox,
+  FreeScoutWidgetConfig,
+  FreeScoutSortRule,
+  FreeScoutVisibleElements,
+} from "@/lib/freescout";
 
 export interface FreeScoutWidgetProps {
   section: {
@@ -41,6 +49,61 @@ export interface FreeScoutWidgetProps {
 }
 
 const DEFAULT_STATUS_ORDER = ["active", "pending", "closed", "spam"];
+
+const DEFAULT_VISIBLE_ELEMENTS: FreeScoutVisibleElements = {
+  number: true,
+  mailbox: true,
+  status: true,
+  date: true,
+  preview: true,
+  customer: true,
+  assignee: true,
+};
+
+const DEFAULT_SORT_RULES: FreeScoutSortRule[] = [
+  { field: "status", order: "desc", enabled: true },
+  { field: "updatedAt", order: "desc", enabled: true },
+  { field: "number", order: "desc", enabled: false },
+  { field: "createdAt", order: "desc", enabled: false },
+  { field: "customer", order: "asc", enabled: false },
+  { field: "subject", order: "asc", enabled: false },
+];
+
+const SORT_FIELD_LABELS: Record<
+  FreeScoutSortRule["field"],
+  { label: string; ascLabel: string; descLabel: string }
+> = {
+  status: {
+    label: "Ticket Status (Custom Status Order)",
+    ascLabel: "Reverse / Low Priority First (Asc)",
+    descLabel: "Priority / High Priority First (Desc)",
+  },
+  updatedAt: {
+    label: "Last Updated Date",
+    ascLabel: "Oldest Updated First (Asc)",
+    descLabel: "Newest Updated First (Desc)",
+  },
+  createdAt: {
+    label: "Created Date",
+    ascLabel: "Oldest Created First (Asc)",
+    descLabel: "Newest Created First (Desc)",
+  },
+  number: {
+    label: "Ticket Number (#)",
+    ascLabel: "Lowest # First (Asc)",
+    descLabel: "Highest # First (Desc)",
+  },
+  customer: {
+    label: "Customer Name",
+    ascLabel: "A to Z (Asc)",
+    descLabel: "Z to A (Desc)",
+  },
+  subject: {
+    label: "Subject",
+    ascLabel: "A to Z (Asc)",
+    descLabel: "Z to A (Desc)",
+  },
+};
 
 const STATUS_METADATA: Record<string, { label: string; shortLabel: string; color: string; bg: string; border: string }> = {
   active: {
@@ -124,10 +187,35 @@ export function FreeScoutWidget({
       ? rawConfig.statusOrder
       : DEFAULT_STATUS_ORDER
   );
-  const [sortBy, setSortBy] = useState<"updatedAt" | "createdAt" | "number" | "status">(
-    rawConfig.sortBy || "updatedAt"
-  );
-  const [sortOrder, setSortOrder] = useState<"desc" | "asc">(rawConfig.sortOrder || "desc");
+
+  const initialVisibleElements: FreeScoutVisibleElements = useMemo(() => {
+    return { ...DEFAULT_VISIBLE_ELEMENTS, ...(rawConfig.visibleElements || {}) };
+  }, [rawConfig.visibleElements]);
+  const [visibleElements, setVisibleElements] = useState<FreeScoutVisibleElements>(initialVisibleElements);
+
+  const initialSortRules: FreeScoutSortRule[] = useMemo(() => {
+    if (Array.isArray(rawConfig.sortRules) && rawConfig.sortRules.length > 0) {
+      const existingFields = new Set(rawConfig.sortRules.map((r) => r.field));
+      const merged = [...rawConfig.sortRules];
+      DEFAULT_SORT_RULES.forEach((def) => {
+        if (!existingFields.has(def.field)) {
+          merged.push({ ...def, enabled: false });
+        }
+      });
+      return merged;
+    }
+    if (rawConfig.sortBy) {
+      const primary = rawConfig.sortBy;
+      const order = rawConfig.sortOrder || "desc";
+      return DEFAULT_SORT_RULES.map((rule) => {
+        if (rule.field === primary) return { ...rule, order, enabled: true };
+        return rule;
+      });
+    }
+    return DEFAULT_SORT_RULES;
+  }, [rawConfig.sortRules, rawConfig.sortBy, rawConfig.sortOrder]);
+  const [sortRules, setSortRules] = useState<FreeScoutSortRule[]>(initialSortRules);
+
   const [maxItems, setMaxItems] = useState<number>(rawConfig.maxItems ?? 25);
   const [autoRefreshMinutes, setAutoRefreshMinutes] = useState<number>(rawConfig.autoRefreshMinutes ?? 0);
   const [availableMailboxes, setAvailableMailboxes] = useState<FreeScoutMailbox[]>([]);
@@ -135,7 +223,38 @@ export function FreeScoutWidget({
 
   // Drag-and-drop state for settings modal
   const [draggedMailboxIndex, setDraggedMailboxIndex] = useState<number | null>(null);
+  const [dragOverMailboxIndex, setDragOverMailboxIndex] = useState<number | null>(null);
   const [draggedStatusIndex, setDraggedStatusIndex] = useState<number | null>(null);
+  const [dragOverStatusIndex, setDragOverStatusIndex] = useState<number | null>(null);
+  const [draggedSortIndex, setDraggedSortIndex] = useState<number | null>(null);
+  const [dragOverSortIndex, setDragOverSortIndex] = useState<number | null>(null);
+
+  const moveMailbox = (idx: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= availableMailboxes.length) return;
+    const reordered = [...availableMailboxes];
+    const [removed] = reordered.splice(idx, 1);
+    reordered.splice(targetIdx, 0, removed);
+    setAvailableMailboxes(reordered);
+  };
+
+  const moveStatus = (idx: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= statusOrder.length) return;
+    const reordered = [...statusOrder];
+    const [removed] = reordered.splice(idx, 1);
+    reordered.splice(targetIdx, 0, removed);
+    setStatusOrder(reordered);
+  };
+
+  const moveSortRule = (idx: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= sortRules.length) return;
+    const reordered = [...sortRules];
+    const [removed] = reordered.splice(idx, 1);
+    reordered.splice(targetIdx, 0, removed);
+    setSortRules(reordered);
+  };
 
   // Load Conversations
   const loadConversations = useCallback(async (showSpinner = true) => {
@@ -189,8 +308,8 @@ export function FreeScoutWidget({
         ? rawConfig.statusOrder
         : DEFAULT_STATUS_ORDER
     );
-    setSortBy(rawConfig.sortBy || "updatedAt");
-    setSortOrder(rawConfig.sortOrder || "desc");
+    setVisibleElements({ ...DEFAULT_VISIBLE_ELEMENTS, ...(rawConfig.visibleElements || {}) });
+    setSortRules(initialSortRules);
     setMaxItems(rawConfig.maxItems ?? 25);
     setAutoRefreshMinutes(rawConfig.autoRefreshMinutes ?? 0);
     setTestResult(null);
@@ -276,8 +395,8 @@ export function FreeScoutWidget({
         mailboxOrder: currentMailboxOrder,
         selectedStatuses,
         statusOrder,
-        sortBy,
-        sortOrder,
+        sortRules,
+        visibleElements,
         maxItems,
         autoRefreshMinutes,
       });
@@ -354,34 +473,61 @@ export function FreeScoutWidget({
       return matchSubject || matchPreview || matchNum || matchCustomer || matchAssignee || matchMailbox;
     });
 
-    // Client-side sort
+    // Multi-tier client-side sort
+    const activeRules = sortRules.filter((r) => r.enabled !== false);
+    const rulesToApply =
+      activeRules.length > 0
+        ? activeRules
+        : [{ field: "updatedAt" as const, order: "desc" as const, enabled: true }];
+
     list.sort((a, b) => {
-      if (sortBy === "status") {
-        const idxA = activeStatusOrder.indexOf(a.status);
-        const idxB = activeStatusOrder.indexOf(b.status);
-        const pA = idxA !== -1 ? idxA : 99;
-        const pB = idxB !== -1 ? idxB : 99;
-        if (pA !== pB) {
-          return sortOrder === "asc" ? pB - pA : pA - pB;
+      for (const rule of rulesToApply) {
+        let comp = 0;
+        if (rule.field === "status") {
+          const idxA = activeStatusOrder.indexOf(a.status);
+          const idxB = activeStatusOrder.indexOf(b.status);
+          const pA = idxA !== -1 ? idxA : 99;
+          const pB = idxB !== -1 ? idxB : 99;
+          comp = rule.order === "asc" ? pB - pA : pA - pB;
+        } else if (rule.field === "number") {
+          comp = rule.order === "asc" ? a.number - b.number : b.number - a.number;
+        } else if (rule.field === "createdAt") {
+          const timeA = new Date(a.createdAt).getTime();
+          const timeB = new Date(b.createdAt).getTime();
+          comp = rule.order === "asc" ? timeA - timeB : timeB - timeA;
+        } else if (rule.field === "updatedAt") {
+          const timeA = new Date(a.updatedAt).getTime();
+          const timeB = new Date(b.updatedAt).getTime();
+          comp = rule.order === "asc" ? timeA - timeB : timeB - timeA;
+        } else if (rule.field === "customer") {
+          const custA = `${a.customer?.fname || ""} ${a.customer?.lname || ""} ${a.customer?.email || ""}`
+            .trim()
+            .toLowerCase();
+          const custB = `${b.customer?.fname || ""} ${b.customer?.lname || ""} ${b.customer?.email || ""}`
+            .trim()
+            .toLowerCase();
+          comp = rule.order === "asc" ? custA.localeCompare(custB) : custB.localeCompare(custA);
+        } else if (rule.field === "subject") {
+          const subjA = (a.subject || "").toLowerCase();
+          const subjB = (b.subject || "").toLowerCase();
+          comp = rule.order === "asc" ? subjA.localeCompare(subjB) : subjB.localeCompare(subjA);
         }
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+
+        if (comp !== 0) return comp;
       }
-      if (sortBy === "number") {
-        return sortOrder === "asc" ? a.number - b.number : b.number - a.number;
-      }
-      if (sortBy === "createdAt") {
-        const timeA = new Date(a.createdAt).getTime();
-        const timeB = new Date(b.createdAt).getTime();
-        return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
-      }
-      // Default updatedAt
-      const timeA = new Date(a.updatedAt).getTime();
-      const timeB = new Date(b.updatedAt).getTime();
-      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+      return 0;
     });
 
     return list;
-  }, [conversations, localSearch, filter, selectedMailboxFilter, selectedStatusFilter, sortBy, sortOrder, activeStatusOrder]);
+  }, [
+    conversations,
+    localSearch,
+    filter,
+    selectedMailboxFilter,
+    selectedStatusFilter,
+    sortRules,
+    activeStatusOrder,
+  ]);
 
   // Counts
   const unresolvedCount = useMemo(() => {
@@ -805,10 +951,22 @@ export function FreeScoutWidget({
             const customerName =
               `${conv.customer?.fname || ""} ${conv.customer?.lname || ""}`.trim() ||
               conv.customer?.email ||
-              "Customer";
+              "";
 
             const assigneeName =
               `${conv.assignee?.fname || ""} ${conv.assignee?.lname || ""}`.trim() || conv.assignee?.email;
+
+            const showNumber = visibleElements.number !== false;
+            const showMailbox = visibleElements.mailbox !== false;
+            const showStatus = visibleElements.status !== false;
+            const showDate = visibleElements.date !== false;
+            const showPreview = visibleElements.preview !== false;
+            const showCustomer = visibleElements.customer !== false;
+            const showAssignee = visibleElements.assignee !== false;
+
+            const hasTopLeft = showNumber || (showMailbox && conv.mailboxName) || showStatus;
+            const hasTopRow = hasTopLeft || showDate;
+            const hasBottomRow = (showCustomer && customerName) || (showAssignee && assigneeName);
 
             return (
               <a
@@ -838,74 +996,82 @@ export function FreeScoutWidget({
                 }}
               >
                 {/* Top Row: Ticket Number, Mailbox, Status Pill, Time */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.4rem" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        opacity: 0.6,
-                      }}
-                    >
-                      #{conv.number}
-                    </span>
+                {hasTopRow && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.4rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+                      {showNumber && (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: "0.72rem",
+                            fontWeight: 700,
+                            opacity: 0.6,
+                          }}
+                        >
+                          #{conv.number}
+                        </span>
+                      )}
 
-                    {conv.mailboxName && (
-                      <span
-                        style={{
-                          fontSize: "0.65rem",
-                          padding: "0.1rem 0.35rem",
-                          borderRadius: "4px",
-                          background: "rgba(255, 255, 255, 0.08)",
-                          opacity: 0.75,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {conv.mailboxName}
-                      </span>
+                      {showMailbox && conv.mailboxName && (
+                        <span
+                          style={{
+                            fontSize: "0.65rem",
+                            padding: "0.1rem 0.35rem",
+                            borderRadius: "4px",
+                            background: "rgba(255, 255, 255, 0.08)",
+                            opacity: 0.75,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {conv.mailboxName}
+                        </span>
+                      )}
+
+                      {/* Status Pill */}
+                      {showStatus && (
+                        <span
+                          style={{
+                            fontSize: "0.65rem",
+                            padding: "0.1rem 0.4rem",
+                            borderRadius: "4px",
+                            fontWeight: 700,
+                            textTransform: "capitalize",
+                            background: isUnresolved
+                              ? "rgba(245, 158, 11, 0.2)"
+                              : isInProgress
+                              ? "rgba(139, 92, 246, 0.2)"
+                              : isClosed
+                              ? "rgba(16, 185, 129, 0.2)"
+                              : "rgba(255, 255, 255, 0.1)",
+                            color: isUnresolved
+                              ? "#fbbf24"
+                              : isInProgress
+                              ? "#c084fc"
+                              : isClosed
+                              ? "#34d399"
+                              : "var(--text)",
+                          }}
+                        >
+                          {conv.status === "active"
+                            ? "Unresolved"
+                            : conv.status === "pending"
+                            ? "In Progress"
+                            : conv.status === "closed"
+                            ? "Closed"
+                            : conv.status}
+                        </span>
+                      )}
+                    </div>
+
+                    {showDate && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.68rem", opacity: 0.5, marginLeft: "auto" }}>
+                        <Clock size={10} />
+                        <span>{formatTimeAgo(conv.updatedAt || conv.createdAt)}</span>
+                        <ExternalLink size={10} style={{ marginLeft: "2px" }} />
+                      </div>
                     )}
-
-                    {/* Status Pill */}
-                    <span
-                      style={{
-                        fontSize: "0.65rem",
-                        padding: "0.1rem 0.4rem",
-                        borderRadius: "4px",
-                        fontWeight: 700,
-                        textTransform: "capitalize",
-                        background: isUnresolved
-                          ? "rgba(245, 158, 11, 0.2)"
-                          : isInProgress
-                          ? "rgba(139, 92, 246, 0.2)"
-                          : isClosed
-                          ? "rgba(16, 185, 129, 0.2)"
-                          : "rgba(255, 255, 255, 0.1)",
-                        color: isUnresolved
-                          ? "#fbbf24"
-                          : isInProgress
-                          ? "#c084fc"
-                          : isClosed
-                          ? "#34d399"
-                          : "var(--text)",
-                      }}
-                    >
-                      {conv.status === "active"
-                        ? "Unresolved"
-                        : conv.status === "pending"
-                        ? "In Progress"
-                        : conv.status === "closed"
-                        ? "Closed"
-                        : conv.status}
-                    </span>
                   </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.68rem", opacity: 0.5 }}>
-                    <Clock size={10} />
-                    <span>{formatTimeAgo(conv.updatedAt || conv.createdAt)}</span>
-                    <ExternalLink size={10} style={{ marginLeft: "2px" }} />
-                  </div>
-                </div>
+                )}
 
                 {/* Middle Row: Subject */}
                 <div
@@ -923,7 +1089,7 @@ export function FreeScoutWidget({
                 </div>
 
                 {/* Preview Snippet */}
-                {conv.preview && (
+                {showPreview && conv.preview && (
                   <div
                     style={{
                       fontSize: "0.72rem",
@@ -939,36 +1105,40 @@ export function FreeScoutWidget({
                 )}
 
                 {/* Bottom Row: Customer & Assignee */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    fontSize: "0.7rem",
-                    opacity: 0.7,
-                    marginTop: "0.15rem",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                    <User size={11} style={{ opacity: 0.6 }} />
-                    <span style={{ fontWeight: 500 }}>{customerName}</span>
-                  </div>
+                {hasBottomRow && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      fontSize: "0.7rem",
+                      opacity: 0.7,
+                      marginTop: "0.15rem",
+                    }}
+                  >
+                    {showCustomer && customerName ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                        <User size={11} style={{ opacity: 0.6 }} />
+                        <span style={{ fontWeight: 500 }}>{customerName}</span>
+                      </div>
+                    ) : <div />}
 
-                  {assigneeName && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.3rem",
-                        fontSize: "0.68rem",
-                        opacity: 0.85,
-                        color: "var(--primary)",
-                      }}
-                    >
-                      <span>Assigned to {assigneeName}</span>
-                    </div>
-                  )}
-                </div>
+                    {showAssignee && assigneeName && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                          fontSize: "0.68rem",
+                          opacity: 0.85,
+                          color: "var(--primary)",
+                        }}
+                      >
+                        <span>Assigned to {assigneeName}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </a>
             );
           })}
@@ -1164,44 +1334,60 @@ export function FreeScoutWidget({
                       <div
                         key={mb.id}
                         draggable
-                        onDragStart={() => setDraggedMailboxIndex(idx)}
+                        onDragStart={(e) => {
+                          setDraggedMailboxIndex(idx);
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", String(idx));
+                        }}
                         onDragOver={(e) => {
                           e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          setDragOverMailboxIndex(idx);
                         }}
-                        onDrop={() => {
-                          if (draggedMailboxIndex === null || draggedMailboxIndex === idx) return;
-                          const reordered = [...availableMailboxes];
-                          const [removed] = reordered.splice(draggedMailboxIndex, 1);
-                          reordered.splice(idx, 0, removed);
-                          setAvailableMailboxes(reordered);
+                        onDragLeave={() => {
+                          setDragOverMailboxIndex(null);
+                        }}
+                        onDragEnd={() => {
                           setDraggedMailboxIndex(null);
+                          setDragOverMailboxIndex(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (draggedMailboxIndex !== null && draggedMailboxIndex !== idx) {
+                            const reordered = [...availableMailboxes];
+                            const [removed] = reordered.splice(draggedMailboxIndex, 1);
+                            reordered.splice(idx, 0, removed);
+                            setAvailableMailboxes(reordered);
+                          }
+                          setDraggedMailboxIndex(null);
+                          setDragOverMailboxIndex(null);
                         }}
                         style={{
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          padding: "4px 6px",
+                          padding: "5px 8px",
                           borderRadius: "6px",
                           background:
                             draggedMailboxIndex === idx
-                              ? "rgba(var(--primary-rgb), 0.2)"
+                              ? "rgba(var(--primary-rgb), 0.15)"
+                              : dragOverMailboxIndex === idx
+                              ? "rgba(var(--primary-rgb), 0.25)"
                               : "rgba(255,255,255,0.03)",
-                          border: "1px solid rgba(255,255,255,0.05)",
+                          border:
+                            dragOverMailboxIndex === idx
+                              ? "1px solid var(--primary)"
+                              : "1px solid rgba(255,255,255,0.05)",
                           cursor: "grab",
+                          userSelect: "none",
+                          transition: "background 0.15s, border 0.15s",
                         }}
                       >
-                        <label
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            fontSize: "0.78rem",
-                            cursor: "pointer",
-                            flex: 1,
-                          }}
-                        >
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1, minWidth: 0 }}>
                           <input
                             type="checkbox"
+                            id={`mb-check-${mb.id}`}
                             checked={isChecked}
                             onChange={() => {
                               if (selectedMailboxIds.length === 0) {
@@ -1212,12 +1398,69 @@ export function FreeScoutWidget({
                                 setSelectedMailboxIds([...selectedMailboxIds, mb.id]);
                               }
                             }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ cursor: "pointer" }}
                           />
-                          <span>{mb.name}</span>
-                          {mb.email && <span style={{ opacity: 0.4, fontSize: "0.7rem" }}>({mb.email})</span>}
-                        </label>
+                          <label
+                            htmlFor={`mb-check-${mb.id}`}
+                            style={{
+                              fontSize: "0.78rem",
+                              cursor: "pointer",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <span>{mb.name}</span>
+                            {mb.email && <span style={{ opacity: 0.4, fontSize: "0.7rem", marginLeft: "4px" }}>({mb.email})</span>}
+                          </label>
+                        </div>
 
-                        <GripVertical size={13} style={{ opacity: 0.4, cursor: "grab" }} />
+                        <div style={{ display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveMailbox(idx, "up");
+                            }}
+                            disabled={idx === 0}
+                            title="Move Up"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "var(--text)",
+                              opacity: idx === 0 ? 0.2 : 0.6,
+                              cursor: idx === 0 ? "default" : "pointer",
+                              padding: "2px",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            <ChevronUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveMailbox(idx, "down");
+                            }}
+                            disabled={idx === availableMailboxes.length - 1}
+                            title="Move Down"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "var(--text)",
+                              opacity: idx === availableMailboxes.length - 1 ? 0.2 : 0.6,
+                              cursor: idx === availableMailboxes.length - 1 ? "default" : "pointer",
+                              padding: "2px",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                          <GripVertical size={13} style={{ opacity: 0.4, cursor: "grab", marginLeft: "2px" }} />
+                        </div>
                       </div>
                     );
                   })}
@@ -1257,42 +1500,60 @@ export function FreeScoutWidget({
                     <div
                       key={statusKey}
                       draggable
-                      onDragStart={() => setDraggedStatusIndex(idx)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => {
-                        if (draggedStatusIndex === null || draggedStatusIndex === idx) return;
-                        const reordered = [...statusOrder];
-                        const [removed] = reordered.splice(draggedStatusIndex, 1);
-                        reordered.splice(idx, 0, removed);
-                        setStatusOrder(reordered);
+                      onDragStart={(e) => {
+                        setDraggedStatusIndex(idx);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(idx));
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        setDragOverStatusIndex(idx);
+                      }}
+                      onDragLeave={() => {
+                        setDragOverStatusIndex(null);
+                      }}
+                      onDragEnd={() => {
                         setDraggedStatusIndex(null);
+                        setDragOverStatusIndex(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (draggedStatusIndex !== null && draggedStatusIndex !== idx) {
+                          const reordered = [...statusOrder];
+                          const [removed] = reordered.splice(draggedStatusIndex, 1);
+                          reordered.splice(idx, 0, removed);
+                          setStatusOrder(reordered);
+                        }
+                        setDraggedStatusIndex(null);
+                        setDragOverStatusIndex(null);
                       }}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        padding: "4px 6px",
+                        padding: "5px 8px",
                         borderRadius: "6px",
                         background:
                           draggedStatusIndex === idx
-                            ? "rgba(var(--primary-rgb), 0.2)"
+                            ? "rgba(var(--primary-rgb), 0.15)"
+                            : dragOverStatusIndex === idx
+                            ? "rgba(var(--primary-rgb), 0.25)"
                             : "rgba(255,255,255,0.03)",
-                        border: "1px solid rgba(255,255,255,0.05)",
+                        border:
+                          dragOverStatusIndex === idx
+                            ? "1px solid var(--primary)"
+                            : "1px solid rgba(255,255,255,0.05)",
                         cursor: "grab",
+                        userSelect: "none",
+                        transition: "background 0.15s, border 0.15s",
                       }}
                     >
-                      <label
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                          fontSize: "0.78rem",
-                          cursor: "pointer",
-                          flex: 1,
-                        }}
-                      >
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1, minWidth: 0 }}>
                         <input
                           type="checkbox"
+                          id={`status-check-${statusKey}`}
                           checked={isChecked}
                           onChange={() => {
                             if (isChecked) {
@@ -1303,62 +1564,399 @@ export function FreeScoutWidget({
                               setSelectedStatuses([...selectedStatuses, statusKey]);
                             }
                           }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ cursor: "pointer" }}
                         />
-                        <span style={{ color: meta.color, fontWeight: 600 }}>{meta.label}</span>
-                      </label>
+                        <label
+                          htmlFor={`status-check-${statusKey}`}
+                          style={{
+                            color: meta.color,
+                            fontWeight: 600,
+                            fontSize: "0.78rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {meta.label}
+                        </label>
+                      </div>
 
-                      <GripVertical size={13} style={{ opacity: 0.4, cursor: "grab" }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveStatus(idx, "up");
+                          }}
+                          disabled={idx === 0}
+                          title="Move Up"
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--text)",
+                            opacity: idx === 0 ? 0.2 : 0.6,
+                            cursor: idx === 0 ? "default" : "pointer",
+                            padding: "2px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveStatus(idx, "down");
+                          }}
+                          disabled={idx === statusOrder.length - 1}
+                          title="Move Down"
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--text)",
+                            opacity: idx === statusOrder.length - 1 ? 0.2 : 0.6,
+                            cursor: idx === statusOrder.length - 1 ? "default" : "pointer",
+                            padding: "2px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                        <GripVertical size={13} style={{ opacity: 0.4, cursor: "grab", marginLeft: "2px" }} />
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Sorting & Limits */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.3rem" }}>
-                  Sort By
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="glass"
+            {/* Card Elements to Display Checkboxes */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Card Elements to Display</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allOn = [
+                      visibleElements.number,
+                      visibleElements.mailbox,
+                      visibleElements.status,
+                      visibleElements.date,
+                      visibleElements.preview,
+                      visibleElements.customer,
+                      visibleElements.assignee,
+                    ].every((v) => v !== false);
+
+                    if (allOn) {
+                      setVisibleElements({
+                        number: false,
+                        mailbox: false,
+                        status: false,
+                        date: false,
+                        preview: false,
+                        customer: false,
+                        assignee: false,
+                      });
+                    } else {
+                      setVisibleElements({
+                        number: true,
+                        mailbox: true,
+                        status: true,
+                        date: true,
+                        preview: true,
+                        customer: true,
+                        assignee: true,
+                      });
+                    }
+                  }}
                   style={{
-                    width: "100%",
-                    padding: "0.45rem",
-                    borderRadius: "8px",
-                    fontSize: "0.8rem",
-                    boxSizing: "border-box",
+                    background: "none",
+                    border: "none",
+                    color: "var(--primary)",
+                    fontSize: "0.72rem",
+                    cursor: "pointer",
+                    padding: 0,
                   }}
                 >
-                  <option value="status">Ticket Status (Custom Status Order)</option>
-                  <option value="updatedAt">Last Updated</option>
-                  <option value="createdAt">Created Date</option>
-                  <option value="number">Ticket Number</option>
-                </select>
+                  {[
+                    visibleElements.number,
+                    visibleElements.mailbox,
+                    visibleElements.status,
+                    visibleElements.date,
+                    visibleElements.preview,
+                    visibleElements.customer,
+                    visibleElements.assignee,
+                  ].every((v) => v !== false)
+                    ? "Deselect All"
+                    : "Select All"}
+                </button>
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.3rem" }}>
-                  Sort Order
-                </label>
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value as any)}
-                  className="glass"
-                  style={{
-                    width: "100%",
-                    padding: "0.45rem",
-                    borderRadius: "8px",
-                    fontSize: "0.8rem",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <option value="desc">Primary / Newest First (Desc)</option>
-                  <option value="asc">Reverse / Oldest First (Asc)</option>
-                </select>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+                  gap: "0.4rem",
+                  padding: "0.5rem",
+                  borderRadius: "8px",
+                  background: "rgba(0,0,0,0.2)",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                {[
+                  { key: "number", label: "Ticket # (#123)" },
+                  { key: "mailbox", label: "Mailbox Badge" },
+                  { key: "status", label: "Status Pill" },
+                  { key: "date", label: "Date / Time" },
+                  { key: "preview", label: "Message Preview" },
+                  { key: "customer", label: "Customer / Submitter" },
+                  { key: "assignee", label: "Assigned Owner" },
+                ].map((elem) => {
+                  const isChecked = visibleElements[elem.key as keyof FreeScoutVisibleElements] !== false;
+                  return (
+                    <label
+                      key={elem.key}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        fontSize: "0.75rem",
+                        cursor: "pointer",
+                        padding: "3px 4px",
+                        borderRadius: "4px",
+                        background: isChecked ? "rgba(var(--primary-rgb), 0.08)" : "transparent",
+                        color: isChecked ? "var(--text)" : "rgba(255,255,255,0.5)",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) =>
+                          setVisibleElements({
+                            ...visibleElements,
+                            [elem.key]: e.target.checked,
+                          })
+                        }
+                        style={{ cursor: "pointer" }}
+                      />
+                      <span>{elem.label}</span>
+                    </label>
+                  );
+                })}
               </div>
+            </div>
+
+            {/* Draggable Sorting Priority & Direction */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Sorting Priority & Direction</label>
+                  <span style={{ fontSize: "0.7rem", opacity: 0.5, marginLeft: "6px" }}>
+                    (Drag or use arrows to order primary, secondary, etc.)
+                  </span>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.3rem",
+                  padding: "0.4rem",
+                  borderRadius: "8px",
+                  background: "rgba(0,0,0,0.2)",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                {sortRules.map((rule, idx) => {
+                  const meta = SORT_FIELD_LABELS[rule.field] || {
+                    label: rule.field,
+                    ascLabel: "Ascending",
+                    descLabel: "Descending",
+                  };
+                  const isEnabled = rule.enabled !== false;
+
+                  return (
+                    <div
+                      key={rule.field}
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggedSortIndex(idx);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(idx));
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        setDragOverSortIndex(idx);
+                      }}
+                      onDragLeave={() => {
+                        setDragOverSortIndex(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedSortIndex(null);
+                        setDragOverSortIndex(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (draggedSortIndex !== null && draggedSortIndex !== idx) {
+                          const reordered = [...sortRules];
+                          const [removed] = reordered.splice(draggedSortIndex, 1);
+                          reordered.splice(idx, 0, removed);
+                          setSortRules(reordered);
+                        }
+                        setDraggedSortIndex(null);
+                        setDragOverSortIndex(null);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "5px 8px",
+                        borderRadius: "6px",
+                        background:
+                          draggedSortIndex === idx
+                            ? "rgba(var(--primary-rgb), 0.15)"
+                            : dragOverSortIndex === idx
+                            ? "rgba(var(--primary-rgb), 0.25)"
+                            : isEnabled
+                            ? "rgba(255,255,255,0.03)"
+                            : "rgba(255,255,255,0.01)",
+                        border:
+                          dragOverSortIndex === idx
+                            ? "1px solid var(--primary)"
+                            : "1px solid rgba(255,255,255,0.05)",
+                        cursor: "grab",
+                        userSelect: "none",
+                        opacity: isEnabled ? 1 : 0.45,
+                        transition: "background 0.15s, border 0.15s, opacity 0.15s",
+                      }}
+                    >
+                      {/* Priority badge + Checkbox + Field Name */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flex: 1, minWidth: 0 }}>
+                        <span
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: 800,
+                            width: "16px",
+                            textAlign: "center",
+                            opacity: isEnabled ? 0.8 : 0.3,
+                            color: isEnabled ? "var(--primary)" : "inherit",
+                          }}
+                        >
+                          #{idx + 1}
+                        </span>
+
+                        <input
+                          type="checkbox"
+                          id={`sort-check-${rule.field}`}
+                          checked={isEnabled}
+                          onChange={(e) => {
+                            const updated = [...sortRules];
+                            updated[idx] = { ...updated[idx], enabled: e.target.checked };
+                            setSortRules(updated);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ cursor: "pointer" }}
+                        />
+
+                        <label
+                          htmlFor={`sort-check-${rule.field}`}
+                          style={{
+                            fontSize: "0.78rem",
+                            fontWeight: isEnabled ? 600 : 400,
+                            cursor: "pointer",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {meta.label}
+                        </label>
+                      </div>
+
+                      {/* Direction selector + Chevrons + Handle */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}>
+                        <select
+                          value={rule.order}
+                          disabled={!isEnabled}
+                          onChange={(e) => {
+                            const updated = [...sortRules];
+                            updated[idx] = { ...updated[idx], order: e.target.value as "asc" | "desc" };
+                            setSortRules(updated);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="glass"
+                          style={{
+                            padding: "0.2rem 0.4rem",
+                            borderRadius: "6px",
+                            fontSize: "0.72rem",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            background: "rgba(0,0,0,0.3)",
+                            color: "var(--text)",
+                            cursor: isEnabled ? "pointer" : "default",
+                          }}
+                        >
+                          <option value="desc">{meta.descLabel}</option>
+                          <option value="asc">{meta.ascLabel}</option>
+                        </select>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "1px" }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveSortRule(idx, "up");
+                            }}
+                            disabled={idx === 0}
+                            title="Move Priority Up"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "var(--text)",
+                              opacity: idx === 0 ? 0.2 : 0.6,
+                              cursor: idx === 0 ? "default" : "pointer",
+                              padding: "2px",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            <ChevronUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveSortRule(idx, "down");
+                            }}
+                            disabled={idx === sortRules.length - 1}
+                            title="Move Priority Down"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "var(--text)",
+                              opacity: idx === sortRules.length - 1 ? 0.2 : 0.6,
+                              cursor: idx === sortRules.length - 1 ? "default" : "pointer",
+                              padding: "2px",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                          <GripVertical size={13} style={{ opacity: 0.4, cursor: "grab", marginLeft: "2px" }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Limits & Refresh */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
 
               <div>
                 <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.3rem" }}>

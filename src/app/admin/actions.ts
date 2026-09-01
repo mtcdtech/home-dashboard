@@ -2730,6 +2730,8 @@ export async function saveFreeScoutWidgetSettingsAction(
     statusOrder?: string[];
     sortBy?: "updatedAt" | "createdAt" | "number" | "status";
     sortOrder?: "desc" | "asc";
+    sortRules?: any[];
+    visibleElements?: Record<string, boolean>;
     maxItems?: number;
     autoRefreshMinutes?: number;
   }
@@ -2764,6 +2766,8 @@ export async function saveFreeScoutWidgetSettingsAction(
         : existingConfig.statusOrder ?? ["active", "pending", "closed", "spam"],
       sortBy: settings.sortBy || existingConfig.sortBy || "updatedAt",
       sortOrder: settings.sortOrder || existingConfig.sortOrder || "desc",
+      sortRules: Array.isArray(settings.sortRules) ? settings.sortRules : existingConfig.sortRules,
+      visibleElements: settings.visibleElements !== undefined ? settings.visibleElements : existingConfig.visibleElements,
       maxItems: typeof settings.maxItems === "number" ? settings.maxItems : existingConfig.maxItems ?? 25,
       autoRefreshMinutes:
         typeof settings.autoRefreshMinutes === "number"

@@ -67,14 +67,17 @@
 4. **Modal Lazy Loading**: Lazy-load heavy modals (`ThemeModal`, `TabModal`, `SectionModal`, `BookmarkModal`) using `next/dynamic` to reduce initial client bundle size.
 5. **Prisma Permission Filtering**: Push per-user permission filtering into Prisma `where` queries directly rather than filtering in JavaScript post-fetch (`resolveTabAccess`/`resolveSectionAccess`).
 
-## FreeScout Help Desk Widget (v1.18.3)
-- **Widget Shipped**: Native FreeScout widget (`widgetType: "freescout"`).
-- **Features**: "In Progress" status rename, draggable mailbox ordering, draggable status priority ordering, mailbox tabs with issue counts (auto-hidden when only 1 mailbox active), drafts & deleted conversation filtering, pinned top-right header controls, status sorting (following custom status order), status normalization for numeric statuses and `closedAt` timestamps, search filter, customer and assignee details, 1-click issue link navigation.
-- **Settings**: FreeScout server URL, API key with live connection test, draggable mailbox checklist, draggable status priority list, sort options, and auto-refresh timers.
+## FreeScout & Portainer Widget Customization & Draggable Sorting (v1.19.0)
+- **FreeScout Widget**:
+  - Checkboxes for card element visibility (Ticket #, Mailbox Name, Status Pill, Date / Time, Message Preview, Customer / Submitter, Assigned Owner).
+  - Multi-tier draggable sort priority with individual Asc/Desc order direction (Status, Last Updated, Created Date, Ticket #, Customer Name, Subject).
+  - Up/Down chevron reordering buttons and HTML5 drag handles for mailboxes, statuses, and sort rules.
+- **Portainer Widget**:
+  - Multi-tier draggable sort priority with individual Asc/Desc order direction (Status, Container Name, Manual Order, Docker Image, Created Date).
+  - Up/Down chevron reordering buttons and HTML5 drag handles for sort rules.
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.18.3).
-- In any icon picker, open the **Custom** tab and verify the "Purge Unused" button exists next to "Refresh".
-- Open the Dashboard Widget drawer (Catalog), drag or add "FreeScout Help Desk" to any dashboard column.
-- Open Widget Settings, test FreeScout connection, drag mailboxes into custom order, drag statuses into custom priority, and save changes.
-- Verify mailbox tabs and header status badges appear in custom order, and verify "In Progress" label is displayed.
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.19.0).
+- Open FreeScout Widget Settings, toggle card elements (e.g. toggle preview or mailbox badge) and verify card updates accordingly.
+- Test dragging / reordering sorting priorities in FreeScout and Portainer widgets and selecting Asc/Desc directions.
+- Save settings and verify issues and containers sort according to primary and secondary criteria.
