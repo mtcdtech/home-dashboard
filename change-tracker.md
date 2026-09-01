@@ -2,6 +2,17 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Purge Unused Custom Uploaded Icons (v1.17.0)
+- **Summary**: Added an option in `IconPicker.tsx` (Custom tab ➔ Uploaded Custom Icons) to purge all unused custom uploaded icons from disk. Implemented `purgeUnusedCustomUploadedIcons` in `src/app/admin/actions.ts` to scan `public/uploads` and `public/uploads/icons`, cross-reference bookmarks, sections, tabs, and themes in Prisma DB, and delete unreferenced icon files with full confirmation and remaining count reporting.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `purgeUnusedCustomUploadedIcons`)
+  - [src/components/IconPicker.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/IconPicker.tsx) (added Purge Unused button, handler, and state)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.17.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - Teams Link in Descriptions & Settings Token Preservation Fix (v1.16.3)
 - **Summary**: Resolved 2 issues: (1) Added full `body` selection and regex/href link cleaner in `src/lib/outlook.ts` to detect Microsoft Teams meeting links in event descriptions/body. (2) Resolved "Calendar Error: Outlook account not connected" when saving widget settings or changing filters. Root cause: `handleSaveConfig` was passing client-side `rawConfig` that lacked newly acquired OAuth tokens, overwriting `section.widgetConfig` in the database. Added `saveOutlookWidgetSettingsAction` to merge settings safely in PostgreSQL while preserving OAuth tokens and account credentials across all tab sections.
 - **Files Modified**:

@@ -2348,6 +2348,87 @@ export async function deleteCustomUploadedIcon(iconUrl: string) {
   }
 }
 
+export async function purgeUnusedCustomUploadedIcons() {
+  await requireSession();
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+
+    // 1. Collect all uploaded files on disk
+    const allFiles: Array<{ filename: string; fullPath: string }> = [];
+    const scanDir = (dirPath: string) => {
+      if (fs.existsSync(dirPath)) {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+          const fullPath = path.join(dirPath, file);
+          const stat = fs.statSync(fullPath);
+          if (stat.isFile() && file.match(/\.(png|jpe?g|svg|webp|gif|ico)$/i)) {
+            allFiles.push({ filename: file, fullPath });
+          }
+        }
+      }
+    };
+
+    scanDir(path.join(process.cwd(), "public", "uploads"));
+    scanDir(path.join(process.cwd(), "public", "uploads", "icons"));
+
+    if (allFiles.length === 0) {
+      return { success: true, purgedCount: 0, purgedFiles: [], message: "No uploaded icons found on server." };
+    }
+
+    // 2. Fetch all referenced icon strings from DB in bulk
+    const [bookmarks, sections, tabs, themes] = await Promise.all([
+      prisma.bookmark.findMany({ select: { icon: true } }),
+      prisma.section.findMany({ select: { icon: true, widgetConfig: true } }),
+      prisma.tab.findMany({ select: { icon: true } }),
+      (prisma as any).theme.findMany({ select: { icon: true, background: true } }),
+    ]);
+
+    // Build array of all icon strings
+    const dbIconStrings: string[] = [];
+    for (const b of bookmarks) if (b.icon) dbIconStrings.push(b.icon);
+    for (const s of sections) {
+      if (s.icon) dbIconStrings.push(s.icon);
+      if (s.widgetConfig) {
+        dbIconStrings.push(typeof s.widgetConfig === "string" ? s.widgetConfig : JSON.stringify(s.widgetConfig));
+      }
+    }
+    for (const t of tabs) if (t.icon) dbIconStrings.push(t.icon);
+    for (const th of themes) {
+      if (th.icon) dbIconStrings.push(th.icon);
+      if (th.background) dbIconStrings.push(th.background);
+    }
+
+    const allDbText = dbIconStrings.join(" ");
+
+    // 3. Identify unused files and delete them
+    const purgedFiles: string[] = [];
+    for (const item of allFiles) {
+      if (!allDbText.includes(item.filename)) {
+        try {
+          if (fs.existsSync(item.fullPath)) {
+            fs.unlinkSync(item.fullPath);
+            purgedFiles.push(item.filename);
+          }
+        } catch (unlinkErr) {
+          console.warn(`[purge] Failed to delete unused icon ${item.filename}:`, unlinkErr);
+        }
+      }
+    }
+
+    revalidatePath("/");
+    return {
+      success: true,
+      purgedCount: purgedFiles.length,
+      purgedFiles,
+      remainingCount: allFiles.length - purgedFiles.length,
+    };
+  } catch (err: any) {
+    console.error("[actions] purgeUnusedCustomUploadedIcons error:", err);
+    return { success: false, error: err.message || "Failed to purge unused icons" };
+  }
+}
+
 // --- OUTLOOK CALENDAR WIDGET ACTIONS ---
 
 export async function fetchOutlookCalendarsAction(sectionId: string) {

@@ -5,7 +5,7 @@ import * as LucideIcons from "lucide-react";
 import { Upload, X, Trash2, Search, RefreshCw } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { getIconRegistry, getCachedIconRegistry } from "@/lib/iconRegistry";
-import { downloadAndStoreIcon, getCustomUploadedIcons, checkIconUsage, deleteCustomUploadedIcon } from "@/app/admin/actions";
+import { downloadAndStoreIcon, getCustomUploadedIcons, checkIconUsage, deleteCustomUploadedIcon, purgeUnusedCustomUploadedIcons } from "@/app/admin/actions";
 
 export const IconComponent = ({ name, size = 24, className = "", fallback }: { name?: string | null | undefined, size?: number, className?: string, fallback?: React.ReactNode }) => {
   if (!name) return fallback || null;
@@ -79,6 +79,7 @@ export const IconPicker = ({
   const [loadingUploaded, setLoadingUploaded] = useState(false);
   const [customSearchFilter, setCustomSearchFilter] = useState("");
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
+  const [purging, setPurging] = useState(false);
 
   const loadUploadedIcons = async () => {
     setLoadingUploaded(true);
@@ -136,6 +137,31 @@ export const IconPicker = ({
       alert("Error checking or deleting icon: " + err.message);
     } finally {
       setDeletingUrl(null);
+    }
+  };
+
+  const handlePurgeUnusedIcons = async () => {
+    if (uploadedIcons.length === 0) return;
+    const confirmMsg = "Are you sure you want to purge all unused custom uploaded icons?\n\nThis will permanently delete any uploaded icon file that is not currently in use by any bookmark, section, tab, or theme on your dashboard.";
+    if (!window.confirm(confirmMsg)) return;
+
+    setPurging(true);
+    try {
+      const res = await purgeUnusedCustomUploadedIcons();
+      if (res.success) {
+        if (res.purgedCount === 0) {
+          alert("No unused icons found. All uploaded icons are currently in use!");
+        } else {
+          alert(`Successfully purged ${res.purgedCount} unused icon(s).`);
+        }
+        await loadUploadedIcons();
+      } else {
+        alert("Failed to purge unused icons: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error purging unused icons: " + err.message);
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -311,18 +337,45 @@ export const IconPicker = ({
 
               {/* Previously Uploaded Custom Icons Library */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.1)', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6, letterSpacing: '0.05em' }}>
                     Uploaded Custom Icons ({uploadedIcons.length})
                   </span>
-                  <button 
-                    type="button"
-                    onClick={loadUploadedIcons}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                  >
-                    <RefreshCw size={12} className={loadingUploaded ? "animate-spin" : ""} />
-                    Refresh
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button 
+                      type="button"
+                      onClick={handlePurgeUnusedIcons}
+                      disabled={purging || loadingUploaded || uploadedIcons.length === 0}
+                      title="Purge all uploaded custom icons not in use by any bookmark, section, tab, or theme"
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: '6px',
+                        color: '#ef4444',
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        cursor: (purging || loadingUploaded || uploadedIcons.length === 0) ? 'not-allowed' : 'pointer',
+                        opacity: (purging || loadingUploaded || uploadedIcons.length === 0) ? 0.4 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Trash2 size={11} className={purging ? "animate-spin" : ""} />
+                      <span>{purging ? "Purging..." : "Purge Unused"}</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={loadUploadedIcons}
+                      disabled={loadingUploaded || purging}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                    >
+                      <RefreshCw size={12} className={loadingUploaded ? "animate-spin" : ""} />
+                      Refresh
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ position: 'relative', width: '100%' }}>
