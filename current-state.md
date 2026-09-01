@@ -4,10 +4,12 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.17.0` (Purge Unused Custom Uploaded Icons)
+- **Current Version**: `v1.17.1` (Purge Unused Icons Schema Field Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Purge Unused Custom Uploaded Icons & Schema Fix (v1.17.1)**:
+  - Fixed Prisma query field names in `checkIconUsage` and `purgeUnusedCustomUploadedIcons` by referencing `logoIcon` and `backgroundColor` on the `Theme` model and adding `GlobalSettings` app logo URL verification.
 - **Purge Unused Custom Uploaded Icons (v1.17.0)**:
   - Added "Purge Unused" action in the Icon Picker modal under the Custom tab (Uploaded Custom Icons library).
   - Implemented `purgeUnusedCustomUploadedIcons` server action to scan `public/uploads` and `public/uploads/icons`, cross-reference all bookmarks, sections, tabs, and themes in the database, and permanently clean up unreferenced legacy image files.

@@ -2294,14 +2294,30 @@ export async function checkIconUsage(iconUrl: string) {
     const themes = await (prisma as any).theme.findMany({
       where: {
         OR: [
-          { icon: { contains: filename } },
-          { background: { contains: filename } }
+          { logoIcon: { contains: filename } },
+          { backgroundColor: { contains: filename } }
         ]
       },
       select: { id: true, name: true }
     });
     for (const th of themes) {
       details.push({ type: "Theme", title: th.name });
+    }
+
+    // 5. Check GlobalSettings
+    const globalSettings = await (prisma as any).globalSettings.findMany({
+      where: {
+        OR: [
+          { logoUrlLight: { contains: filename } },
+          { logoUrlDark: { contains: filename } },
+          { logoUrlSquareLight: { contains: filename } },
+          { logoUrlSquareDark: { contains: filename } },
+        ]
+      },
+      select: { id: true }
+    });
+    for (const gs of globalSettings) {
+      details.push({ type: "Global Settings", title: "App Logo" });
     }
   } catch (err) {
     console.error("Error checking icon usage:", err);
@@ -2377,11 +2393,12 @@ export async function purgeUnusedCustomUploadedIcons() {
     }
 
     // 2. Fetch all referenced icon strings from DB in bulk
-    const [bookmarks, sections, tabs, themes] = await Promise.all([
+    const [bookmarks, sections, tabs, themes, globalSettings] = await Promise.all([
       prisma.bookmark.findMany({ select: { icon: true } }),
       prisma.section.findMany({ select: { icon: true, widgetConfig: true } }),
       prisma.tab.findMany({ select: { icon: true } }),
-      (prisma as any).theme.findMany({ select: { icon: true, background: true } }),
+      (prisma as any).theme.findMany({ select: { logoIcon: true, backgroundColor: true } }),
+      (prisma as any).globalSettings.findMany({ select: { logoUrlLight: true, logoUrlDark: true, logoUrlSquareLight: true, logoUrlSquareDark: true } }),
     ]);
 
     // Build array of all icon strings
@@ -2395,8 +2412,14 @@ export async function purgeUnusedCustomUploadedIcons() {
     }
     for (const t of tabs) if (t.icon) dbIconStrings.push(t.icon);
     for (const th of themes) {
-      if (th.icon) dbIconStrings.push(th.icon);
-      if (th.background) dbIconStrings.push(th.background);
+      if (th.logoIcon) dbIconStrings.push(th.logoIcon);
+      if (th.backgroundColor) dbIconStrings.push(th.backgroundColor);
+    }
+    for (const gs of globalSettings) {
+      if (gs.logoUrlLight) dbIconStrings.push(gs.logoUrlLight);
+      if (gs.logoUrlDark) dbIconStrings.push(gs.logoUrlDark);
+      if (gs.logoUrlSquareLight) dbIconStrings.push(gs.logoUrlSquareLight);
+      if (gs.logoUrlSquareDark) dbIconStrings.push(gs.logoUrlSquareDark);
     }
 
     const allDbText = dbIconStrings.join(" ");

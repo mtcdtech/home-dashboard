@@ -2,6 +2,16 @@
 
 ## Running Change Log
 
+### 2026-08-31 - Purge Unused Icons Schema Field Fix (v1.17.1)
+- **Summary**: Fixed Prisma query invocation error in `checkIconUsage` and `purgeUnusedCustomUploadedIcons`. `Theme` model fields are `logoIcon` and `backgroundColor` (not `icon`/`background`). Also added `GlobalSettings` app logo fields (`logoUrlLight`, `logoUrlDark`, `logoUrlSquareLight`, `logoUrlSquareDark`) to ensure custom app logos are never inadvertently purged.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (fixed Prisma `Theme` field names and added `GlobalSettings`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.17.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
 ### 2026-08-31 - Purge Unused Custom Uploaded Icons (v1.17.0)
 - **Summary**: Added an option in `IconPicker.tsx` (Custom tab ➔ Uploaded Custom Icons) to purge all unused custom uploaded icons from disk. Implemented `purgeUnusedCustomUploadedIcons` in `src/app/admin/actions.ts` to scan `public/uploads` and `public/uploads/icons`, cross-reference bookmarks, sections, tabs, and themes in Prisma DB, and delete unreferenced icon files with full confirmation and remaining count reporting.
 - **Files Modified**:

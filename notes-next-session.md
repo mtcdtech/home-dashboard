@@ -68,7 +68,7 @@
 5. **Prisma Permission Filtering**: Push per-user permission filtering into Prisma `where` queries directly rather than filtering in JavaScript post-fetch (`resolveTabAccess`/`resolveSectionAccess`).
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.17.0).
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.17.1).
 - In any icon picker, open the **Custom** tab and verify the "Purge Unused" button exists next to "Refresh".
 - Open the Dashboard Widget drawer (Catalog), drag or add "Microsoft Outlook Calendar" to any dashboard column.
 - Open Widget Settings, connect a Microsoft Outlook / 365 account, configure days ahead (e.g. 7 days), and filter calendars.
