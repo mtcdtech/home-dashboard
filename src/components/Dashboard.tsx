@@ -580,7 +580,15 @@ export function Dashboard({
                         const image = c.image || "";
                         const desc = setting.description || "";
                         const kw = setting.keywords || "";
-                        const launchUrl = setting.customUrl || c.inferredUrl || (c.ports?.[0] ? `http://${c.ports[0].host}:${c.ports[0].publicPort}` : "#");
+                        let launchUrl = setting.customUrl || c.inferredUrl;
+                        if (!launchUrl && c.ports && c.ports.length > 0) {
+                           const pubPort = c.ports.find((p: any) => p.publicPort);
+                           if (pubPort) {
+                              const host = (rawConfig.url || "http://localhost").replace(/^https?:\/\//, "").split(":")[0];
+                              launchUrl = `http://${host}:${pubPort.publicPort}`;
+                           }
+                        }
+                        if (!launchUrl) launchUrl = "#";
 
                         if (
                            name.toLowerCase().includes(sq) || 
@@ -591,6 +599,9 @@ export function Dashboard({
                         ) {
                            list.push({
                               id: `container_${section.id}_${c.id || c.name}`,
+                              containerId: c.id,
+                              containerName: c.name,
+                              sectionId: section.id,
                               title: name,
                               url: launchUrl,
                               description: desc || `Docker Image: ${image} (${c.state})`,
@@ -620,10 +631,10 @@ export function Dashboard({
 
       if (e.key === 'ArrowDown') {
          e.preventDefault();
-         setSearchSelectedIndex(prev => (prev + 1) > maxIndex ? 0 : prev + 1);
+         setSearchSelectedIndex(prev => (prev + 1) >= maxIndex ? 0 : prev + 1);
       } else if (e.key === 'ArrowUp') {
          e.preventDefault();
-         setSearchSelectedIndex(prev => (prev - 1) < 0 ? maxIndex : prev - 1);
+         setSearchSelectedIndex(prev => (prev - 1) < 0 ? maxIndex - 1 : prev - 1);
       } else if (e.key === 'Enter') {
          e.preventDefault();
          const openUrl = (url: string) => {
@@ -809,7 +820,7 @@ export function Dashboard({
    const targetRGB = isLight ? [230, 230, 230] : [25, 25, 25];
    const mixR = Math.round(pr + (targetRGB[0] - pr) * secOpac);
    const mixG = Math.round(pg + (targetRGB[1] - pg) * secOpac);
-   const mixB = Math.round(pb + (targetRGB[2] - pb) * secOpac);
+   const mixB = Math.round(pb + (targetRGB[1] - pb) * secOpac);
 
    // Card Opacity: 40% to 90% based on glassOpacity slider
    const cardAlpha = 0.4 + glsOpac * 0.5;
@@ -959,26 +970,42 @@ export function Dashboard({
       } else if (e.key === 'ArrowDown') {
          e.preventDefault();
          if (!currentSection) return;
-         const sortedBookmarks = [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+         const isPortainer = currentSection.isWidget || currentSection.widgetType === "portainer";
+         const sortedItems = isPortainer
+            ? (portainerContainersMap[currentSection.id] || []).filter(c => {
+                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                 const cSettings = rawCfg.containers || {};
+                 return !cSettings[c.name]?.hidden;
+              }).map(c => ({ id: c.name, ...c }))
+            : [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+
          const isCollapsed = searchQuery.trim() === "" ? (collapsedSections[`${activeTabObj.id}_${currentSection.id}`] ?? currentSection.defaultCollapsed) : false;
-         if (sortedBookmarks.length === 0 || isCollapsed) return;
+         if (sortedItems.length === 0 || isCollapsed) return;
          
          if (gridFocus.bookmarkId === null) {
-            setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[0].id });
+            setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedItems[0].id });
          } else {
-            const bIdx = sortedBookmarks.findIndex(b => b.id === gridFocus.bookmarkId);
-            if (bIdx >= 0 && bIdx < sortedBookmarks.length - 1) {
-               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[bIdx + 1].id });
+            const bIdx = sortedItems.findIndex(b => b.id === gridFocus.bookmarkId || b.name === gridFocus.bookmarkId);
+            if (bIdx >= 0 && bIdx < sortedItems.length - 1) {
+               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedItems[bIdx + 1].id });
             }
          }
       } else if (e.key === 'ArrowUp') {
          e.preventDefault();
          if (!currentSection) return;
-         const sortedBookmarks = [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+         const isPortainer = currentSection.isWidget || currentSection.widgetType === "portainer";
+         const sortedItems = isPortainer
+            ? (portainerContainersMap[currentSection.id] || []).filter(c => {
+                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                 const cSettings = rawCfg.containers || {};
+                 return !cSettings[c.name]?.hidden;
+              }).map(c => ({ id: c.name, ...c }))
+            : [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+
          if (gridFocus.bookmarkId !== null) {
-            const bIdx = sortedBookmarks.findIndex(b => b.id === gridFocus.bookmarkId);
+            const bIdx = sortedItems.findIndex(b => b.id === gridFocus.bookmarkId || b.name === gridFocus.bookmarkId);
             if (bIdx > 0) {
-               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[bIdx - 1].id });
+               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedItems[bIdx - 1].id });
             } else {
                setGridFocus({ sectionId: currentSection.id, bookmarkId: null });
             }
@@ -986,11 +1013,33 @@ export function Dashboard({
       } else if (e.key === 'Enter' || e.key === ' ') {
          e.preventDefault();
          if (gridFocus.bookmarkId) {
-            const b = currentSection?.bookmarks.find(b => b.id === gridFocus.bookmarkId);
-            if (b) {
-               fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
-               if (b.openInNewTab !== false) window.open(b.url, '_blank');
-               else window.location.href = b.url;
+            const isPortainer = currentSection?.isWidget || currentSection?.widgetType === "portainer";
+            if (isPortainer && currentSection) {
+               const containers = portainerContainersMap[currentSection.id] || [];
+               const c = containers.find(c => c.name === gridFocus.bookmarkId || c.id === gridFocus.bookmarkId);
+               if (c) {
+                  const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                  const cSettings = rawCfg.containers || {};
+                  const setting = cSettings[c.name] || {};
+                  let openUrl = setting.customUrl || c.inferredUrl;
+                  if (!openUrl && c.ports && c.ports.length > 0) {
+                     const pubPort = c.ports.find((p: any) => p.publicPort);
+                     if (pubPort) {
+                        const host = (rawCfg.url || "http://localhost").replace(/^https?:\/\//, "").split(":")[0];
+                        openUrl = `http://${host}:${pubPort.publicPort}`;
+                     }
+                  }
+                  if (openUrl && openUrl !== "#") {
+                     window.open(openUrl, "_blank");
+                  }
+               }
+            } else {
+               const b = currentSection?.bookmarks.find(b => b.id === gridFocus.bookmarkId);
+               if (b) {
+                  fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
+                  if (b.openInNewTab !== false) window.open(b.url, '_blank');
+                  else window.location.href = b.url;
+               }
             }
          } else {
             if (currentSection) {
@@ -1572,6 +1621,21 @@ export function Dashboard({
                                                    isAdmin={isAdmin}
                                                    onRefresh={() => router.refresh()}
                                                    filter={searchQuery}
+                                                   selectedContainerName={
+                                                      searchQuery.trim() !== "" && searchSelectedIndex < flatMatchedBookmarks.length
+                                                         ? (flatMatchedBookmarks[searchSelectedIndex]?.sectionId === section.id 
+                                                            ? (flatMatchedBookmarks[searchSelectedIndex]?.containerName || flatMatchedBookmarks[searchSelectedIndex]?.containerId) 
+                                                            : undefined)
+                                                         : (isGridFocused && gridFocus?.sectionId === section.id ? (gridFocus.bookmarkId || undefined) : undefined)
+                                                   }
+                                                   onContainerHover={(containerName) => {
+                                                      if (searchQuery.trim() !== "") {
+                                                         const foundIdx = flatMatchedBookmarks.findIndex(b => b.isContainer && b.sectionId === section.id && (b.containerName === containerName || b.containerId === containerName));
+                                                         if (foundIdx >= 0) {
+                                                            setSearchSelectedIndex(foundIdx);
+                                                         }
+                                                      }
+                                                   }}
                                                    onContainersLoaded={(sectionId, containersList) => {
                                                       setPortainerContainersMap(prev => ({
                                                          ...prev,

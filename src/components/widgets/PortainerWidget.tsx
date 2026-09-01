@@ -14,6 +14,8 @@ export interface PortainerWidgetProps {
   onRefresh?: () => void;
   filter?: string;
   onContainersLoaded?: (sectionId: string, containers: any[]) => void;
+  selectedContainerName?: string;
+  onContainerHover?: (containerName: string) => void;
 }
 
 export interface PortainerSortRule {
@@ -61,7 +63,7 @@ const PORTAINER_SORT_FIELD_LABELS: Record<
   },
 };
 
-export function PortainerWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh, filter: propsFilter, onContainersLoaded }: PortainerWidgetProps) {
+export function PortainerWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh, filter: propsFilter, onContainersLoaded, selectedContainerName, onContainerHover }: PortainerWidgetProps) {
   const [containers, setContainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -266,7 +268,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
   const stoppedCount = totalCount - runningCount;
 
   return (
-    <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem' }}>
       
       {/* Widget Header Controls & Quick Stats */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', background: 'rgba(var(--primary-rgb), 0.04)', padding: '0.5rem 0.75rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
@@ -336,6 +338,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
           {visibleContainers.map(c => {
             const setting = containerSettings[c.name] || containerSettings[c.id] || {};
             const isRunning = c.state === "running";
+            const isSelected = selectedContainerName === c.name || selectedContainerName === c.id;
             
             // Resolve custom URL -> inferred public domain/label URL -> inferred public port fallback
             let openUrl = setting.customUrl || c.inferredUrl;
@@ -371,11 +374,19 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
               <div
                 key={c.id}
                 onClick={handleCardClick}
+                onMouseEnter={() => {
+                  if (onContainerHover) onContainerHover(c.name);
+                }}
                 style={{
                   padding: '0.65rem 0.75rem',
                   borderRadius: '10px',
-                  background: isRunning ? 'rgba(var(--primary-rgb), 0.05)' : 'rgba(0,0,0,0.1)',
-                  border: setting.hidden ? '1px dashed rgba(239,68,68,0.4)' : (showEditControls && hasEditAccess ? '1px dashed var(--primary)' : '1px solid var(--glass-border)'),
+                  background: isSelected 
+                    ? 'rgba(var(--primary-rgb), 0.2)' 
+                    : (isRunning ? 'rgba(var(--primary-rgb), 0.05)' : 'rgba(0,0,0,0.1)'),
+                  border: isSelected
+                    ? '1px solid var(--primary)'
+                    : (setting.hidden ? '1px dashed rgba(239,68,68,0.4)' : (showEditControls && hasEditAccess ? '1px dashed var(--primary)' : '1px solid var(--glass-border)')),
+                  boxShadow: isSelected ? '0 0 12px rgba(var(--primary-rgb), 0.35)' : 'none',
                   opacity: setting.hidden ? 0.6 : 1,
                   display: 'flex',
                   alignItems: 'center',
@@ -739,13 +750,11 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto' }}>
                 {[...containers]
                   .sort((a, b) => {
-                    if (primarySortBy === "manual") {
-                      const orderA = containerSettings[a.name]?.customOrder ?? 9999;
-                      const orderB = containerSettings[b.name]?.customOrder ?? 9999;
-                      if (orderA !== orderB) return orderA - orderB;
-                    }
                     const settingA = containerSettings[a.name] || containerSettings[a.id] || {};
                     const settingB = containerSettings[b.name] || containerSettings[b.id] || {};
+                    const orderA = settingA.customOrder ?? 9999;
+                    const orderB = settingB.customOrder ?? 9999;
+                    if (orderA !== orderB) return orderA - orderB;
                     const nameA = (settingA.customName || a.name || "").toLowerCase();
                     const nameB = (settingB.customName || b.name || "").toLowerCase();
                     return nameA.localeCompare(nameB);

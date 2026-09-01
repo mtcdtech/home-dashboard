@@ -2,6 +2,20 @@
 
 ## Running Change Log
 
+### 2026-09-01 - Portainer Modal Crash Fix & Search Bar + Arrow Navigation Selection (v1.19.1)
+- **Summary**:
+  1. Fixed crash when clicking Settings in Portainer widget by removing outdated `primarySortBy === "manual"` reference in modal container list sorting.
+  2. Integrated Portainer containers into search bar selection and arrow-key navigation in `Dashboard.tsx` (`flatMatchedBookmarks`, `selectedSearchItem`, `isHighlighted` styling, mouse hover synchronization).
+  3. Extended grid arrow-key navigation (`handleKeyDown`) so `ArrowDown`, `ArrowUp`, and `Enter`/`Space` navigate and open containers within Portainer sections.
+- **Files Modified**:
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (fixed modal crash, added `selectedContainerName`, `onContainerHover`, and visual highlight)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (indexed containers for search and grid arrow navigation, connected container selection props)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.19.1`)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled 100% cleanly.
+
 ### 2026-09-01 - Card Elements Visibility & Draggable Multi-Tier Sort Priority for FreeScout & Portainer (v1.19.0)
 - **Summary**:
   1. Added card elements visibility checklist in FreeScout settings modal to selectively toggle Ticket #, Mailbox Name, Status Pill, Date / Time, Message Preview, Customer / Submitter, and Assigned Owner.
