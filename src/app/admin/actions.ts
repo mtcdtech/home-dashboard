@@ -2398,7 +2398,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
     if (!cleanId) return;
 
     try {
-      const url = `https://api.planningcenteronline.com/people/v2/lists/${cleanId}/people?per_page=100`;
+      const url = `https://api.planningcenteronline.com/people/v2/lists/${cleanId}/people?include=households&per_page=100`;
       const resp = await fetch(url, {
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         signal: AbortSignal.timeout(8000),
@@ -2434,6 +2434,14 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
 
         if (!monthDay) continue;
 
+        // Extract household ID if available for pairing married couples
+        const householdId = 
+          p.relationships?.households?.data?.[0]?.id || 
+          p.relationships?.primary_household?.data?.id || 
+          attrs.primary_household_id || 
+          attrs.household_id || 
+          null;
+
         const { daysUntil, monthStr, dayStr, formattedDate } = getDaysUntilEvent(monthDay);
         const name = attrs.name || `${attrs.first_name || ""} ${attrs.last_name || ""}`.trim() || "Unknown";
 
@@ -2445,6 +2453,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
           lastName: attrs.last_name || "",
           photoUrl: attrs.avatar || attrs.photo_url || null,
           gender: attrs.gender || null,
+          householdId,
           type: eventType,
           dateRaw: rawDate,
           dateMonthDay: monthDay,
@@ -2475,12 +2484,18 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
   const birthdays = rawItems.filter((i) => i.type === "birthday");
   const rawAnniversaries = rawItems.filter((i) => i.type === "anniversary");
 
-  // Combine Anniversary Profiles by date & last name (link to male card)
+  // Combine Anniversary Profiles by Household ID (or fallback to Date + Last Name)
   const combinedAnniversaries: any[] = [];
   const annivGroupMap = new Map<string, any[]>();
 
   for (const item of rawAnniversaries) {
-    const key = `${item.dateMonthDay}_${(item.lastName || "").toLowerCase().trim()}`;
+    let key = "";
+    if (item.householdId) {
+      key = `hh_${item.householdId}_${item.dateMonthDay}`;
+    } else {
+      key = `name_${item.dateMonthDay}_${(item.lastName || "").toLowerCase().trim()}`;
+    }
+
     if (!annivGroupMap.has(key)) {
       annivGroupMap.set(key, []);
     }
@@ -2499,7 +2514,12 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
 
       const femalePerson = group.find((p) => p.personId !== malePerson.personId) || group[1];
 
-      const combinedName = `${malePerson.firstName} & ${femalePerson.firstName} ${malePerson.lastName}`;
+      let combinedName = "";
+      if (malePerson.lastName && femalePerson.lastName && malePerson.lastName.toLowerCase() === femalePerson.lastName.toLowerCase()) {
+        combinedName = `${malePerson.firstName} & ${femalePerson.firstName} ${malePerson.lastName}`;
+      } else {
+        combinedName = `${malePerson.name} & ${femalePerson.name}`;
+      }
 
       combinedAnniversaries.push({
         ...malePerson,

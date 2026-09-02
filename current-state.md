@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.21.0` (PCO Celebrations Date Range Window, Combined Anniversaries, Prominent Date Badge & Clickable Cards)
+- **Current Version**: `v1.21.1` (PCO Household ID Pairing for Anniversary Couple Cards)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Household ID Anniversary Pairing (v1.21.1)**:
+  - Updated PCO People API list request to include `households` (`?include=households`).
+  - Extracted `householdId` from `p.relationships.households.data` and `primary_household_id`.
+  - Grouped anniversary profiles by `householdId` (`hh_${householdId}_${dateMonthDay}`), ensuring couples with different last names (e.g. 118896795 & 118896800) are accurately combined into a single anniversary card.
 - **PCO Celebrations Enhancements (v1.21.0)**:
   - **Customizable Date Window**: Added `daysBefore` (x days before today) and `daysAfter` (y days after today) settings inputs and backend filtering calculation.
   - **Combined Anniversary Cards**: Combined married spouses on anniversary dates into a single card (e.g. "John & Jane Smith") linked directly to the male profile.

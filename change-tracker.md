@@ -2,6 +2,16 @@
 
 ## Running Change Log
 
+### 2026-09-02 - PCO Household ID Anniversary Couple Pairing (v1.21.1)
+- **Summary**: Resolved issue where anniversary couples with differing last names (e.g. IDs 118896795 and 118896800) were not combined into a single card. Updated PCO People API queries to request `?include=households` and extracted `householdId` from `relationships.households.data` and `primary_household_id`. Grouped anniversary items by `householdId` (`hh_${householdId}_${dateMonthDay}`), ensuring couples are 100% paired regardless of last name spelling differences, while continuing to link directly to the male profile card.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `fetchPcoBirthdaysAndAnniversaries` to include households and group anniversaries by `householdId`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.21.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 927ms with 0 errors.
+
 ### 2026-09-02 - PCO Celebrations Date Range Window, Combined Anniversaries, Prominent Date Badge & Clickable Cards (v1.21.0)
 - **Summary**: Implemented key requested enhancements for the Planning Center Celebrations widget:
   1. **Custom Date Range Window**: Added configurable `daysBefore` (x days before today) and `daysAfter` (y days after today) settings and updated filtering in `src/lib/pco.ts` and `src/app/admin/actions.ts`.
