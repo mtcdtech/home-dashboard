@@ -17,6 +17,8 @@ import { SectionModal } from "./SectionModal";
 import { BookmarkModal } from "./BookmarkModal";
 import { PortainerWidget } from "./widgets/PortainerWidget";
 import { PcoBirthdaysWidget } from "./widgets/PcoBirthdaysWidget";
+import { OutlookCalendarWidget } from "./widgets/OutlookCalendarWidget";
+import { FreeScoutWidget } from "./widgets/FreeScoutWidget";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -363,8 +365,21 @@ export function Dashboard({
       if (srcId.startsWith("catalogWidget:")) {
          const widgetType = srcId.replace("catalogWidget:", "");
          try {
-            const title = widgetType === "portainer" ? "Portainer Docker Containers" : widgetType === "pco_birthdays" ? "PCO Birthdays & Anniversaries" : "Widget Section";
-            const icon = widgetType === "portainer" ? "Server" : widgetType === "pco_birthdays" ? "Heart" : "LayoutGrid";
+            let title = "Widget Section";
+            let icon = "LayoutGrid";
+            if (widgetType === "portainer") {
+               title = "Portainer Docker Containers";
+               icon = "Server";
+            } else if (widgetType === "pco_birthdays") {
+               title = "PCO Birthdays & Anniversaries";
+               icon = "Heart";
+            } else if (widgetType === "outlook-calendar" || widgetType === "outlook") {
+               title = "Microsoft Outlook Calendar";
+               icon = "CalendarDays";
+            } else if (widgetType === "freescout") {
+               title = "FreeScout Helpdesk & Support";
+               icon = "LifeBuoy";
+            }
             const newSec = await actions.createSection({
                title,
                icon,
@@ -503,24 +518,34 @@ export function Dashboard({
             );
 
             let matchesWidget = false;
-            if (section.isWidget || section.widgetType === "portainer") {
-               const loadedContainers = portainerContainersMap[section.id] || [];
+            if (
+               section.isWidget ||
+               section.widgetType === "portainer" ||
+               section.widgetType === "outlook-calendar" ||
+               section.widgetType === "outlook" ||
+               section.widgetType === "freescout"
+            ) {
                const rawConfig = typeof section.widgetConfig === "string" 
                   ? (JSON.parse(section.widgetConfig) || {}) 
                   : (section.widgetConfig || {});
-               const containerSettings = rawConfig.containers || {};
 
-               const matchedContainers = loadedContainers.filter(c => {
-                  const setting = containerSettings[c.name] || containerSettings[c.id] || {};
-                  const nameToMatch = (setting.customName || c.name || "").toLowerCase();
-                  const imageToMatch = (c.image || "").toLowerCase();
-                  const descToMatch = (setting.description || "").toLowerCase();
-                  const kwToMatch = (setting.keywords || "").toLowerCase();
-                  return nameToMatch.includes(sq) || imageToMatch.includes(sq) || descToMatch.includes(sq) || kwToMatch.includes(sq);
-               });
+               if (section.widgetType === "portainer" || (!section.widgetType && section.isWidget)) {
+                  const loadedContainers = portainerContainersMap[section.id] || [];
+                  const containerSettings = rawConfig.containers || {};
+
+                  const matchedContainers = loadedContainers.filter(c => {
+                     const setting = containerSettings[c.name] || containerSettings[c.id] || {};
+                     const nameToMatch = (setting.customName || c.name || "").toLowerCase();
+                     const imageToMatch = (c.image || "").toLowerCase();
+                     const descToMatch = (setting.description || "").toLowerCase();
+                     const kwToMatch = (setting.keywords || "").toLowerCase();
+                     return nameToMatch.includes(sq) || imageToMatch.includes(sq) || descToMatch.includes(sq) || kwToMatch.includes(sq);
+                  });
+                  if (matchedContainers.length > 0) matchesWidget = true;
+               }
 
                const configStr = JSON.stringify(rawConfig).toLowerCase();
-               if (matchedContainers.length > 0 || configStr.includes(sq) || section.title.toLowerCase().includes(sq)) {
+               if (configStr.includes(sq) || section.title.toLowerCase().includes(sq)) {
                   matchesWidget = true;
                }
             }
@@ -562,7 +587,15 @@ export function Dashboard({
                         const image = c.image || "";
                         const desc = setting.description || "";
                         const kw = setting.keywords || "";
-                        const launchUrl = setting.customUrl || c.inferredUrl || (c.ports?.[0] ? `http://${c.ports[0].host}:${c.ports[0].publicPort}` : "#");
+                        let launchUrl = setting.customUrl || c.inferredUrl;
+                        if (!launchUrl && c.ports && c.ports.length > 0) {
+                           const pubPort = c.ports.find((p: any) => p.publicPort);
+                           if (pubPort) {
+                              const host = (rawConfig.url || "http://localhost").replace(/^https?:\/\//, "").split(":")[0];
+                              launchUrl = `http://${host}:${pubPort.publicPort}`;
+                           }
+                        }
+                        if (!launchUrl) launchUrl = "#";
 
                         if (
                            name.toLowerCase().includes(sq) || 
@@ -573,6 +606,9 @@ export function Dashboard({
                         ) {
                            list.push({
                               id: `container_${section.id}_${c.id || c.name}`,
+                              containerId: c.id,
+                              containerName: c.name,
+                              sectionId: section.id,
                               title: name,
                               url: launchUrl,
                               description: desc || `Docker Image: ${image} (${c.state})`,
@@ -602,10 +638,10 @@ export function Dashboard({
 
       if (e.key === 'ArrowDown') {
          e.preventDefault();
-         setSearchSelectedIndex(prev => (prev + 1) > maxIndex ? 0 : prev + 1);
+         setSearchSelectedIndex(prev => (prev + 1) >= maxIndex ? 0 : prev + 1);
       } else if (e.key === 'ArrowUp') {
          e.preventDefault();
-         setSearchSelectedIndex(prev => (prev - 1) < 0 ? maxIndex : prev - 1);
+         setSearchSelectedIndex(prev => (prev - 1) < 0 ? maxIndex - 1 : prev - 1);
       } else if (e.key === 'Enter') {
          e.preventDefault();
          const openUrl = (url: string) => {
@@ -791,7 +827,7 @@ export function Dashboard({
    const targetRGB = isLight ? [230, 230, 230] : [25, 25, 25];
    const mixR = Math.round(pr + (targetRGB[0] - pr) * secOpac);
    const mixG = Math.round(pg + (targetRGB[1] - pg) * secOpac);
-   const mixB = Math.round(pb + (targetRGB[2] - pb) * secOpac);
+   const mixB = Math.round(pb + (targetRGB[1] - pb) * secOpac);
 
    // Card Opacity: 40% to 90% based on glassOpacity slider
    const cardAlpha = 0.4 + glsOpac * 0.5;
@@ -941,26 +977,42 @@ export function Dashboard({
       } else if (e.key === 'ArrowDown') {
          e.preventDefault();
          if (!currentSection) return;
-         const sortedBookmarks = [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+         const isPortainer = currentSection.isWidget || currentSection.widgetType === "portainer";
+         const sortedItems = isPortainer
+            ? (portainerContainersMap[currentSection.id] || []).filter(c => {
+                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                 const cSettings = rawCfg.containers || {};
+                 return !cSettings[c.name]?.hidden;
+              }).map(c => ({ id: c.name, ...c }))
+            : [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+
          const isCollapsed = searchQuery.trim() === "" ? (collapsedSections[`${activeTabObj.id}_${currentSection.id}`] ?? currentSection.defaultCollapsed) : false;
-         if (sortedBookmarks.length === 0 || isCollapsed) return;
+         if (sortedItems.length === 0 || isCollapsed) return;
          
          if (gridFocus.bookmarkId === null) {
-            setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[0].id });
+            setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedItems[0].id });
          } else {
-            const bIdx = sortedBookmarks.findIndex(b => b.id === gridFocus.bookmarkId);
-            if (bIdx >= 0 && bIdx < sortedBookmarks.length - 1) {
-               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[bIdx + 1].id });
+            const bIdx = sortedItems.findIndex(b => b.id === gridFocus.bookmarkId || b.name === gridFocus.bookmarkId);
+            if (bIdx >= 0 && bIdx < sortedItems.length - 1) {
+               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedItems[bIdx + 1].id });
             }
          }
       } else if (e.key === 'ArrowUp') {
          e.preventDefault();
          if (!currentSection) return;
-         const sortedBookmarks = [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+         const isPortainer = currentSection.isWidget || currentSection.widgetType === "portainer";
+         const sortedItems = isPortainer
+            ? (portainerContainersMap[currentSection.id] || []).filter(c => {
+                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                 const cSettings = rawCfg.containers || {};
+                 return !cSettings[c.name]?.hidden;
+              }).map(c => ({ id: c.name, ...c }))
+            : [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+
          if (gridFocus.bookmarkId !== null) {
-            const bIdx = sortedBookmarks.findIndex(b => b.id === gridFocus.bookmarkId);
+            const bIdx = sortedItems.findIndex(b => b.id === gridFocus.bookmarkId || b.name === gridFocus.bookmarkId);
             if (bIdx > 0) {
-               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedBookmarks[bIdx - 1].id });
+               setGridFocus({ sectionId: currentSection.id, bookmarkId: sortedItems[bIdx - 1].id });
             } else {
                setGridFocus({ sectionId: currentSection.id, bookmarkId: null });
             }
@@ -968,11 +1020,33 @@ export function Dashboard({
       } else if (e.key === 'Enter' || e.key === ' ') {
          e.preventDefault();
          if (gridFocus.bookmarkId) {
-            const b = currentSection?.bookmarks.find(b => b.id === gridFocus.bookmarkId);
-            if (b) {
-               fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
-               if (b.openInNewTab !== false) window.open(b.url, '_blank');
-               else window.location.href = b.url;
+            const isPortainer = currentSection?.isWidget || currentSection?.widgetType === "portainer";
+            if (isPortainer && currentSection) {
+               const containers = portainerContainersMap[currentSection.id] || [];
+               const c = containers.find(c => c.name === gridFocus.bookmarkId || c.id === gridFocus.bookmarkId);
+               if (c) {
+                  const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                  const cSettings = rawCfg.containers || {};
+                  const setting = cSettings[c.name] || {};
+                  let openUrl = setting.customUrl || c.inferredUrl;
+                  if (!openUrl && c.ports && c.ports.length > 0) {
+                     const pubPort = c.ports.find((p: any) => p.publicPort);
+                     if (pubPort) {
+                        const host = (rawCfg.url || "http://localhost").replace(/^https?:\/\//, "").split(":")[0];
+                        openUrl = `http://${host}:${pubPort.publicPort}`;
+                     }
+                  }
+                  if (openUrl && openUrl !== "#") {
+                     window.open(openUrl, "_blank");
+                  }
+               }
+            } else {
+               const b = currentSection?.bookmarks.find(b => b.id === gridFocus.bookmarkId);
+               if (b) {
+                  fetch('/api/track/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookmarkId: b.id, bookmarkTitle: b.title, bookmarkUrl: b.url }) }).catch(() => { });
+                  if (b.openInNewTab !== false) window.open(b.url, '_blank');
+                  else window.location.href = b.url;
+               }
             }
          } else {
             if (currentSection) {
@@ -1523,7 +1597,12 @@ export function Dashboard({
 
                                        {/* Widget or Bookmarks */}
                                        {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
-                                          section.isWidget || section.widgetType === "portainer" || section.widgetType === "pco_birthdays" ? (
+                                          section.isWidget ||
+                                          section.widgetType === "portainer" ||
+                                          section.widgetType === "pco_birthdays" ||
+                                          section.widgetType === "outlook-calendar" ||
+                                          section.widgetType === "outlook" ||
+                                          section.widgetType === "freescout" ? (
                                              section.widgetType === "pco_birthdays" ? (
                                                 <PcoBirthdaysWidget 
                                                    section={section}
@@ -1531,6 +1610,24 @@ export function Dashboard({
                                                    hasEditAccess={hasSectionEditAccess(section, tab)}
                                                    isAdmin={isAdmin}
                                                    onRefresh={() => router.refresh()}
+                                                />
+                                             ) : section.widgetType === "freescout" ? (
+                                                <FreeScoutWidget
+                                                   section={section}
+                                                   showEditControls={showEditControls}
+                                                   hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                   isAdmin={isAdmin}
+                                                   onRefresh={() => router.refresh()}
+                                                   filter={searchQuery}
+                                                />
+                                             ) : section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
+                                                <OutlookCalendarWidget
+                                                   section={section}
+                                                   showEditControls={showEditControls}
+                                                   hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                   isAdmin={isAdmin}
+                                                   onRefresh={() => router.refresh()}
+                                                   filter={searchQuery}
                                                 />
                                              ) : (
                                                 <PortainerWidget 
@@ -1540,6 +1637,21 @@ export function Dashboard({
                                                    isAdmin={isAdmin}
                                                    onRefresh={() => router.refresh()}
                                                    filter={searchQuery}
+                                                   selectedContainerName={
+                                                      searchQuery.trim() !== "" && searchSelectedIndex < flatMatchedBookmarks.length
+                                                         ? (flatMatchedBookmarks[searchSelectedIndex]?.sectionId === section.id 
+                                                            ? (flatMatchedBookmarks[searchSelectedIndex]?.containerName || flatMatchedBookmarks[searchSelectedIndex]?.containerId) 
+                                                            : undefined)
+                                                         : (isGridFocused && gridFocus?.sectionId === section.id ? (gridFocus.bookmarkId || undefined) : undefined)
+                                                   }
+                                                   onContainerHover={(containerName) => {
+                                                      if (searchQuery.trim() !== "") {
+                                                         const foundIdx = flatMatchedBookmarks.findIndex(b => b.isContainer && b.sectionId === section.id && (b.containerName === containerName || b.containerId === containerName));
+                                                         if (foundIdx >= 0) {
+                                                            setSearchSelectedIndex(foundIdx);
+                                                         }
+                                                      }
+                                                   }}
                                                    onContainersLoaded={(sectionId, containersList) => {
                                                       setPortainerContainersMap(prev => ({
                                                          ...prev,
@@ -1857,6 +1969,20 @@ export function Dashboard({
                                  title: "Planning Center Celebrations",
                                  icon: "Heart",
                                  description: "Upcoming birthdays & anniversaries from Planning Center Online with call tracking and workflow profile correction notes."
+                              },
+                              {
+                                 id: "outlook-calendar-widget",
+                                 type: "outlook-calendar",
+                                 title: "Microsoft Outlook Calendar",
+                                 icon: "CalendarDays",
+                                 description: "Upcoming events from Microsoft Outlook & 365 calendars with calendar filtering and 1-click Microsoft Teams meeting launch."
+                              },
+                              {
+                                 id: "freescout-widget",
+                                 type: "freescout",
+                                 title: "FreeScout Help Desk",
+                                 icon: "LifeBuoy",
+                                 description: "Live unresolved and pending issues across FreeScout mailboxes with mailbox filtering, status filters, and 1-click issue navigation."
                               }
                            ].filter(w => w.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || w.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
 

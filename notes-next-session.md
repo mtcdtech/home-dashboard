@@ -44,17 +44,41 @@
      - Apply external icon migration: `docker exec homedashboard-app node /app/scripts/migrate-icons-to-disk.mjs --apply`
 - **Verification**: Run `SELECT count(*) FROM "Bookmark" WHERE icon LIKE '/uploads/%';` against DB — expect 0 rows remaining after `fix-icon-paths.mjs --apply`.
 
+## Microsoft Outlook Calendar Widget & Teams Integration (v1.16.3)
+- **Widget Shipped**: Full-featured Microsoft Outlook Calendar widget (`widgetType: "outlook-calendar"`).
+- **Subscribed Calendars & Multi-Tab Isolation**: Each tab section maintains its own isolated `sectionId` and `widgetConfig` allowing different Microsoft accounts (e.g. personal, work, avteam) to run side-by-side.
+- **Settings Token Preservation**: `saveOutlookWidgetSettingsAction` updates filter preferences and date ranges without overwriting OAuth tokens in PostgreSQL.
+- **Teams Links in Event Descriptions**: Scans event body HTML/text, `bodyPreview`, and location fields for Teams meeting links.
+- **Authentication**:
+  - OAuth 2.0 Auth Code flow with offline refresh token support (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`).
+  - Supports Microsoft 365 work/school accounts and personal Outlook accounts.
+  - Automatically falls back to environment variables (`MICROSOFT_CLIENT_ID` / `AUTH_MICROSOFT_ENTRA_ID_ID`, `MICROSOFT_CLIENT_SECRET`, `AUTH_MICROSOFT_ENTRA_ID_TENANT_ID`) or accepts custom credentials configured in the widget settings modal.
+- **Features**:
+  - Event listings grouped by day with local start/end times, location, subject, and calendar color tags.
+  - Configurable date range slider (1 to 30 days ahead, default 7).
+  - Live calendar polling and multi-select checklist allowing users to toggle visible calendars.
+  - 1-click Microsoft Teams meeting launch with purple `#464EB8` badge for events with Teams links.
+  - Added to widget drawer catalog and integrated into global dashboard search.
+
 ## Recommended Next Steps & Performance Follow-ups
-1. **Archive `benny2168/home-dashboard`** on github.com when you get a moment (Settings → General → scroll to Danger Zone → Archive this repository). Local clone at `/Users/benny2168/Antigravity/home-dashboard-abraham` still has uncommitted WIP (entrypoint.sh, LoginForm.tsx, page.tsx) — decide whether to port those to a mtcd branch first.
-2. **DNS-Rebinding TOCTOU Network Layer Refactor (I3 Follow-up)**: `src/lib/ssrf.ts` resolves DNS via `isSafeUrl()` before issuing `fetch()`, which leaves a theoretical Time-of-Check to Time-of-Use window if an attacker modifies DNS responses between resolution and HTTP request execution. Full mitigation requires resolving DNS once and connecting directly to the validated IP address with a custom agent setting the `Host` header.
+1. **Archive `benny2168/home-dashboard`** on github.com when you get a moment (Settings → General → scroll to Danger Zone → Archive this repository).
+2. **DNS-Rebinding TOCTOU Network Layer Refactor (I3 Follow-up)**: `src/lib/ssrf.ts` resolves DNS via `isSafeUrl()` before issuing `fetch()`. Full mitigation requires resolving DNS once and connecting directly to the validated IP address with a custom agent setting the `Host` header.
 3. **Curated Icon Allow-list for Lucide**: Replace wildcard `LucideIcons` import in `IconPicker.tsx` / `Dashboard.tsx` with a curated allow-list or map to enable tree-shaking for icons.
 4. **Modal Lazy Loading**: Lazy-load heavy modals (`ThemeModal`, `TabModal`, `SectionModal`, `BookmarkModal`) using `next/dynamic` to reduce initial client bundle size.
 5. **Prisma Permission Filtering**: Push per-user permission filtering into Prisma `where` queries directly rather than filtering in JavaScript post-fetch (`resolveTabAccess`/`resolveSectionAccess`).
-6. **Tab Tree Caching**: Evaluate `unstable_cache` or Redis/React cache for tab tree queries if permission model permits.
+
+## FreeScout & Portainer Widget Customization & Draggable Sorting (v1.19.1)
+- **FreeScout Widget**:
+  - Checkboxes for card element visibility (Ticket #, Mailbox Name, Status Pill, Date / Time, Message Preview, Customer / Submitter, Assigned Owner).
+  - Multi-tier draggable sort priority with individual Asc/Desc order direction (Status, Last Updated, Created Date, Ticket #, Customer Name, Subject).
+  - Up/Down chevron reordering buttons and HTML5 drag handles for mailboxes, statuses, and sort rules.
+- **Portainer Widget**:
+  - Multi-tier draggable sort priority with individual Asc/Desc order direction (Status, Container Name, Manual Order, Docker Image, Created Date).
+  - Up/Down chevron reordering buttons and HTML5 drag handles for sort rules.
+  - Search bar selection integration and keyboard arrow navigation support.
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.14.3).
-- Login button says "Log in Securely".
-- Password migration script `node /app/scripts/migrate-passwords.mjs` executed on MTCD (`homedashboard-app`) and Abraham (`dashboard-app`).
-- Log in via Authentik as an administrator (e.g. `tech@mtcd.org`, `ben@abraham16.com`, `avcoordinator@mtcd.org`) and verify admin permissions land correctly, and verify bookmark saving and duplication works correctly.
-- Verify PortainerWidget on Abraham home tab displays inline error card or container list within 5 seconds without freezing tab switching.
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.19.1).
+- Click Settings icon on Portainer widget to verify settings modal opens smoothly without errors.
+- Type in the top search bar and use `ArrowDown`/`ArrowUp` to navigate across bookmarks and Portainer containers. Verify the matching Portainer container card highlights and pressing `Enter` opens the container URL.
+- Test grid arrow-key navigation on Portainer widget sections with `ArrowDown`/`ArrowUp` and `Enter`.

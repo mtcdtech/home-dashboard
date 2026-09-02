@@ -4,17 +4,57 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.16.0` (Planning Center Celebrations Widget)
+- **Current Version**: `v1.20.0` (Planning Center Celebrations Widget)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
-- **Planning Center (PCO) Birthdays & Anniversaries Widget (v1.16.0)**:
+- **Planning Center (PCO) Birthdays & Anniversaries Widget (v1.20.0)**:
   - Added new `PcoBirthdaysWidget.tsx` component connecting to Planning Center Online API v2 via `src/lib/pco.ts` and `src/app/admin/actions.ts`.
   - Parses birthdays and anniversaries from PCO lists, sorts upcoming celebrations chronologically, and supports flexible date range filtering (`This Month`, `Next Month`, `Next 30/60/90 Days`).
   - Added direct links to Planning Center person profiles (`https://people.planningcenteronline.com/people/{person_id}`) with custom avatars and pill badges.
   - Implemented annual call tracking persistence (`togglePcoCallStatus`), keeping a record of who was called for the current year in `Section.widgetConfig` and automatically rolling over annually.
   - Implemented profile correction workflow submission (`submitPcoProfileCorrection`). Clicking the pencil icon allows users to submit notes (e.g. updated phone numbers or spelling fixes) directly into a Planning Center Workflow.
   - Registered `pco_birthdays` in Catalog Widgets (`Dashboard.tsx`) with secure credential configuration.
+- **FreeScout In Progress Label, Draggable Mailbox & Status Ordering (v1.18.3)**:
+  - Renamed "Pending" status label across all widget surfaces (header counter badges, conversation status pills, and settings modal) to "In Progress".
+  - Implemented drag-and-drop reordering for mailboxes in the settings modal (`mailboxOrder`), with tab rendering respecting this custom order.
+  - Implemented drag-and-drop reordering for ticket statuses in the settings modal (`statusOrder`), with header status filter badges and status sorting reflecting this custom priority.
+- **FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering (v1.18.2)**:
+  - Ensured mailbox tabs bar is strictly hidden when only 1 mailbox is active or enabled in widget settings.
+  - Added filter to exclude draft and deleted conversations (`state: "draft"`, `state: "deleted"`, `status: "draft"`, `deletedAt`) from the FreeScout conversation list.
+- **FreeScout Mailbox Tabs, Status Sorting & Closed Fix (v1.18.1)**:
+  - Added horizontal mailbox tabs (e.g. All Mailboxes, Support, Billing) rendered automatically whenever more than one mailbox is configured.
+  - Pinned widget refresh and settings gear buttons permanently to the top-right corner to prevent wrapping.
+  - Added "Ticket Status (Unresolved ➔ Pending ➔ Closed)" to widget sorting options.
+  - Implemented `normalizeFreeScoutStatus` to parse numeric status codes (`1` active, `2` pending, `3` closed, `4` spam) and `closedAt` timestamps, ensuring closed tickets are correctly identified and categorized as Closed rather than Unresolved.
+- **FreeScout Help Desk Widget (v1.18.0)**:
+  - Added new native dashboard widget: FreeScout Help Desk (`widgetType: "freescout"`).
+  - Connects to any self-hosted FreeScout server via REST API (`X-FreeScout-API-Key`).
+  - Displays live unresolved and pending issues across all or selected mailboxes.
+  - Interactive status badges (Unresolved in amber, Pending in purple, Closed in green), mailbox chips, search filter, relative timestamps, customer/assignee info, and 1-click issue link navigation.
+  - Comprehensive settings modal supporting server URL, API key with live connection testing, mailbox multi-select checklist, status checkboxes, sorting options, and auto-refresh timers.
+- **Purge Unused Custom Uploaded Icons & Schema Fix (v1.17.1)**:
+  - Fixed Prisma query field names in `checkIconUsage` and `purgeUnusedCustomUploadedIcons` by referencing `logoIcon` and `backgroundColor` on the `Theme` model and adding `GlobalSettings` app logo URL verification.
+- **Purge Unused Custom Uploaded Icons (v1.17.0)**:
+  - Added "Purge Unused" action in the Icon Picker modal under the Custom tab (Uploaded Custom Icons library).
+  - Implemented `purgeUnusedCustomUploadedIcons` server action to scan `public/uploads` and `public/uploads/icons`, cross-reference all bookmarks, sections, tabs, and themes in the database, and permanently clean up unreferenced legacy image files.
+- **Teams Link in Event Descriptions & Settings Token Preservation Fix (v1.16.3)**:
+  - Added full event body selection and multi-pattern parsing (href and plain text regex scan over `body`, `bodyPreview`, and `location`) to detect Microsoft Teams meeting links in event descriptions.
+  - Implemented `saveOutlookWidgetSettingsAction` to safely merge widget settings (days ahead, selected calendars, credentials) without risking or overwriting OAuth tokens in PostgreSQL, allowing multi-tab widgets to maintain separate account connections without dropping connection state.
+- **Outlook Widget Settings Modal Crash Fix (v1.16.2)**:
+  - Resolved client-side React rendering crash when clicking the Outlook Calendar widget settings gear by implementing strict type guards on `selectedCalendarIds` (guaranteeing `Array.isArray`), `daysAhead` (`number`), `calendars` list mapping, and `accountName` / `accountEmail` string primitives.
+- **Outlook Subscribed Calendars & Connection State Persistence Fix (v1.16.1)**:
+  - Added full support for Microsoft Outlook subscribed calendars, shared calendars, and custom calendar groups by enumerating `GET /me/calendarGroups` and querying each group's calendars in `src/lib/outlook.ts`.
+  - Updated `fetchOutlookEvents` to query all calendars in parallel via `/me/calendars/{calId}/calendarView`, attaching real calendar names and color swatches so events from subscribed / external .ics calendars appear seamlessly.
+  - Fixed premature "Outlook Disconnected" status by synchronizing component state with `rawConfig` in `useEffect` and preventing transient network errors from clearing user connection state.
+- **Microsoft Outlook Calendar Widget & Teams Integration (v1.16.0)**:
+  - Added new native dashboard widget: Microsoft Outlook Calendar (`widgetType: "outlook-calendar"`).
+  - Implemented Microsoft Graph API integration and OAuth 2.0 flow with automatic token refresh (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`).
+  - Added settings modal supporting Microsoft account connection/disconnection, configurable date range (1 to 30 days ahead), live calendar filter checklist with show/select-all toggles, and optional custom Azure app registration credentials.
+  - Implemented 1-click Microsoft Teams meeting launch with purple `#464EB8` Teams badge/icon for events containing online meeting links or Teams join URLs.
+  - Added Outlook Calendar to the widget drawer catalog in `Dashboard.tsx` with drag-and-drop and 1-click addition support.
+  - Integrated Outlook events into global dashboard search.
+>>>>>>> 26291771f35b7748f2c8dfeb3586aec876d13054
 - **Portainer Container Global Search & Section Order Fix (v1.15.1)**:
   - Fixed section order mapping bug in `src/app/page.tsx` where `ts.order` was omitted during `tabSections` mapping, causing moved sections (including Portainer widgets) to reset to initial creation order upon expanding/collapsing or server re-validation.
   - Integrated Portainer Docker containers into global dashboard search (`filteredTabs` and `flatMatchedBookmarks`). Typing in the dashboard search bar now dynamically filters Portainer container cards, displays matched Docker containers in top search results, and enables keyboard navigation/Enter launch directly to container public URLs.

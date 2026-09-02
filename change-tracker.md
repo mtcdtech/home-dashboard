@@ -2,18 +2,190 @@
 
 ## Running Change Log
 
-### 2026-09-02 - Planning Center (PCO) Birthdays & Anniversaries Widget (v1.16.0)
+### 2026-09-02 - Planning Center (PCO) Birthdays & Anniversaries Widget (v1.20.0)
 - **Summary**: Implemented a new Planning Center Online (PCO) Birthdays & Anniversaries Widget. Connects to PCO People API v2 to fetch upcoming birthdays and anniversaries from specified list IDs. Displays person photo/avatar, name (with direct links to PCO profiles at `https://people.planningcenteronline.com/people/{person_id}`), event pill badges, and days-until tags. Supports `Combined Feed` or `Split Sections` layouts, flexible date range filtering (`This Month`, `Next Month`, `Next 30/60/90 Days`), annual call tracking persistence (`togglePcoCallStatus`), and profile correction note submission directly into PCO Workflows (`submitPcoProfileCorrection`). Registered in Catalog Widgets (`Dashboard.tsx`).
 - **Files Modified**:
   - [src/lib/pco.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/pco.ts) (created PCO API auth, date calculation, formatting, and filtering helpers)
   - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `fetchPcoBirthdaysAndAnniversaries`, `submitPcoProfileCorrection`, and `togglePcoCallStatus` server actions)
   - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (created PCO widget component with profile links, call tracking, correction notes, and settings modal)
   - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (registered `pco_birthdays` in Catalog Widgets and rendered widget component)
-  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.0`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.20.0`)
   - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
   - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
 - **Validation**:
   - `npm run build` compiled cleanly in 1654ms with 0 errors.
+
+### 2026-09-01 - Portainer Modal Crash Fix & Search Bar + Arrow Navigation Selection (v1.19.1)
+- **Summary**:
+  1. Fixed crash when clicking Settings in Portainer widget by removing outdated `primarySortBy === "manual"` reference in modal container list sorting.
+  2. Integrated Portainer containers into search bar selection and arrow-key navigation in `Dashboard.tsx` (`flatMatchedBookmarks`, `selectedSearchItem`, `isHighlighted` styling, mouse hover synchronization).
+  3. Extended grid arrow-key navigation (`handleKeyDown`) so `ArrowDown`, `ArrowUp`, and `Enter`/`Space` navigate and open containers within Portainer sections.
+- **Files Modified**:
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (fixed modal crash, added `selectedContainerName`, `onContainerHover`, and visual highlight)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (indexed containers for search and grid arrow navigation, connected container selection props)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.19.1`)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled 100% cleanly.
+
+### 2026-09-01 - Card Elements Visibility & Draggable Multi-Tier Sort Priority for FreeScout & Portainer (v1.19.0)
+- **Summary**:
+  1. Added card elements visibility checklist in FreeScout settings modal to selectively toggle Ticket #, Mailbox Name, Status Pill, Date / Time, Message Preview, Customer / Submitter, and Assigned Owner.
+  2. Implemented multi-tier draggable sorting priority with independent Asc/Desc order direction for FreeScout (supporting Status, Last Updated, Created Date, Ticket #, Customer Name, and Subject).
+  3. Implemented multi-tier draggable sorting priority with independent Asc/Desc direction for Portainer (supporting Status, Name, Manual Order, Image, and Created Date).
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (added `FreeScoutSortRule` and `FreeScoutVisibleElements`)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (supported `sortRules` and `visibleElements` persistence)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (card elements visibility & draggable sort rules)
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (draggable multi-tier sort rules with Asc/Desc selectors)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.19.0`)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled 100% cleanly.
+
+### 2026-09-01 - FreeScout Widget Mailbox & Filter Drag-and-Drop Fix + Up/Down Controls (v1.18.4)
+- **Summary**:
+  1. Fixed HTML5 drag-and-drop event handling on mailbox and status items in `FreeScoutWidget.tsx` by setting `e.dataTransfer.effectAllowed = "move"`, `e.dataTransfer.setData("text/plain", ...)`, and `e.dataTransfer.dropEffect = "move"`.
+  2. Fixed drag event interception by separating checkbox `<input>` and `<label>` controls from capturing drag gestures, adding drag-end cleanup handlers (`onDragEnd`) and visual drag-over border/background highlights.
+  3. Added explicit 1-click `ChevronUp` and `ChevronDown` reorder buttons alongside the `GripVertical` handle for instant accessibility and mobile/trackpad convenience.
+- **Files Modified**:
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (HTML5 drag-and-drop event fix, Up/Down chevron buttons, drag-over styles)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.4`)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `DATABASE_URL="postgresql://user:pass@localhost:5432/db" npm run build` compiled 100% cleanly.
+
+### 2026-08-31 - FreeScout In Progress Label, Draggable Mailbox Ordering & Draggable Status Priority (v1.18.3)
+- **Summary**:
+  1. Renamed "Pending" status label to "In Progress" across all widget badges, counter chips, cards, and modal checklists.
+  2. Implemented drag-and-drop ordering for mailboxes in the settings modal with `mailboxOrder` state, allowing tabs to render in custom user-defined sequence.
+  3. Implemented drag-and-drop ordering for ticket statuses in the settings modal with `statusOrder` state, dictating both header counter badge order and status sorting order.
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (added `mailboxOrder` and `statusOrder` support)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated actions to pass through and persist `mailboxOrder` and `statusOrder`)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) ("In Progress" rename, draggable mailbox list, draggable status list)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.3`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - FreeScout Active Mailbox Tab Visibility & Drafts/Deleted Filtering (v1.18.2)
+- **Summary**:
+  1. Updated mailbox tab bar condition in `FreeScoutWidget.tsx` to check `activeMailboxes.length > 1` (calculated against `selectedMailboxIds`), ensuring the tab bar is hidden when only a single mailbox is active.
+  2. Added filtering in `src/lib/freescout.ts` to exclude draft and deleted conversations (`state === "draft"`, `status === "draft"`, `item.isDraft`, `state === "deleted"`, `item.deletedAt`).
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (drafts & deleted conversations filter)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (active mailbox computation for tab visibility)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.2`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - FreeScout Mailbox Tabs, Header Control Pinning, Status Sorting & Closed Issues Fix (v1.18.1)
+- **Summary**: Refined the FreeScout Help Desk widget based on user feedback:
+  1. Added mailbox tabs (All Mailboxes + individual mailbox tabs) with issue counts, displayed whenever more than 1 mailbox is configured.
+  2. Fixed header control layout to permanently pin Refresh and Settings buttons to the top right corner without wrapping.
+  3. Added ticket status sorting (`sortBy: "status"` - Unresolved ➔ Pending ➔ Closed) to widget settings and client-side sorting.
+  4. Fixed closed tickets displaying as open/unresolved by adding `normalizeFreeScoutStatus` to parse numeric status codes (`1`, `2`, `3`, `4`) and check `closedAt` / `closed_at` timestamps.
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (added `normalizeFreeScoutStatus` and status sorting)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `sortBy` union type)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (mailbox tabs, pinned header controls, status sorting)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - FreeScout Help Desk Widget (v1.18.0)
+- **Summary**: Built and shipped a native FreeScout Help Desk widget (`widgetType: "freescout"`). Connects to self-hosted FreeScout instances via REST API to display mailboxes with unresolved (active) and pending issues. Features interactive status filters, mailbox selection chips, text search, sorting by updated/created/ticket #, customer & assignee info, and direct 1-click issue link navigation. Includes a comprehensive settings modal with live connection testing and multi-mailbox checklists.
+- **Files Modified**:
+  - [src/lib/freescout.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/freescout.ts) (FreeScout REST API client, mailbox & conversation parser, connection tester)
+  - [src/components/widgets/FreeScoutWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/FreeScoutWidget.tsx) (widget React UI, settings modal, status pills, filter chips)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added FreeScout server actions)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (widget rendering, catalog drawer, and global search matching)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.18.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - Purge Unused Icons Schema Field Fix (v1.17.1)
+- **Summary**: Fixed Prisma query invocation error in `checkIconUsage` and `purgeUnusedCustomUploadedIcons`. `Theme` model fields are `logoIcon` and `backgroundColor` (not `icon`/`background`). Also added `GlobalSettings` app logo fields (`logoUrlLight`, `logoUrlDark`, `logoUrlSquareLight`, `logoUrlSquareDark`) to ensure custom app logos are never inadvertently purged.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (fixed Prisma `Theme` field names and added `GlobalSettings`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.17.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - Purge Unused Custom Uploaded Icons (v1.17.0)
+- **Summary**: Added an option in `IconPicker.tsx` (Custom tab ➔ Uploaded Custom Icons) to purge all unused custom uploaded icons from disk. Implemented `purgeUnusedCustomUploadedIcons` in `src/app/admin/actions.ts` to scan `public/uploads` and `public/uploads/icons`, cross-reference bookmarks, sections, tabs, and themes in Prisma DB, and delete unreferenced icon files with full confirmation and remaining count reporting.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `purgeUnusedCustomUploadedIcons`)
+  - [src/components/IconPicker.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/IconPicker.tsx) (added Purge Unused button, handler, and state)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.17.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - Teams Link in Descriptions & Settings Token Preservation Fix (v1.16.3)
+- **Summary**: Resolved 2 issues: (1) Added full `body` selection and regex/href link cleaner in `src/lib/outlook.ts` to detect Microsoft Teams meeting links in event descriptions/body. (2) Resolved "Calendar Error: Outlook account not connected" when saving widget settings or changing filters. Root cause: `handleSaveConfig` was passing client-side `rawConfig` that lacked newly acquired OAuth tokens, overwriting `section.widgetConfig` in the database. Added `saveOutlookWidgetSettingsAction` to merge settings safely in PostgreSQL while preserving OAuth tokens and account credentials across all tab sections.
+- **Files Modified**:
+  - [src/lib/outlook.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/outlook.ts) (added body field and enhanced Teams URL extractor)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `saveOutlookWidgetSettingsAction` and safe merge in `updateSectionWidgetConfig`)
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (used `saveOutlookWidgetSettingsAction`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.3`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - Outlook Widget Settings Modal Crash Fix & Type Guards (v1.16.2)
+- **Summary**: Fixed client-side crash when clicking the Outlook Calendar widget settings gear. Root cause: `selectedCalendarIds`, `daysAhead`, `calendars`, or account profile variables could be non-array/object types during initial state synchronization, causing React render exceptions inside the settings modal. Added strict type guards and fallbacks for all modal render fields and array operations.
+- **Files Modified**:
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (hardened state parsing and modal rendering)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.2`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in Turbopack.
+
+### 2026-08-31 - Outlook Subscribed Calendars & Connection State Persistence Fix (v1.16.1)
+- **Summary**: Resolved 2 issues reported with the Microsoft Outlook Calendar widget: (1) Fixed missing subscribed calendar events by querying Microsoft Graph `GET /me/calendarGroups` and enumerating all calendar groups (Subscribed Calendars, Other Calendars, Shared Calendars). Updated `fetchOutlookEvents` to query all calendars in parallel via `/me/calendars/{calId}/calendarView`, attaching calendar names and color swatches. (2) Resolved premature "Outlook Disconnected" status by synchronizing React component state with `rawConfig` in `useEffect` and preventing transient network errors from clearing user authentication state.
+- **Files Modified**:
+  - [src/lib/outlook.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/outlook.ts) (added calendarGroups traversal and per-calendar view querying)
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (synced state with rawConfig and added calendar color dot)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npx eslint` passed with 0 errors and 0 warnings.
+  - `npm run build` compiled cleanly with Turbopack.
+
+### 2026-08-31 - Microsoft Outlook Calendar Widget & Teams Integration (v1.16.0)
+- **Summary**: Implemented a full-featured Microsoft Outlook Calendar widget. Features include: (1) Microsoft Graph API and OAuth 2.0 integration (`src/lib/outlook.ts`, `/api/widgets/outlook/auth`, `/api/widgets/outlook/callback`) with automatic offline token refresh. (2) Configurable date range (1 to 30 days ahead) for upcoming calendar events. (3) Calendar polling and live multi-select filter checklist allowing users to toggle visible calendars. (4) 1-click Microsoft Teams meeting launch with purple Teams badge/button for events containing online meeting links or Teams join URLs. (5) Widget Settings modal with Microsoft OAuth connect/disconnect, date range slider, and optional custom Azure app credentials. (6) Widget catalog registration in `Dashboard.tsx` with drag-and-drop / 1-click column placement. (7) Global dashboard search integration.
+- **Files Modified**:
+  - [src/lib/outlook.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/outlook.ts) (Microsoft Graph client, OAuth token refresh, event & calendar parser, Teams URL extractor)
+  - [src/app/api/widgets/outlook/auth/route.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/api/widgets/outlook/auth/route.ts) (OAuth authorize route)
+  - [src/app/api/widgets/outlook/callback/route.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/api/widgets/outlook/callback/route.ts) (OAuth callback, token exchange, profile query, postMessage opener notification)
+  - [src/components/widgets/OutlookCalendarWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/OutlookCalendarWidget.tsx) (React widget component with event grouping, Teams join button, settings modal)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `fetchOutlookCalendarsAction`, `fetchOutlookEventsAction`, `disconnectOutlookAccountAction`)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (catalog drawer item, drop handler, search matching, rendering)
+- **Validation**:
+  - `npx eslint` passed with 0 errors / 0 warnings across all new and updated files.
+  - `npm run build` compiled cleanly in 613ms with Turbopack.
 
 ### 2026-08-31 - Portainer Container Global Search & Section Position Persistence Fix (v1.15.1)
 - **Summary**: Resolved 2 critical user issues: (1) Fixed section order mapping bug in `src/app/page.tsx` where `ts.order` was missing in `visibleSections` mapping, causing moved widget sections to revert to creation order when expanded or revalidated. (2) Integrated Portainer Docker containers into global dashboard search (`filteredTabs` and `flatMatchedBookmarks` in `Dashboard.tsx`). Searching in the top search bar now filters Portainer container cards, displays matching containers in keyboard search results, and launches container public URLs on Enter or click.

@@ -1929,9 +1929,22 @@ export async function updateLocalAdminSettings(data: { disableLocalAdmin?: boole
 
 export async function updateSectionWidgetConfig(sectionId: string, widgetConfig: any) {
   await requireSectionRole(sectionId, "edit");
+  const section = await prisma.section.findUnique({
+    where: { id: sectionId },
+  });
+  const existingConfig =
+    typeof section?.widgetConfig === "string"
+      ? JSON.parse(section.widgetConfig) || {}
+      : (section?.widgetConfig as Record<string, unknown>) || {};
+
+  const merged = {
+    ...existingConfig,
+    ...(typeof widgetConfig === "object" && widgetConfig !== null ? widgetConfig : {}),
+  };
+
   await prisma.section.update({
     where: { id: sectionId },
-    data: { widgetConfig }
+    data: { widgetConfig: JSON.parse(JSON.stringify(merged)) }
   });
   revalidatePath("/");
 }
@@ -2281,14 +2294,30 @@ export async function checkIconUsage(iconUrl: string) {
     const themes = await (prisma as any).theme.findMany({
       where: {
         OR: [
-          { icon: { contains: filename } },
-          { background: { contains: filename } }
+          { logoIcon: { contains: filename } },
+          { backgroundColor: { contains: filename } }
         ]
       },
       select: { id: true, name: true }
     });
     for (const th of themes) {
       details.push({ type: "Theme", title: th.name });
+    }
+
+    // 5. Check GlobalSettings
+    const globalSettings = await (prisma as any).globalSettings.findMany({
+      where: {
+        OR: [
+          { logoUrlLight: { contains: filename } },
+          { logoUrlDark: { contains: filename } },
+          { logoUrlSquareLight: { contains: filename } },
+          { logoUrlSquareDark: { contains: filename } },
+        ]
+      },
+      select: { id: true }
+    });
+    for (const gs of globalSettings) {
+      details.push({ type: "Global Settings", title: "App Logo" });
     }
   } catch (err) {
     console.error("Error checking icon usage:", err);
@@ -2585,4 +2614,428 @@ export async function togglePcoCallStatus(params: {
 
   revalidatePath("/");
   return { success: true, callRecords: widgetConfig.callRecords };
+}
+
+export async function purgeUnusedCustomUploadedIcons() {
+  await requireSession();
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+
+    // 1. Collect all uploaded files on disk
+    const allFiles: Array<{ filename: string; fullPath: string }> = [];
+    const scanDir = (dirPath: string) => {
+      if (fs.existsSync(dirPath)) {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+          const fullPath = path.join(dirPath, file);
+          const stat = fs.statSync(fullPath);
+          if (stat.isFile() && file.match(/\.(png|jpe?g|svg|webp|gif|ico)$/i)) {
+            allFiles.push({ filename: file, fullPath });
+          }
+        }
+      }
+    };
+
+    scanDir(path.join(process.cwd(), "public", "uploads"));
+    scanDir(path.join(process.cwd(), "public", "uploads", "icons"));
+
+    if (allFiles.length === 0) {
+      return { success: true, purgedCount: 0, purgedFiles: [], message: "No uploaded icons found on server." };
+    }
+
+    // 2. Fetch all referenced icon strings from DB in bulk
+    const [bookmarks, sections, tabs, themes, globalSettings] = await Promise.all([
+      prisma.bookmark.findMany({ select: { icon: true } }),
+      prisma.section.findMany({ select: { icon: true, widgetConfig: true } }),
+      prisma.tab.findMany({ select: { icon: true } }),
+      (prisma as any).theme.findMany({ select: { logoIcon: true, backgroundColor: true } }),
+      (prisma as any).globalSettings.findMany({ select: { logoUrlLight: true, logoUrlDark: true, logoUrlSquareLight: true, logoUrlSquareDark: true } }),
+    ]);
+
+    // Build array of all icon strings
+    const dbIconStrings: string[] = [];
+    for (const b of bookmarks) if (b.icon) dbIconStrings.push(b.icon);
+    for (const s of sections) {
+      if (s.icon) dbIconStrings.push(s.icon);
+      if (s.widgetConfig) {
+        dbIconStrings.push(typeof s.widgetConfig === "string" ? s.widgetConfig : JSON.stringify(s.widgetConfig));
+      }
+    }
+    for (const t of tabs) if (t.icon) dbIconStrings.push(t.icon);
+    for (const th of themes) {
+      if (th.logoIcon) dbIconStrings.push(th.logoIcon);
+      if (th.backgroundColor) dbIconStrings.push(th.backgroundColor);
+    }
+    for (const gs of globalSettings) {
+      if (gs.logoUrlLight) dbIconStrings.push(gs.logoUrlLight);
+      if (gs.logoUrlDark) dbIconStrings.push(gs.logoUrlDark);
+      if (gs.logoUrlSquareLight) dbIconStrings.push(gs.logoUrlSquareLight);
+      if (gs.logoUrlSquareDark) dbIconStrings.push(gs.logoUrlSquareDark);
+    }
+
+    const allDbText = dbIconStrings.join(" ");
+
+    // 3. Identify unused files and delete them
+    const purgedFiles: string[] = [];
+    for (const item of allFiles) {
+      if (!allDbText.includes(item.filename)) {
+        try {
+          if (fs.existsSync(item.fullPath)) {
+            fs.unlinkSync(item.fullPath);
+            purgedFiles.push(item.filename);
+          }
+        } catch (unlinkErr) {
+          console.warn(`[purge] Failed to delete unused icon ${item.filename}:`, unlinkErr);
+        }
+      }
+    }
+
+    revalidatePath("/");
+    return {
+      success: true,
+      purgedCount: purgedFiles.length,
+      purgedFiles,
+      remainingCount: allFiles.length - purgedFiles.length,
+    };
+  } catch (err: any) {
+    console.error("[actions] purgeUnusedCustomUploadedIcons error:", err);
+    return { success: false, error: err.message || "Failed to purge unused icons" };
+  }
+}
+
+// --- OUTLOOK CALENDAR WIDGET ACTIONS ---
+
+export async function fetchOutlookCalendarsAction(sectionId: string) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : section.widgetConfig || {};
+
+    const { getValidAccessToken, fetchOutlookCalendars } = await import("@/lib/outlook");
+    const tokenResult = await getValidAccessToken(sectionId, rawConfig);
+    if (!tokenResult) {
+      return { success: false, error: "Outlook account not connected or authentication expired", needsAuth: true };
+    }
+
+    const calendars = await fetchOutlookCalendars(tokenResult.accessToken);
+    return { success: true, calendars };
+  } catch (err: any) {
+    console.error("[actions] fetchOutlookCalendarsAction error:", err);
+    return { success: false, error: err.message || "Failed to fetch calendars" };
+  }
+}
+
+export async function fetchOutlookEventsAction(
+  sectionId: string,
+  options?: { daysAhead?: number; selectedCalendarIds?: string[]; timeZone?: string }
+) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : section.widgetConfig || {};
+
+    if (!rawConfig.connected && !rawConfig.refreshToken) {
+      return { success: false, error: "Outlook account not connected", needsAuth: true };
+    }
+
+    const { getValidAccessToken, fetchOutlookEvents } = await import("@/lib/outlook");
+    const tokenResult = await getValidAccessToken(sectionId, rawConfig);
+    if (!tokenResult) {
+      return { success: false, error: "Outlook session expired. Please reconnect in widget settings.", needsAuth: true };
+    }
+
+    const daysAhead = options?.daysAhead ?? rawConfig.daysAhead ?? 7;
+    const selectedCalendarIds = options?.selectedCalendarIds ?? rawConfig.selectedCalendarIds ?? [];
+
+    const events = await fetchOutlookEvents(tokenResult.accessToken, {
+      daysAhead,
+      selectedCalendarIds,
+      timeZone: options?.timeZone,
+    });
+
+    return {
+      success: true,
+      events,
+      accountName: rawConfig.accountName,
+      accountEmail: rawConfig.accountEmail,
+      daysAhead,
+      selectedCalendarIds,
+    };
+  } catch (err: any) {
+    console.error("[actions] fetchOutlookEventsAction error:", err);
+    return { success: false, error: err.message || "Failed to fetch calendar events" };
+  }
+}
+
+export async function disconnectOutlookAccountAction(sectionId: string) {
+  await requireSectionRole(sectionId, "edit");
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : section.widgetConfig || {};
+
+    const updatedConfig = {
+      ...rawConfig,
+      connected: false,
+      accountEmail: null,
+      accountName: null,
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null,
+    };
+
+    await prisma.section.update({
+      where: { id: sectionId },
+      data: { widgetConfig: updatedConfig },
+    });
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to disconnect account" };
+  }
+}
+
+export async function saveOutlookWidgetSettingsAction(
+  sectionId: string,
+  settings: {
+    daysAhead?: number;
+    selectedCalendarIds?: string[];
+    clientId?: string;
+    tenantId?: string;
+    clientSecret?: string;
+  }
+) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+    });
+
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const existingConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : (section.widgetConfig as Record<string, unknown>) || {};
+
+    const mergedConfig = {
+      ...existingConfig,
+      daysAhead: typeof settings.daysAhead === "number" ? settings.daysAhead : (existingConfig.daysAhead ?? 7),
+      selectedCalendarIds: Array.isArray(settings.selectedCalendarIds)
+        ? settings.selectedCalendarIds
+        : (existingConfig.selectedCalendarIds ?? []),
+      ...(settings.clientId !== undefined ? { clientId: settings.clientId.trim() || undefined } : {}),
+      ...(settings.tenantId !== undefined ? { tenantId: settings.tenantId.trim() || undefined } : {}),
+      ...(settings.clientSecret !== undefined ? { clientSecret: settings.clientSecret.trim() || undefined } : {}),
+    };
+
+    await prisma.section.update({
+      where: { id: sectionId },
+      data: { widgetConfig: JSON.parse(JSON.stringify(mergedConfig)) },
+    });
+
+    revalidatePath("/");
+    return { success: true, updatedConfig: mergedConfig };
+  } catch (err: any) {
+    console.error("[actions] saveOutlookWidgetSettingsAction error:", err);
+    return { success: false, error: err.message || "Failed to save settings" };
+  }
+}
+
+// --- FREESCOUT HELP DESK WIDGET ACTIONS ---
+
+export async function testFreeScoutConnectionAction(serverUrl: string, apiKey: string) {
+  await requireSession();
+  const { testFreeScoutConnection } = await import("@/lib/freescout");
+  return testFreeScoutConnection(serverUrl, apiKey);
+}
+
+export async function fetchFreeScoutMailboxesAction(
+  sectionId: string,
+  credentials?: { serverUrl?: string; apiKey?: string }
+) {
+  await requireSession();
+  const { fetchFreeScoutMailboxes } = await import("@/lib/freescout");
+
+  try {
+    let serverUrl = credentials?.serverUrl?.trim();
+    let apiKey = credentials?.apiKey?.trim();
+
+    if (!serverUrl || !apiKey) {
+      const section = await prisma.section.findUnique({ where: { id: sectionId } });
+      const rawConfig =
+        typeof section?.widgetConfig === "string"
+          ? JSON.parse(section.widgetConfig) || {}
+          : (section?.widgetConfig as Record<string, any>) || {};
+
+      serverUrl = serverUrl || rawConfig.serverUrl || process.env.FREESCOUT_URL;
+      apiKey = apiKey || rawConfig.apiKey || process.env.FREESCOUT_API_KEY;
+    }
+
+    if (!serverUrl || !apiKey) {
+      return { success: false, error: "FreeScout server URL and API key are required.", mailboxes: [] };
+    }
+
+    const mailboxes = await fetchFreeScoutMailboxes(serverUrl, apiKey);
+    return { success: true, mailboxes };
+  } catch (err: any) {
+    console.error("[actions] fetchFreeScoutMailboxesAction error:", err);
+    return { success: false, error: err.message || "Failed to fetch FreeScout mailboxes", mailboxes: [] };
+  }
+}
+
+export async function fetchFreeScoutConversationsAction(sectionId: string) {
+  await requireSession();
+  const { fetchFreeScoutConversations } = await import("@/lib/freescout");
+
+  try {
+    const section = await prisma.section.findUnique({ where: { id: sectionId } });
+    if (!section) {
+      return { success: false, error: "Section not found", conversations: [], mailboxes: [] };
+    }
+
+    const rawConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : (section.widgetConfig as Record<string, any>) || {};
+
+    const serverUrl = rawConfig.serverUrl || process.env.FREESCOUT_URL;
+    const apiKey = rawConfig.apiKey || process.env.FREESCOUT_API_KEY;
+
+    if (!serverUrl || !apiKey) {
+      return {
+        success: false,
+        error: "FreeScout server URL and API key not configured.",
+        needsSetup: true,
+        conversations: [],
+        mailboxes: [],
+      };
+    }
+
+    const res = await fetchFreeScoutConversations(serverUrl, apiKey, {
+      mailboxIds: rawConfig.selectedMailboxIds,
+      mailboxOrder: rawConfig.mailboxOrder,
+      statuses: rawConfig.selectedStatuses,
+      statusOrder: rawConfig.statusOrder,
+      sortBy: rawConfig.sortBy,
+      sortOrder: rawConfig.sortOrder,
+      maxItems: rawConfig.maxItems,
+    });
+
+    return {
+      success: true,
+      conversations: res.conversations,
+      mailboxes: res.mailboxes,
+    };
+  } catch (err: any) {
+    console.error("[actions] fetchFreeScoutConversationsAction error:", err);
+    return {
+      success: false,
+      error: err.message || "Failed to fetch FreeScout conversations",
+      conversations: [],
+      mailboxes: [],
+    };
+  }
+}
+
+export async function saveFreeScoutWidgetSettingsAction(
+  sectionId: string,
+  settings: {
+    serverUrl?: string;
+    apiKey?: string;
+    selectedMailboxIds?: number[];
+    mailboxOrder?: number[];
+    selectedStatuses?: string[];
+    statusOrder?: string[];
+    sortBy?: "updatedAt" | "createdAt" | "number" | "status";
+    sortOrder?: "desc" | "asc";
+    sortRules?: any[];
+    visibleElements?: Record<string, boolean>;
+    maxItems?: number;
+    autoRefreshMinutes?: number;
+  }
+) {
+  await requireSession();
+  try {
+    const section = await prisma.section.findUnique({ where: { id: sectionId } });
+    if (!section) {
+      return { success: false, error: "Section not found" };
+    }
+
+    const existingConfig =
+      typeof section.widgetConfig === "string"
+        ? JSON.parse(section.widgetConfig) || {}
+        : (section.widgetConfig as Record<string, unknown>) || {};
+
+    const mergedConfig = {
+      ...existingConfig,
+      serverUrl: settings.serverUrl !== undefined ? settings.serverUrl.trim() : existingConfig.serverUrl,
+      apiKey: settings.apiKey !== undefined ? settings.apiKey.trim() : existingConfig.apiKey,
+      selectedMailboxIds: Array.isArray(settings.selectedMailboxIds)
+        ? settings.selectedMailboxIds
+        : existingConfig.selectedMailboxIds ?? [],
+      mailboxOrder: Array.isArray(settings.mailboxOrder)
+        ? settings.mailboxOrder
+        : existingConfig.mailboxOrder ?? [],
+      selectedStatuses: Array.isArray(settings.selectedStatuses)
+        ? settings.selectedStatuses
+        : existingConfig.selectedStatuses ?? ["active", "pending"],
+      statusOrder: Array.isArray(settings.statusOrder)
+        ? settings.statusOrder
+        : existingConfig.statusOrder ?? ["active", "pending", "closed", "spam"],
+      sortBy: settings.sortBy || existingConfig.sortBy || "updatedAt",
+      sortOrder: settings.sortOrder || existingConfig.sortOrder || "desc",
+      sortRules: Array.isArray(settings.sortRules) ? settings.sortRules : existingConfig.sortRules,
+      visibleElements: settings.visibleElements !== undefined ? settings.visibleElements : existingConfig.visibleElements,
+      maxItems: typeof settings.maxItems === "number" ? settings.maxItems : existingConfig.maxItems ?? 25,
+      autoRefreshMinutes:
+        typeof settings.autoRefreshMinutes === "number"
+          ? settings.autoRefreshMinutes
+          : existingConfig.autoRefreshMinutes ?? 0,
+    };
+
+    await prisma.section.update({
+      where: { id: sectionId },
+      data: { widgetConfig: JSON.parse(JSON.stringify(mergedConfig)) },
+    });
+
+    revalidatePath("/");
+    return { success: true, updatedConfig: mergedConfig };
+  } catch (err: any) {
+    console.error("[actions] saveFreeScoutWidgetSettingsAction error:", err);
+    return { success: false, error: err.message || "Failed to save FreeScout settings" };
+  }
 }

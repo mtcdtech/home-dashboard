@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Server, Activity, Power, RefreshCw, Eye, EyeOff, ExternalLink, Settings, X, Search, Check, AlertCircle, Edit3, ChevronUp, ChevronDown } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Server, Activity, Power, RefreshCw, Eye, EyeOff, ExternalLink, Settings, X, Search, Check, AlertCircle, Edit3, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { fetchPortainerContainers, updateSectionWidgetConfig } from "@/app/admin/actions";
 import { IconComponent } from "../IconPicker";
 import { BookmarkModal } from "../BookmarkModal";
@@ -14,9 +14,56 @@ export interface PortainerWidgetProps {
   onRefresh?: () => void;
   filter?: string;
   onContainersLoaded?: (sectionId: string, containers: any[]) => void;
+  selectedContainerName?: string;
+  onContainerHover?: (containerName: string) => void;
 }
 
-export function PortainerWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh, filter: propsFilter, onContainersLoaded }: PortainerWidgetProps) {
+export interface PortainerSortRule {
+  field: "status" | "name" | "manual" | "image" | "created";
+  order: "asc" | "desc";
+  enabled?: boolean;
+}
+
+const DEFAULT_PORTAINER_SORT_RULES: PortainerSortRule[] = [
+  { field: "status", order: "asc", enabled: true },
+  { field: "name", order: "asc", enabled: true },
+  { field: "manual", order: "asc", enabled: false },
+  { field: "image", order: "asc", enabled: false },
+  { field: "created", order: "desc", enabled: false },
+];
+
+const PORTAINER_SORT_FIELD_LABELS: Record<
+  PortainerSortRule["field"],
+  { label: string; ascLabel: string; descLabel: string }
+> = {
+  status: {
+    label: "Container Status",
+    ascLabel: "Running First (Asc)",
+    descLabel: "Stopped First (Desc)",
+  },
+  name: {
+    label: "Container Name",
+    ascLabel: "A to Z (Asc)",
+    descLabel: "Z to A (Desc)",
+  },
+  manual: {
+    label: "Manual Order",
+    ascLabel: "Custom Order Top to Bottom (Asc)",
+    descLabel: "Custom Order Bottom to Top (Desc)",
+  },
+  image: {
+    label: "Docker Image Name",
+    ascLabel: "A to Z (Asc)",
+    descLabel: "Z to A (Desc)",
+  },
+  created: {
+    label: "Creation Time",
+    ascLabel: "Oldest First (Asc)",
+    descLabel: "Newest First (Desc)",
+  },
+};
+
+export function PortainerWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh, filter: propsFilter, onContainersLoaded, selectedContainerName, onContainerHover }: PortainerWidgetProps) {
   const [containers, setContainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,11 +82,44 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
   const [apiKey, setApiKey] = useState(rawConfig.apiKey || "");
   const [endpointId, setEndpointId] = useState(rawConfig.endpointId || "5");
   
-  // 2-Tier Sorting State
-  const [primarySortBy, setPrimarySortBy] = useState<"name" | "status" | "manual">(rawConfig.primarySortBy || rawConfig.sortBy || "name");
-  const [primarySortOrder, setPrimarySortOrder] = useState<"asc" | "desc">(rawConfig.primarySortOrder || rawConfig.sortOrder || "asc");
-  const [secondarySortBy, setSecondarySortBy] = useState<"name" | "status" | "manual" | "none">(rawConfig.secondarySortBy || "none");
-  const [secondarySortOrder, setSecondarySortOrder] = useState<"asc" | "desc">(rawConfig.secondarySortOrder || "asc");
+  // Draggable Multi-Tier Sorting State
+  const initialSortRules: PortainerSortRule[] = useMemo(() => {
+    if (Array.isArray(rawConfig.sortRules) && rawConfig.sortRules.length > 0) {
+      const existingFields = new Set(rawConfig.sortRules.map((r: any) => r.field));
+      const merged = [...rawConfig.sortRules];
+      DEFAULT_PORTAINER_SORT_RULES.forEach((def) => {
+        if (!existingFields.has(def.field)) {
+          merged.push({ ...def, enabled: false });
+        }
+      });
+      return merged;
+    }
+    const primary = rawConfig.primarySortBy || rawConfig.sortBy || "status";
+    const primaryOrder = rawConfig.primarySortOrder || rawConfig.sortOrder || "asc";
+    const secondary = rawConfig.secondarySortBy;
+    const secondaryOrder = rawConfig.secondarySortOrder || "asc";
+
+    return DEFAULT_PORTAINER_SORT_RULES.map((rule) => {
+      if (rule.field === primary) return { ...rule, order: primaryOrder, enabled: true };
+      if (secondary && secondary !== "none" && rule.field === secondary) {
+        return { ...rule, order: secondaryOrder, enabled: true };
+      }
+      return rule;
+    });
+  }, [rawConfig.sortRules, rawConfig.primarySortBy, rawConfig.primarySortOrder, rawConfig.secondarySortBy, rawConfig.secondarySortOrder, rawConfig.sortBy, rawConfig.sortOrder]);
+
+  const [sortRules, setSortRules] = useState<PortainerSortRule[]>(initialSortRules);
+  const [draggedSortIndex, setDraggedSortIndex] = useState<number | null>(null);
+  const [dragOverSortIndex, setDragOverSortIndex] = useState<number | null>(null);
+
+  const moveSortRule = (idx: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= sortRules.length) return;
+    const reordered = [...sortRules];
+    const [removed] = reordered.splice(idx, 1);
+    reordered.splice(targetIdx, 0, removed);
+    setSortRules(reordered);
+  };
   
   // Custom container settings: { [containerIdOrName]: { hidden?: boolean, customUrl?: string, customName?: string, icon?: string, description?: string, keywords?: string, customOrder?: number } }
   const [containerSettings, setContainerSettings] = useState<Record<string, { hidden?: boolean; customUrl?: string; customName?: string; icon?: string; description?: string; keywords?: string; customOrder?: number }>>(rawConfig.containers || {});
@@ -110,12 +190,9 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
         url: portainerUrl.trim(),
         apiKey: apiKey.trim(),
         endpointId: endpointId.trim(),
-        primarySortBy,
-        primarySortOrder,
-        secondarySortBy,
-        secondarySortOrder,
-        sortBy: primarySortBy,
-        sortOrder: primarySortOrder,
+        sortRules,
+        sortBy: sortRules.find(r => r.enabled !== false)?.field || "status",
+        sortOrder: sortRules.find(r => r.enabled !== false)?.order || "asc",
         containers: newContainerSettings || containerSettings
       };
       await updateSectionWidgetConfig(section.id, updatedConfig);
@@ -153,27 +230,34 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
       const nameA = (settingA.customName || a.name || "").toLowerCase();
       const nameB = (settingB.customName || b.name || "").toLowerCase();
 
-      const compareTier = (sortByField: "name" | "status" | "manual", orderDir: "asc" | "desc") => {
+      const activeRules = sortRules.filter((r) => r.enabled !== false);
+      const rulesToApply = activeRules.length > 0 ? activeRules : [{ field: "status" as const, order: "asc" as const, enabled: true }];
+
+      for (const rule of rulesToApply) {
         let comp = 0;
-        if (sortByField === "status") {
+        if (rule.field === "status") {
           const isRunningA = a.state === "running" ? 0 : 1;
           const isRunningB = b.state === "running" ? 0 : 1;
           comp = isRunningA - isRunningB;
-        } else if (sortByField === "manual") {
+        } else if (rule.field === "manual") {
           const orderA = settingA.customOrder ?? 9999;
           const orderB = settingB.customOrder ?? 9999;
           comp = orderA - orderB;
+        } else if (rule.field === "image") {
+          const imgA = (a.image || "").toLowerCase();
+          const imgB = (b.image || "").toLowerCase();
+          comp = imgA.localeCompare(imgB);
+        } else if (rule.field === "created") {
+          const createdA = Number(a.created || 0);
+          const createdB = Number(b.created || 0);
+          comp = createdA - createdB;
         } else {
           comp = nameA.localeCompare(nameB);
         }
-        return orderDir === "desc" ? -comp : comp;
-      };
 
-      const primaryComp = compareTier(primarySortBy, primarySortOrder);
-      if (primaryComp !== 0) return primaryComp;
-
-      if (secondarySortBy && secondarySortBy !== "none" && secondarySortBy !== primarySortBy) {
-        return compareTier(secondarySortBy as any, secondarySortOrder);
+        if (comp !== 0) {
+          return rule.order === "desc" ? -comp : comp;
+        }
       }
 
       return 0;
@@ -184,7 +268,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
   const stoppedCount = totalCount - runningCount;
 
   return (
-    <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem' }}>
       
       {/* Widget Header Controls & Quick Stats */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', background: 'rgba(var(--primary-rgb), 0.04)', padding: '0.5rem 0.75rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
@@ -254,6 +338,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
           {visibleContainers.map(c => {
             const setting = containerSettings[c.name] || containerSettings[c.id] || {};
             const isRunning = c.state === "running";
+            const isSelected = selectedContainerName === c.name || selectedContainerName === c.id;
             
             // Resolve custom URL -> inferred public domain/label URL -> inferred public port fallback
             let openUrl = setting.customUrl || c.inferredUrl;
@@ -289,11 +374,19 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
               <div
                 key={c.id}
                 onClick={handleCardClick}
+                onMouseEnter={() => {
+                  if (onContainerHover) onContainerHover(c.name);
+                }}
                 style={{
                   padding: '0.65rem 0.75rem',
                   borderRadius: '10px',
-                  background: isRunning ? 'rgba(var(--primary-rgb), 0.05)' : 'rgba(0,0,0,0.1)',
-                  border: setting.hidden ? '1px dashed rgba(239,68,68,0.4)' : (showEditControls && hasEditAccess ? '1px dashed var(--primary)' : '1px solid var(--glass-border)'),
+                  background: isSelected 
+                    ? 'rgba(var(--primary-rgb), 0.2)' 
+                    : (isRunning ? 'rgba(var(--primary-rgb), 0.05)' : 'rgba(0,0,0,0.1)'),
+                  border: isSelected
+                    ? '1px solid var(--primary)'
+                    : (setting.hidden ? '1px dashed rgba(239,68,68,0.4)' : (showEditControls && hasEditAccess ? '1px dashed var(--primary)' : '1px solid var(--glass-border)')),
+                  boxShadow: isSelected ? '0 0 12px rgba(var(--primary-rgb), 0.35)' : 'none',
                   opacity: setting.hidden ? 0.6 : 1,
                   display: 'flex',
                   alignItems: 'center',
@@ -442,64 +535,210 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                 />
               </div>
 
-              {/* 2-Tier Sorting Controls */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>Sorting Configuration</span>
-                
-                {/* Tier 1 Primary Sort */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Primary Sort Field</label>
-                    <select
-                      value={primarySortBy}
-                      onChange={(e) => setPrimarySortBy(e.target.value as any)}
-                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                    >
-                      <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Name</option>
-                      <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Status</option>
-                      <option value="manual" style={{ background: '#1e1e2d', color: '#fff' }}>Manual Order</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Primary Direction</label>
-                    <select
-                      value={primarySortOrder}
-                      onChange={(e) => setPrimarySortOrder(e.target.value as any)}
-                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                    >
-                      <option value="asc" style={{ background: '#1e1e2d', color: '#fff' }}>Ascending (A-Z / Running first)</option>
-                      <option value="desc" style={{ background: '#1e1e2d', color: '#fff' }}>Descending (Z-A / Stopped first)</option>
-                    </select>
-                  </div>
+              {/* Draggable Multi-Tier Sorting Controls */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.05em' }}>
+                    Sorting Priority & Direction
+                  </span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
+                    (Drag or use arrows to order primary, secondary, etc.)
+                  </span>
                 </div>
+                
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.3rem',
+                    padding: '0.4rem',
+                    borderRadius: '8px',
+                    background: 'rgba(0,0,0,0.2)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                  }}
+                >
+                  {sortRules.map((rule, idx) => {
+                    const meta = PORTAINER_SORT_FIELD_LABELS[rule.field] || {
+                      label: rule.field,
+                      ascLabel: 'Ascending',
+                      descLabel: 'Descending',
+                    };
+                    const isEnabled = rule.enabled !== false;
 
-                {/* Tier 2 Secondary Sort */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Secondary Sort (Tie-Breaker)</label>
-                    <select
-                      value={secondarySortBy}
-                      onChange={(e) => setSecondarySortBy(e.target.value as any)}
-                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                    >
-                      <option value="none" style={{ background: '#1e1e2d', color: '#fff' }}>None</option>
-                      <option value="name" style={{ background: '#1e1e2d', color: '#fff' }}>Name</option>
-                      <option value="status" style={{ background: '#1e1e2d', color: '#fff' }}>Status</option>
-                      <option value="manual" style={{ background: '#1e1e2d', color: '#fff' }}>Manual Order</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Secondary Direction</label>
-                    <select
-                      value={secondarySortOrder}
-                      disabled={secondarySortBy === "none"}
-                      onChange={(e) => setSecondarySortOrder(e.target.value as any)}
-                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box', opacity: secondarySortBy === "none" ? 0.5 : 1 }}
-                    >
-                      <option value="asc" style={{ background: '#1e1e2d', color: '#fff' }}>Ascending</option>
-                      <option value="desc" style={{ background: '#1e1e2d', color: '#fff' }}>Descending</option>
-                    </select>
-                  </div>
+                    return (
+                      <div
+                        key={rule.field}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedSortIndex(idx);
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', String(idx));
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                          setDragOverSortIndex(idx);
+                        }}
+                        onDragLeave={() => {
+                          setDragOverSortIndex(null);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedSortIndex(null);
+                          setDragOverSortIndex(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (draggedSortIndex !== null && draggedSortIndex !== idx) {
+                            const reordered = [...sortRules];
+                            const [removed] = reordered.splice(draggedSortIndex, 1);
+                            reordered.splice(idx, 0, removed);
+                            setSortRules(reordered);
+                          }
+                          setDraggedSortIndex(null);
+                          setDragOverSortIndex(null);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '5px 8px',
+                          borderRadius: '6px',
+                          background:
+                            draggedSortIndex === idx
+                              ? 'rgba(var(--primary-rgb), 0.15)'
+                              : dragOverSortIndex === idx
+                              ? 'rgba(var(--primary-rgb), 0.25)'
+                              : isEnabled
+                              ? 'rgba(255,255,255,0.03)'
+                              : 'rgba(255,255,255,0.01)',
+                          border:
+                            dragOverSortIndex === idx
+                              ? '1px solid var(--primary)'
+                              : '1px solid rgba(255,255,255,0.05)',
+                          cursor: 'grab',
+                          userSelect: 'none',
+                          opacity: isEnabled ? 1 : 0.45,
+                          transition: 'background 0.15s, border 0.15s, opacity 0.15s',
+                        }}
+                      >
+                        {/* Priority badge + Checkbox + Field Name */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 800,
+                              width: '16px',
+                              textAlign: 'center',
+                              opacity: isEnabled ? 0.8 : 0.3,
+                              color: isEnabled ? 'var(--primary)' : 'inherit',
+                            }}
+                          >
+                            #{idx + 1}
+                          </span>
+
+                          <input
+                            type="checkbox"
+                            id={`portainer-sort-check-${rule.field}`}
+                            checked={isEnabled}
+                            onChange={(e) => {
+                              const updated = [...sortRules];
+                              updated[idx] = { ...updated[idx], enabled: e.target.checked };
+                              setSortRules(updated);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ cursor: 'pointer' }}
+                          />
+
+                          <label
+                            htmlFor={`portainer-sort-check-${rule.field}`}
+                            style={{
+                              fontSize: '0.78rem',
+                              fontWeight: isEnabled ? 600 : 400,
+                              cursor: 'pointer',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {meta.label}
+                          </label>
+                        </div>
+
+                        {/* Direction selector + Chevrons + Handle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                          <select
+                            value={rule.order}
+                            disabled={!isEnabled}
+                            onChange={(e) => {
+                              const updated = [...sortRules];
+                              updated[idx] = { ...updated[idx], order: e.target.value as 'asc' | 'desc' };
+                              setSortRules(updated);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              padding: '0.2rem 0.4rem',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              border: '1px solid var(--glass-border)',
+                              background: '#1e1e2d',
+                              color: 'var(--text)',
+                              cursor: isEnabled ? 'pointer' : 'default',
+                            }}
+                          >
+                            <option value="asc" style={{ background: '#1e1e2d', color: '#fff' }}>{meta.ascLabel}</option>
+                            <option value="desc" style={{ background: '#1e1e2d', color: '#fff' }}>{meta.descLabel}</option>
+                          </select>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveSortRule(idx, 'up');
+                              }}
+                              disabled={idx === 0}
+                              title="Move Priority Up"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text)',
+                                opacity: idx === 0 ? 0.2 : 0.6,
+                                cursor: idx === 0 ? 'default' : 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveSortRule(idx, 'down');
+                              }}
+                              disabled={idx === sortRules.length - 1}
+                              title="Move Priority Down"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text)',
+                                opacity: idx === sortRules.length - 1 ? 0.2 : 0.6,
+                                cursor: idx === sortRules.length - 1 ? 'default' : 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                            <GripVertical size={13} style={{ opacity: 0.4, cursor: 'grab', marginLeft: '2px' }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -511,13 +750,11 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto' }}>
                 {[...containers]
                   .sort((a, b) => {
-                    if (primarySortBy === "manual") {
-                      const orderA = containerSettings[a.name]?.customOrder ?? 9999;
-                      const orderB = containerSettings[b.name]?.customOrder ?? 9999;
-                      if (orderA !== orderB) return orderA - orderB;
-                    }
                     const settingA = containerSettings[a.name] || containerSettings[a.id] || {};
                     const settingB = containerSettings[b.name] || containerSettings[b.id] || {};
+                    const orderA = settingA.customOrder ?? 9999;
+                    const orderB = settingB.customOrder ?? 9999;
+                    if (orderA !== orderB) return orderA - orderB;
                     const nameA = (settingA.customName || a.name || "").toLowerCase();
                     const nameB = (settingB.customName || b.name || "").toLowerCase();
                     return nameA.localeCompare(nameB);
