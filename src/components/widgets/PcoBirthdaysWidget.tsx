@@ -358,6 +358,8 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             </p>
 
             <textarea
+              id="pco_correction_note"
+              name="pco_correction_note"
               rows={4}
               placeholder="Enter correction note details..."
               value={correctionNote}
@@ -417,8 +419,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               {/* Credentials */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>PCO Application ID</label>
+                  <label htmlFor="pco_app_id" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>PCO Application ID</label>
                   <input
+                    id="pco_app_id"
+                    name="pco_app_id"
                     type="password"
                     placeholder="Application ID"
                     value={appId}
@@ -427,8 +431,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>PCO Secret Key</label>
+                  <label htmlFor="pco_app_secret" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>PCO Secret Key</label>
                   <input
+                    id="pco_app_secret"
+                    name="pco_app_secret"
                     type="password"
                     placeholder="Secret Key"
                     value={appSecret}
@@ -440,8 +446,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
               {/* List IDs */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Birthday PCO List IDs (comma-separated)</label>
+                <label htmlFor="pco_birthday_list_ids" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Birthday PCO List IDs (comma-separated)</label>
                 <input
+                  id="pco_birthday_list_ids"
+                  name="pco_birthday_list_ids"
                   placeholder="e.g. 123456, 789012"
                   value={birthdayListIds}
                   onChange={(e) => setBirthdayListIds(e.target.value)}
@@ -450,8 +458,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Anniversary PCO List IDs (comma-separated)</label>
+                <label htmlFor="pco_anniversary_list_ids" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Anniversary PCO List IDs (comma-separated)</label>
                 <input
+                  id="pco_anniversary_list_ids"
+                  name="pco_anniversary_list_ids"
                   placeholder="e.g. 654321, 210987"
                   value={anniversaryListIds}
                   onChange={(e) => setAnniversaryListIds(e.target.value)}
@@ -461,8 +471,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
               {/* Workflow ID */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Profile Corrections PCO Workflow ID</label>
+                <label htmlFor="pco_workflow_id" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Profile Corrections PCO Workflow ID</label>
                 <input
+                  id="pco_workflow_id"
+                  name="pco_workflow_id"
                   placeholder="e.g. 98765"
                   value={workflowId}
                   onChange={(e) => setWorkflowId(e.target.value)}

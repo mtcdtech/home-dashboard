@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-09-02 - Server Action Authorization & CSP Fonts Fix (v1.20.3)
+- **Summary**: Fixed 500 Internal Server Error during widget addition / section drag-and-drop (`addSectionToTab`). Updated `requireSectionRole` in `src/lib/authz.ts` to support unattached brand-new sections and validate target tab authorization (`targetTabId`). Connected real session user ID in `createSection` (`src/app/admin/actions.ts`). Updated `Content-Security-Policy` header in `next.config.ts` to allow Google Fonts stylesheet and font origins (`https://fonts.googleapis.com` and `https://fonts.gstatic.com`). Added `id` and `name` attributes to form fields in `PcoBirthdaysWidget.tsx`.
+- **Files Modified**:
+  - [src/lib/authz.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/authz.ts) (updated `requireSectionRole` for targetTabId and unattached section access)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `createSection` to connect real user ID as owner and `addSectionToTab` to pass `targetTabId`)
+  - [next.config.ts](file:///Users/benny2168/Antigravity/home-dashboard/next.config.ts) (updated CSP header to allow Google Fonts)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (added `id` and `name` attributes to form elements)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.20.3`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 892ms with 0 errors.
+
 ### 2026-09-02 - PCO Celebrations & Widget Type Identification Fix (v1.20.2)
 - **Summary**: Fixed a critical bug in `Dashboard.tsx` where any section with `isWidget: true` (such as `pco_birthdays`) was evaluated as `isPortainer = currentSection.isWidget || ...`, triggering Portainer container dereferencing and crashing with React Error #441 when adding or navigating the PCO Celebrations widget. Fixed widget identification checks in `flatMatchedBookmarks` and keyboard navigation. Added safe JSON parsing and explicit string coercion in `PcoBirthdaysWidget.tsx`.
 - **Files Modified**:

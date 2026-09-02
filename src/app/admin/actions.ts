@@ -307,13 +307,17 @@ export async function addTabToUser(tabId: string) {
 // --- SECTION ORCHESTRATION ---
 export async function createSection(data: any) {
   await requireSession();
+  const session = await auth();
+  const realUserId = session?.user?.id;
   const effectiveUserId = await getEffectiveUserId();
+  const ownerIds = Array.from(new Set([realUserId, effectiveUserId].filter(Boolean) as string[]));
+
   const section = await prisma.section.create({
     data: {
       ...data,
       isLibraryItem: data.isLibraryItem ?? false,
       description: data.description || null,
-      ...(effectiveUserId ? { owners: { connect: { id: effectiveUserId } } } : {})
+      ...(ownerIds.length > 0 ? { owners: { connect: ownerIds.map(id => ({ id })) } } : {})
     }
   } as any);
   revalidatePath("/");
@@ -323,7 +327,7 @@ export async function createSection(data: any) {
 
 export async function addSectionToTab(sectionId: string, tabId: string, column: number = 0) {
   await requireTabRole(tabId, "edit");
-  await requireSectionRole(sectionId, "edit");
+  await requireSectionRole(sectionId, "edit", tabId);
   // Permission check: only tab owners, editors, or admins can add sections
   const session = await auth();
   const userId = session?.user?.id;

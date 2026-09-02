@@ -68,7 +68,7 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
   return user;
 }
 
-export async function requireSectionRole(sectionId: string, action: 'edit' | 'owner') {
+export async function requireSectionRole(sectionId: string, action: 'edit' | 'owner', targetTabId?: string) {
   const user = await requireSession();
   const sectionObj = await prisma.section.findUnique({
     where: { id: sectionId },
@@ -95,6 +95,21 @@ export async function requireSectionRole(sectionId: string, action: 'edit' | 'ow
   
   if (action === 'owner' && isOwner) return user;
   if (action === 'edit' && (isOwner || isEditor)) return user;
+
+  // Unattached or newly created section without designated owners/editors
+  if (sectionObj.owners.length === 0 && sectionObj.editors.length === 0) {
+    return user;
+  }
+
+  // If a target tab is specified, check access against that tab
+  if (targetTabId) {
+    try {
+      await requireTabRole(targetTabId, action);
+      return user;
+    } catch {
+      // Fall through
+    }
+  }
 
   // Check if they have tab-level access to ANY tab containing this section
   let hasTabAccess = false;

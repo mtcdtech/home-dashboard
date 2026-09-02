@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.20.2` (PCO Celebrations & Widget Type Identification Fix)
+- **Current Version**: `v1.20.3` (Server Action Authorization & CSP Fonts Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Server Action Authorization & CSP Fonts Fix (v1.20.3)**:
+  - Fixed 500 Internal Server Error when creating/adding widgets or dragging sections (`addSectionToTab`). Updated `requireSectionRole` in `src/lib/authz.ts` to accept optional `targetTabId` parameter and grant section edit access when adding unattached or brand new sections to accessible tabs. Connected real session `user.id` in `createSection` (`src/app/admin/actions.ts`).
+  - Updated Content Security Policy in `next.config.ts` to allow Google Fonts stylesheet and font domains (`https://fonts.googleapis.com` and `https://fonts.gstatic.com`).
+  - Added explicit `id` and `name` attributes to PCO widget settings and correction modal form controls.
 - **PCO Celebrations & Widget Identification Fix (v1.20.2)**:
   - Fixed `isPortainer` widget identification check in `Dashboard.tsx` (lines 576, 980, 1003, 1023) where any section with `isWidget: true` (such as `pco_birthdays`) was incorrectly evaluated as a Portainer widget during search matching and keyboard navigation, causing React Error #441 when dereferencing Docker container data.
   - Added safe JSON configuration parsing and explicit string coercion to error boundaries and item initial rendering in `PcoBirthdaysWidget.tsx`.
