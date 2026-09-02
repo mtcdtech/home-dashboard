@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.22.0` (PCO Multi-Select Date Ranges, Pagination Controls & Overdue Call Red Highlights)
+- **Current Version**: `v1.22.1` (PCO Workflow ID & URL Auto-Parser Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Workflow ID & URL Auto-Parser Fix (v1.22.1)**:
+  - Clarified PCO Workflow ID (`489142` from `https://people.planningcenteronline.com/workflows/489142/...`).
+  - Added full URL auto-parser to `submitPcoProfileCorrection` in `src/app/admin/actions.ts`: users can paste either `489142` or the full PCO URL, and it automatically extracts `workflowId` (`489142`) and `stepId` (`1270054`).
+  - Fixed card creation payload schema by removing unpermitted `stage: "ready"` attribute, and added step fallback handling and exact PCO API error message reporting.
 - **PCO Celebrations Multi-Select Ranges, Pagination & Red Overdue Call Highlights (v1.22.0)**:
   - **Multi-Select Date Ranges**: Enabled multi-selection of filter ranges (`prev_month`, `current_month`, `next_month`, `prev_x_days`, `next_x_days`) with quick-filter chips in widget header.
   - **Pagination Controls**: Added `maxItems` setting and clean `< Prev` / `Next >` page navigation bar with page indicators (`Showing 1–10 of 42 celebrations`).

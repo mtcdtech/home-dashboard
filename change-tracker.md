@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-09-02 - PCO Workflow ID & URL Auto-Parser Fix (v1.22.1)
+- **Summary**: Resolved issue submitting profile correction notes to PCO Workflows:
+  1. Identified **`489142`** as the Workflow ID (and `1270054` as the Step ID) from the URL `https://people.planningcenteronline.com/workflows/489142/steps/1270054/assignees/93343352/ready`.
+  2. Updated `submitPcoProfileCorrection` in `src/app/admin/actions.ts` to automatically parse full PCO URLs (or raw numeric IDs) and extract both `workflowId` (`489142`) and `stepId` (`1270054`).
+  3. Fixed JSON:API card creation payload by removing unpermitted `stage: "ready"` attribute, added step relationship mapping and fallback, and enabled exact error detail reporting from PCO API responses.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `submitPcoProfileCorrection` URL parser, Card payload schema, and error reporting)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.22.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 955ms with 0 errors.
+
 ### 2026-09-02 - PCO Multi-Select Date Ranges, Pagination Controls & Overdue Call Red Highlights (v1.22.0)
 - **Summary**: Delivered requested features for Planning Center Celebrations widget:
   1. **Multi-Select Date Range Options**: Built `filterByMultiDateRanges` in `src/lib/pco.ts` and enabled multi-selection for date ranges (`prev_month`, `current_month`, `next_month`, `prev_x_days`, `next_x_days`) with interactive filter chips in widget header.

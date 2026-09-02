@@ -2567,14 +2567,28 @@ export async function submitPcoProfileCorrection(params: {
 
   const appId = (params.appId || process.env.PCO_APP_ID || "").trim();
   const appSecret = (params.appSecret || process.env.PCO_SECRET || "").trim();
-  const workflowId = (params.workflowId || "").trim();
-
-  if (!appId || !appSecret) {
-    return { success: false, error: "PCO Application ID or Secret Key missing." };
+  let rawInput = (params.workflowId || "").trim();
+  if (!rawInput) {
+    return { success: false, error: "PCO Workflow ID for profile corrections is not configured." };
   }
 
-  if (!workflowId) {
-    return { success: false, error: "PCO Workflow ID for profile corrections is not configured." };
+  // Auto-extract Workflow ID and optional Step ID if user pasted full PCO URL
+  let cleanWorkflowId = rawInput;
+  let cleanStepId = "";
+
+  if (rawInput.includes("planningcenteronline.com") || rawInput.includes("/")) {
+    const wfMatch = rawInput.match(/workflows\/(\d+)/i);
+    const stepMatch = rawInput.match(/steps\/(\d+)/i);
+    if (wfMatch) cleanWorkflowId = wfMatch[1];
+    if (stepMatch) cleanStepId = stepMatch[1];
+  } else if (rawInput.includes(":")) {
+    const parts = rawInput.split(":");
+    cleanWorkflowId = parts[0].trim();
+    cleanStepId = parts[1]?.trim() || "";
+  }
+
+  if (!cleanWorkflowId) {
+    return { success: false, error: "Invalid PCO Workflow ID." };
   }
 
   if (!params.note?.trim()) {
@@ -2585,41 +2599,81 @@ export async function submitPcoProfileCorrection(params: {
   const authHeader = getPcoAuthHeader(appId, appSecret);
 
   try {
-    const url = `https://api.planningcenteronline.com/workflows/v2/workflows/${workflowId}/cards`;
-    const body = {
+    const primaryUrl = `https://api.planningcenteronline.com/workflows/v2/workflows/${cleanWorkflowId}/cards`;
+    
+    // Valid JSON:API payload according to PCO Workflows API v2 spec (no invalid 'stage' attribute)
+    const cardBody: any = {
       data: {
         type: "Card",
         attributes: {
-          person_id: params.personId,
-          stage: "ready",
+          person_id: String(params.personId),
         },
         relationships: {
           person: {
             data: {
               type: "Person",
-              id: params.personId,
+              id: String(params.personId),
             },
           },
         },
       },
     };
 
-    const resp = await fetch(url, {
+    if (cleanStepId) {
+      cardBody.data.relationships.step = {
+        data: {
+          type: "Step",
+          id: String(cleanStepId),
+        },
+      };
+    }
+
+    let resp = await fetch(primaryUrl, {
       method: "POST",
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(cardBody),
       signal: AbortSignal.timeout(8000),
     });
 
+    // Fallback if workflow URL failed and step ID is available
+    if (!resp.ok && cleanStepId) {
+      const stepUrl = `https://api.planningcenteronline.com/workflows/v2/steps/${cleanStepId}/cards`;
+      const stepBody = {
+        data: {
+          type: "Card",
+          attributes: {
+            person_id: String(params.personId),
+          },
+        },
+      };
+      resp = await fetch(stepUrl, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(stepBody),
+        signal: AbortSignal.timeout(8000),
+      });
+    }
+
     if (!resp.ok) {
       const errText = await resp.text();
+      let pcoErrorMsg = "";
+      try {
+        const errJson = JSON.parse(errText);
+        pcoErrorMsg = errJson?.errors?.[0]?.detail || errJson?.errors?.[0]?.title || "";
+      } catch (e) {}
+
       console.error(`PCO Workflow POST failed HTTP ${resp.status}:`, errText);
       return {
         success: false,
-        error: `PCO Workflow API returned HTTP ${resp.status}. Please verify Workflow ID.`,
+        error: pcoErrorMsg 
+          ? `PCO API Error (${resp.status}): ${pcoErrorMsg}`
+          : `PCO Workflow API returned HTTP ${resp.status}. Please check Application ID, Secret Key, and Workflow ID (${cleanWorkflowId}).`,
       };
     }
 
