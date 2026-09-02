@@ -35,9 +35,14 @@ export interface PcoBirthdaysWidgetProps {
 }
 
 export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, isAdmin, onRefresh }: PcoBirthdaysWidgetProps) {
-  const rawConfig = typeof section?.widgetConfig === "string"
-    ? (JSON.parse(section.widgetConfig || "{}") || {})
-    : (section?.widgetConfig || {});
+  let rawConfig: any = {};
+  try {
+    rawConfig = typeof section?.widgetConfig === "string"
+      ? (JSON.parse(section.widgetConfig || "{}") || {})
+      : (section?.widgetConfig && typeof section.widgetConfig === "object" ? section.widgetConfig : {});
+  } catch (e) {
+    rawConfig = {};
+  }
 
   const [appId, setAppId] = useState(rawConfig.appId || "");
   const [appSecret, setAppSecret] = useState(rawConfig.appSecret || "");
@@ -49,7 +54,9 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
   // Loaded Items & State
   const [items, setItems] = useState<any[]>([]);
-  const [callRecords, setCallRecords] = useState<Record<string, { year: number; checked: boolean }>>(rawConfig.callRecords || {});
+  const [callRecords, setCallRecords] = useState<Record<string, { year: number; checked: boolean }>>(
+    rawConfig.callRecords && typeof rawConfig.callRecords === "object" ? rawConfig.callRecords : {}
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
@@ -77,13 +84,14 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         dateRange,
       });
 
-      if (res.success && res.items) {
+      if (res && res.success && Array.isArray(res.items)) {
         setItems(res.items);
       } else {
-        setError(res.error || "Failed to load Planning Center data");
+        const errStr = typeof res?.error === "string" ? res.error : res?.error?.message ? String(res.error.message) : "Failed to load Planning Center data";
+        setError(errStr);
       }
     } catch (err: any) {
-      setError(err.message || "Error connecting to Planning Center API");
+      setError(typeof err === "string" ? err : err?.message || "Error connecting to Planning Center API");
     } finally {
       setLoading(false);
     }

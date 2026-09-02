@@ -2,6 +2,18 @@
 
 ## Running Change Log
 
+### 2026-09-02 - PCO Celebrations & Widget Type Identification Fix (v1.20.2)
+- **Summary**: Fixed a critical bug in `Dashboard.tsx` where any section with `isWidget: true` (such as `pco_birthdays`) was evaluated as `isPortainer = currentSection.isWidget || ...`, triggering Portainer container dereferencing and crashing with React Error #441 when adding or navigating the PCO Celebrations widget. Fixed widget identification checks in `flatMatchedBookmarks` and keyboard navigation. Added safe JSON parsing and explicit string coercion in `PcoBirthdaysWidget.tsx`.
+- **Files Modified**:
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (fixed `isPortainer` condition checks in `flatMatchedBookmarks` and keyboard navigation)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (added safe JSON parsing, error string coercion, and fallback rendering)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (converted `@/lib/pco` to static top-level import)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.20.2`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1002ms with 0 errors.
+
 ### 2026-09-02 - Workspace Edit Permissions & React Error #441 Fix (v1.20.1)
 - **Summary**: Resolved 2 issues: (1) Fixed `requireTabRole` in `src/lib/authz.ts` to grant Admin users (`isAdmin: true`) full access to non-readOnlySync tabs, fixing workspace settings saving (`updateTab`) and section addition errors (`addSectionToTab`). Connected `getEffectiveUserId()` in `createSection` (`src/app/admin/actions.ts`). (2) Wrapped async widget catalog addition in `Dashboard.tsx` and modal forms (`TabModal`, `SectionModal`) in `try/catch` with explicit error alerts, resolving Minified React Error #441 and surfacing clear diagnostic notifications.
 - **Files Modified**:

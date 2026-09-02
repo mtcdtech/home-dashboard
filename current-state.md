@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.20.1` (Workspace Permissions & React Error #441 Fix)
+- **Current Version**: `v1.20.2` (PCO Celebrations & Widget Type Identification Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Celebrations & Widget Identification Fix (v1.20.2)**:
+  - Fixed `isPortainer` widget identification check in `Dashboard.tsx` (lines 576, 980, 1003, 1023) where any section with `isWidget: true` (such as `pco_birthdays`) was incorrectly evaluated as a Portainer widget during search matching and keyboard navigation, causing React Error #441 when dereferencing Docker container data.
+  - Added safe JSON configuration parsing and explicit string coercion to error boundaries and item initial rendering in `PcoBirthdaysWidget.tsx`.
+  - Converted dynamic `@/lib/pco` import in `src/app/admin/actions.ts` to a top-level static import for maximum execution efficiency.
 - **Workspace Edit Permissions & React Error #441 Fix (v1.20.1)**:
   - Fixed `requireTabRole` permission check in `src/lib/authz.ts` to grant Admin users (`isAdmin: true`) full edit/owner access to all non-readOnlySync tabs, resolving workspace settings saving failures (`updateTab`) and section addition errors (`addSectionToTab`).
   - Added `getEffectiveUserId()` to `createSection` in `src/app/admin/actions.ts` to ensure section creators are properly registered as section owners.

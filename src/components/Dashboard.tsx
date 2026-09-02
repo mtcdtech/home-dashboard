@@ -573,7 +573,7 @@ export function Dashboard({
                .filter(s => (s.column ?? 0) === colIdx)
                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                .forEach(section => {
-                  if (section.isWidget || section.widgetType === "portainer") {
+                  if (section.widgetType === "portainer" || (!section.widgetType && section.isWidget)) {
                      const loadedContainers = portainerContainersMap[section.id] || [];
                      const rawConfig = typeof section.widgetConfig === "string" 
                         ? (JSON.parse(section.widgetConfig) || {}) 
@@ -977,14 +977,14 @@ export function Dashboard({
       } else if (e.key === 'ArrowDown') {
          e.preventDefault();
          if (!currentSection) return;
-         const isPortainer = currentSection.isWidget || currentSection.widgetType === "portainer";
+         const isPortainer = currentSection.widgetType === "portainer" || (!currentSection.widgetType && currentSection.isWidget);
          const sortedItems = isPortainer
             ? (portainerContainersMap[currentSection.id] || []).filter(c => {
-                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig || "{}") || {}) : (currentSection.widgetConfig || {});
                  const cSettings = rawCfg.containers || {};
                  return !cSettings[c.name]?.hidden;
               }).map(c => ({ id: c.name, ...c }))
-            : [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+            : [...(currentSection.bookmarks || [])].sort((a, b) => a.order - b.order);
 
          const isCollapsed = searchQuery.trim() === "" ? (collapsedSections[`${activeTabObj.id}_${currentSection.id}`] ?? currentSection.defaultCollapsed) : false;
          if (sortedItems.length === 0 || isCollapsed) return;
@@ -1000,14 +1000,14 @@ export function Dashboard({
       } else if (e.key === 'ArrowUp') {
          e.preventDefault();
          if (!currentSection) return;
-         const isPortainer = currentSection.isWidget || currentSection.widgetType === "portainer";
+         const isPortainer = currentSection.widgetType === "portainer" || (!currentSection.widgetType && currentSection.isWidget);
          const sortedItems = isPortainer
             ? (portainerContainersMap[currentSection.id] || []).filter(c => {
-                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig) || {}) : (currentSection.widgetConfig || {});
+                 const rawCfg = typeof currentSection.widgetConfig === "string" ? (JSON.parse(currentSection.widgetConfig || "{}") || {}) : (currentSection.widgetConfig || {});
                  const cSettings = rawCfg.containers || {};
                  return !cSettings[c.name]?.hidden;
               }).map(c => ({ id: c.name, ...c }))
-            : [...currentSection.bookmarks].sort((a, b) => a.order - b.order);
+            : [...(currentSection.bookmarks || [])].sort((a, b) => a.order - b.order);
 
          if (gridFocus.bookmarkId !== null) {
             const bIdx = sortedItems.findIndex(b => b.id === gridFocus.bookmarkId || b.name === gridFocus.bookmarkId);
@@ -1020,7 +1020,7 @@ export function Dashboard({
       } else if (e.key === 'Enter' || e.key === ' ') {
          e.preventDefault();
          if (gridFocus.bookmarkId) {
-            const isPortainer = currentSection?.isWidget || currentSection?.widgetType === "portainer";
+            const isPortainer = currentSection?.widgetType === "portainer" || (!currentSection?.widgetType && currentSection?.isWidget);
             if (isPortainer && currentSection) {
                const containers = portainerContainersMap[currentSection.id] || [];
                const c = containers.find(c => c.name === gridFocus.bookmarkId || c.id === gridFocus.bookmarkId);

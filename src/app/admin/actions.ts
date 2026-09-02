@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { parseBookmarksHtml } from "@/lib/bookmark-parser";
 import { auth } from "@/auth";
 import { requireSession, requireAdmin, requireTabRole, requireSectionRole } from "@/lib/authz";
+import { getPcoAuthHeader, getDaysUntilEvent, formatMonthDay, filterByDateRange } from "@/lib/pco";
 import { safeFetch, isSafeUrl } from "@/lib/ssrf";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
@@ -2385,7 +2386,6 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
     };
   }
 
-  const { getPcoAuthHeader, getDaysUntilEvent, formatMonthDay, filterByDateRange } = await import("@/lib/pco");
   const authHeader = getPcoAuthHeader(appId, appSecret);
 
   const items: any[] = [];
