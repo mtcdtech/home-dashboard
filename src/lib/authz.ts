@@ -32,6 +32,16 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
   });
 
   if (!tabObj) throw new Error("Tab not found");
+
+  const isAdmin = (user as { isAdmin?: boolean }).isAdmin;
+  const isLocalAdmin = user.email === 'admin@local' || user.email === 'admin@local.host' || user.name === 'Local Admin';
+
+  // Admin bypass: Admins have full access to all non-readOnlySync tabs (or all tabs if local admin)
+  if (isAdmin) {
+    if (!tabObj.isReadOnlySync || isLocalAdmin) {
+      return user;
+    }
+  }
   
   const targetUser = await prisma.user.findUnique({
     where: { id: user.id as string },
@@ -43,7 +53,7 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
     userId: targetUser.id,
     dashboardGroup: targetUser.dashboardGroup || targetUser.department,
     isAdminView: targetUser.isAdmin,
-    isLocalAdmin: targetUser.email === 'admin@local' || targetUser.email === 'admin@local.host' || targetUser.name === 'Local Admin'
+    isLocalAdmin
   });
   const access = resolveTabAccess(tabObj, context);
   

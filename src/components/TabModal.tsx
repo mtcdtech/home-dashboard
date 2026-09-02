@@ -46,8 +46,9 @@ export function TabModal({ tab, allDepartments, onClose, onSaved, iconRegistry, 
         await actions.createTab({ title, icon, description, columns, themeId: themeId || null, isLibraryItem, isPublic } as any);
       }
       onSaved();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("TabModal handleSave error:", err);
+      alert(err.message || "Failed to save workspace settings");
     } finally {
       setSaving(false);
     }

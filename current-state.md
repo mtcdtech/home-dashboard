@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.20.0` (Planning Center Celebrations Widget)
+- **Current Version**: `v1.20.1` (Workspace Permissions & React Error #441 Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Workspace Edit Permissions & React Error #441 Fix (v1.20.1)**:
+  - Fixed `requireTabRole` permission check in `src/lib/authz.ts` to grant Admin users (`isAdmin: true`) full edit/owner access to all non-readOnlySync tabs, resolving workspace settings saving failures (`updateTab`) and section addition errors (`addSectionToTab`).
+  - Added `getEffectiveUserId()` to `createSection` in `src/app/admin/actions.ts` to ensure section creators are properly registered as section owners.
+  - Wrapped async widget catalog addition (`actions.createSection` & `actions.addSectionToTab`) and modal forms (`TabModal`, `SectionModal`) in `try/catch` blocks with explicit error alerts, eliminating Minified React Error #441 and surfacing clear diagnostic messages.
 - **Planning Center (PCO) Birthdays & Anniversaries Widget (v1.20.0)**:
   - Added new `PcoBirthdaysWidget.tsx` component connecting to Planning Center Online API v2 via `src/lib/pco.ts` and `src/app/admin/actions.ts`.
   - Parses birthdays and anniversaries from PCO lists, sorts upcoming celebrations chronologically, and supports flexible date range filtering (`This Month`, `Next Month`, `Next 30/60/90 Days`).

@@ -2020,17 +2020,21 @@ export function Dashboard({
                                              type="button"
                                              onClick={async () => {
                                                 if (activeTabObj) {
-                                                   const newSec = await actions.createSection({
-                                                      title: w.title,
-                                                      icon: w.icon,
-                                                      isWidget: true,
-                                                      widgetType: w.type,
-                                                      isGlobal: false,
-                                                      isLibraryItem: false
-                                                   } as any);
-                                                   await actions.addSectionToTab(newSec.id, activeTabObj.id, 0);
-                                                   setIsCatalogOpen(false);
-                                                   router.refresh();
+                                                   try {
+                                                      const newSec = await actions.createSection({
+                                                         title: w.title,
+                                                         icon: w.icon,
+                                                         isWidget: true,
+                                                         widgetType: w.type,
+                                                         isGlobal: false,
+                                                         isLibraryItem: false
+                                                      } as any);
+                                                      await actions.addSectionToTab(newSec.id, activeTabObj.id, 0);
+                                                      setIsCatalogOpen(false);
+                                                      router.refresh();
+                                                   } catch (err: any) {
+                                                      alert("Failed to add widget: " + (err.message || err));
+                                                   }
                                                 }
                                              }}
                                              style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', background: 'var(--primary)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}

@@ -44,8 +44,9 @@ export function SectionModal({ section, targetTabId, targetColumn, onClose, onSa
         await actions.updateTabSectionCollapsed(newSection.id, targetTabId, defaultCollapsed);
       }
       onSaved();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("SectionModal handleSave error:", err);
+      alert(err.message || "Failed to save section");
     } finally {
       setSaving(false);
     }

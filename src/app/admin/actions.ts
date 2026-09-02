@@ -306,14 +306,13 @@ export async function addTabToUser(tabId: string) {
 // --- SECTION ORCHESTRATION ---
 export async function createSection(data: any) {
   await requireSession();
-  const session = await auth();
-  const userId = session?.user?.id;
+  const effectiveUserId = await getEffectiveUserId();
   const section = await prisma.section.create({
     data: {
       ...data,
       isLibraryItem: data.isLibraryItem ?? false,
       description: data.description || null,
-      ...(userId ? { owners: { connect: { id: userId } } } : {})
+      ...(effectiveUserId ? { owners: { connect: { id: effectiveUserId } } } : {})
     }
   } as any);
   revalidatePath("/");

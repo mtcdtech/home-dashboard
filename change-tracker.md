@@ -2,6 +2,20 @@
 
 ## Running Change Log
 
+### 2026-09-02 - Workspace Edit Permissions & React Error #441 Fix (v1.20.1)
+- **Summary**: Resolved 2 issues: (1) Fixed `requireTabRole` in `src/lib/authz.ts` to grant Admin users (`isAdmin: true`) full access to non-readOnlySync tabs, fixing workspace settings saving (`updateTab`) and section addition errors (`addSectionToTab`). Connected `getEffectiveUserId()` in `createSection` (`src/app/admin/actions.ts`). (2) Wrapped async widget catalog addition in `Dashboard.tsx` and modal forms (`TabModal`, `SectionModal`) in `try/catch` with explicit error alerts, resolving Minified React Error #441 and surfacing clear diagnostic notifications.
+- **Files Modified**:
+  - [src/lib/authz.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/authz.ts) (added Admin bypass check to `requireTabRole`)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (connected `getEffectiveUserId()` in `createSection`)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (wrapped widget catalog Add button handler in `try/catch`)
+  - [src/components/TabModal.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/TabModal.tsx) (surfaced save error alerts)
+  - [src/components/SectionModal.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/SectionModal.tsx) (surfaced save error alerts)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.20.1`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1004ms with 0 errors.
+
 ### 2026-09-02 - Planning Center (PCO) Birthdays & Anniversaries Widget (v1.20.0)
 - **Summary**: Implemented a new Planning Center Online (PCO) Birthdays & Anniversaries Widget. Connects to PCO People API v2 to fetch upcoming birthdays and anniversaries from specified list IDs. Displays person photo/avatar, name (with direct links to PCO profiles at `https://people.planningcenteronline.com/people/{person_id}`), event pill badges, and days-until tags. Supports `Combined Feed` or `Split Sections` layouts, flexible date range filtering (`This Month`, `Next Month`, `Next 30/60/90 Days`), annual call tracking persistence (`togglePcoCallStatus`), and profile correction note submission directly into PCO Workflows (`submitPcoProfileCorrection`). Registered in Catalog Widgets (`Dashboard.tsx`).
 - **Files Modified**:
