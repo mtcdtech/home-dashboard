@@ -2372,6 +2372,8 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
   birthdayListIds?: string;
   anniversaryListIds?: string;
   dateRange?: string;
+  daysBefore?: number | string;
+  daysAfter?: number | string;
 }) {
   await requireSession();
 
@@ -2388,7 +2390,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
 
   const authHeader = getPcoAuthHeader(appId, appSecret);
 
-  const items: any[] = [];
+  const rawItems: any[] = [];
   const processedKeys = new Set<string>();
 
   const fetchListPeople = async (listId: string, eventType: "birthday" | "anniversary") => {
@@ -2432,20 +2434,23 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
 
         if (!monthDay) continue;
 
-        const { daysUntil } = getDaysUntilEvent(monthDay);
+        const { daysUntil, monthStr, dayStr, formattedDate } = getDaysUntilEvent(monthDay);
         const name = attrs.name || `${attrs.first_name || ""} ${attrs.last_name || ""}`.trim() || "Unknown";
 
-        items.push({
+        rawItems.push({
           id: `${eventType}_${personId}`,
           personId,
           name,
           firstName: attrs.first_name || name,
           lastName: attrs.last_name || "",
           photoUrl: attrs.avatar || attrs.photo_url || null,
+          gender: attrs.gender || null,
           type: eventType,
           dateRaw: rawDate,
           dateMonthDay: monthDay,
-          formattedDate: formatMonthDay(monthDay),
+          monthStr,
+          dayStr,
+          formattedDate,
           daysUntil,
           pcoUrl: `https://people.planningcenteronline.com/people/${personId}`,
         });
@@ -2466,8 +2471,60 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
     await fetchListPeople(id, "anniversary");
   }
 
-  items.sort((a, b) => a.daysUntil - b.daysUntil);
-  const filtered = filterByDateRange(items, params.dateRange || "all");
+  // Separate birthdays and anniversaries
+  const birthdays = rawItems.filter((i) => i.type === "birthday");
+  const rawAnniversaries = rawItems.filter((i) => i.type === "anniversary");
+
+  // Combine Anniversary Profiles by date & last name (link to male card)
+  const combinedAnniversaries: any[] = [];
+  const annivGroupMap = new Map<string, any[]>();
+
+  for (const item of rawAnniversaries) {
+    const key = `${item.dateMonthDay}_${(item.lastName || "").toLowerCase().trim()}`;
+    if (!annivGroupMap.has(key)) {
+      annivGroupMap.set(key, []);
+    }
+    annivGroupMap.get(key)!.push(item);
+  }
+
+  annivGroupMap.forEach((group) => {
+    if (group.length === 1) {
+      combinedAnniversaries.push(group[0]);
+    } else {
+      // Find male profile for primary card link, or default to first
+      const malePerson = group.find((p) => {
+        const g = (p.gender || "").toLowerCase();
+        return g === "m" || g === "male";
+      }) || group[0];
+
+      const femalePerson = group.find((p) => p.personId !== malePerson.personId) || group[1];
+
+      const combinedName = `${malePerson.firstName} & ${femalePerson.firstName} ${malePerson.lastName}`;
+
+      combinedAnniversaries.push({
+        ...malePerson,
+        id: `anniversary_combined_${malePerson.personId}_${femalePerson.personId}`,
+        name: combinedName,
+        pcoUrl: malePerson.pcoUrl, // Takes link to male card per requirement
+        isCombinedAnniversary: true,
+        spousePersonId: femalePerson.personId,
+        spouseName: femalePerson.name,
+        spousePhotoUrl: femalePerson.photoUrl,
+      });
+    }
+  });
+
+  const allProcessedItems = [...birthdays, ...combinedAnniversaries];
+  allProcessedItems.sort((a, b) => a.daysUntil - b.daysUntil);
+
+  // Custom date window parameters
+  let dBefore = typeof params.daysBefore !== "undefined" ? Number(params.daysBefore) : 0;
+  let dAfter = typeof params.daysAfter !== "undefined" ? Number(params.daysAfter) : 30;
+
+  if (isNaN(dBefore)) dBefore = 0;
+  if (isNaN(dAfter)) dAfter = 30;
+
+  const filtered = filterByDateRange(allProcessedItems, dBefore, dAfter);
 
   return {
     success: true,

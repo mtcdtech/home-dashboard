@@ -49,7 +49,9 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const [birthdayListIds, setBirthdayListIds] = useState(rawConfig.birthdayListIds || "");
   const [anniversaryListIds, setAnniversaryListIds] = useState(rawConfig.anniversaryListIds || "");
   const [workflowId, setWorkflowId] = useState(rawConfig.workflowId || "");
-  const [dateRange, setDateRange] = useState(rawConfig.dateRange || "next_60_days");
+  const [dateRange, setDateRange] = useState(rawConfig.dateRange || "custom");
+  const [daysBefore, setDaysBefore] = useState<number>(typeof rawConfig.daysBefore !== "undefined" ? Number(rawConfig.daysBefore) : 0);
+  const [daysAfter, setDaysAfter] = useState<number>(typeof rawConfig.daysAfter !== "undefined" ? Number(rawConfig.daysAfter) : 30);
   const [viewMode, setViewMode] = useState<"combined" | "split">(rawConfig.viewMode || "combined");
 
   // Loaded Items & State
@@ -82,6 +84,8 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         birthdayListIds,
         anniversaryListIds,
         dateRange,
+        daysBefore,
+        daysAfter,
       });
 
       if (res && res.success && Array.isArray(res.items)) {
@@ -99,7 +103,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
   useEffect(() => {
     loadData();
-  }, [section?.id, dateRange]);
+  }, [section?.id, dateRange, daysBefore, daysAfter]);
 
   const handleToggleCall = async (personId: string, eventType: "birthday" | "anniversary", currentChecked: boolean) => {
     const newChecked = !currentChecked;
@@ -119,10 +123,11 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         year: currentYear,
         checked: newChecked,
       });
-      if (res.callRecords) {
+
+      if (res.success && res.callRecords) {
         setCallRecords(res.callRecords);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to toggle call status:", err);
     }
   };
@@ -130,22 +135,26 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const handleSaveConfig = async () => {
     setSavingSettings(true);
     try {
-      const updatedConfig = {
-        appId: appId.trim(),
-        appSecret: appSecret.trim(),
-        birthdayListIds: birthdayListIds.trim(),
-        anniversaryListIds: anniversaryListIds.trim(),
-        workflowId: workflowId.trim(),
+      const newConfig = {
+        ...rawConfig,
+        appId,
+        appSecret,
+        birthdayListIds,
+        anniversaryListIds,
+        workflowId,
         dateRange,
+        daysBefore,
+        daysAfter,
         viewMode,
-        callRecords
+        callRecords,
       };
-      await updateSectionWidgetConfig(section.id, updatedConfig);
+
+      await updateSectionWidgetConfig(section.id, newConfig);
       setShowSettingsModal(false);
-      await loadData();
       if (onRefresh) onRefresh();
+      await loadData();
     } catch (err: any) {
-      alert("Failed to save widget configuration: " + err.message);
+      alert("Failed to save settings: " + (err.message || err));
     } finally {
       setSavingSettings(false);
     }
@@ -387,10 +396,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 disabled={submittingNote || !correctionNote.trim()}
                 onClick={handleSubmitCorrection}
                 className="btn btn-primary"
-                style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: submittingNote || !correctionNote.trim() ? 0.5 : 1 }}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
               >
                 <Send size={14} />
-                {submittingNote ? "Submitting..." : "Send to Workflow"}
+                <span>{submittingNote ? "Submitting..." : "Submit to PCO"}</span>
               </button>
             </div>
           </div>
@@ -482,36 +491,58 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 />
               </div>
 
-              {/* Range & View Mode */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Date Range Filter</label>
-                  <select
-                    value={dateRange}
-                    onChange={(e) => setDateRange(e.target.value)}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                  >
-                    <option value="this_month" style={{ background: '#1e1e2d', color: '#fff' }}>This Month</option>
-                    <option value="next_month" style={{ background: '#1e1e2d', color: '#fff' }}>Next Month</option>
-                    <option value="this_and_next_month" style={{ background: '#1e1e2d', color: '#fff' }}>This & Next Month</option>
-                    <option value="next_30_days" style={{ background: '#1e1e2d', color: '#fff' }}>Next 30 Days</option>
-                    <option value="next_60_days" style={{ background: '#1e1e2d', color: '#fff' }}>Next 60 Days</option>
-                    <option value="next_90_days" style={{ background: '#1e1e2d', color: '#fff' }}>Next 90 Days</option>
-                    <option value="all" style={{ background: '#1e1e2d', color: '#fff' }}>All Upcoming</option>
-                  </select>
-                </div>
+              {/* Customizable Window (Days Before & Days After) */}
+              <div style={{ background: 'rgba(var(--primary-rgb), 0.04)', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>
+                  Custom Date Window Customization
+                </label>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Display Layout</label>
-                  <select
-                    value={viewMode}
-                    onChange={(e) => setViewMode(e.target.value as any)}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                  >
-                    <option value="combined" style={{ background: '#1e1e2d', color: '#fff' }}>Combined Feed</option>
-                    <option value="split" style={{ background: '#1e1e2d', color: '#fff' }}>Split Sections</option>
-                  </select>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label htmlFor="pco_days_before" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.2rem' }}>
+                      Days Before Today (e.g. 0 to 30)
+                    </label>
+                    <input
+                      id="pco_days_before"
+                      name="pco_days_before"
+                      type="number"
+                      min={0}
+                      max={365}
+                      value={daysBefore}
+                      onChange={(e) => setDaysBefore(Number(e.target.value))}
+                      style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.15)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="pco_days_after" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.2rem' }}>
+                      Days After Today (e.g. 1 to 180)
+                    </label>
+                    <input
+                      id="pco_days_after"
+                      name="pco_days_after"
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={daysAfter}
+                      onChange={(e) => setDaysAfter(Number(e.target.value))}
+                      style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.15)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
                 </div>
+              </div>
+
+              {/* Display Layout */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Display Layout</label>
+                <select
+                  value={viewMode}
+                  onChange={(e) => setViewMode(e.target.value as any)}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="combined" style={{ background: '#1e1e2d', color: '#fff' }}>Combined Feed</option>
+                  <option value="split" style={{ background: '#1e1e2d', color: '#fff' }}>Split Sections</option>
+                </select>
               </div>
             </div>
 
@@ -552,53 +583,77 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
       ? "Today!" 
       : item.daysUntil === 1 
       ? "Tomorrow" 
+      : item.daysUntil === -1
+      ? "Yesterday"
+      : item.daysUntil < 0
+      ? `${Math.abs(item.daysUntil)} days ago`
       : `In ${item.daysUntil} days`;
+
+    // Format Month-Day badge
+    const monthDisplay = item.monthStr || (item.formattedDate ? item.formattedDate.split("-")[0] : "MMM");
+    const dayDisplay = item.dayStr || (item.formattedDate ? item.formattedDate.split("-")[1] : "DD");
 
     return (
       <div
         key={item.id}
+        onClick={() => {
+          if (item.pcoUrl) {
+            window.open(item.pcoUrl, "_blank");
+          }
+        }}
         style={{
           display: 'flex',
           alignItems: 'center',
           justify: 'space-between',
           padding: '0.75rem 0.85rem',
-          borderRadius: '12px',
-          background: isCalled ? 'rgba(34, 197, 94, 0.05)' : 'rgba(0,0,0,0.15)',
-          border: isCalled ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
+          borderRadius: '14px',
+          background: isCalled ? 'rgba(34, 197, 94, 0.06)' : 'rgba(0,0,0,0.15)',
+          border: isCalled ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
           transition: 'all 0.2s',
-          gap: '0.75rem'
+          gap: '0.75rem',
+          cursor: 'pointer',
+          position: 'relative'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0, flex: 1 }}>
-          {/* Avatar Photo */}
-          <div style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', background: 'rgba(var(--primary-rgb), 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid var(--glass-border)' }}>
-            {item.photoUrl ? (
-              <img src={item.photoUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>
-                {item.firstName.charAt(0)}{item.lastName.charAt(0)}
-              </span>
-            )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
+          {/* Prominent Date Badge (replaces initials icon) */}
+          <div 
+            title={`Event date: ${item.formattedDate}`}
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              width: '46px', 
+              height: '46px', 
+              borderRadius: '11px', 
+              background: isBirthday ? 'rgba(236, 72, 153, 0.12)' : 'rgba(245, 158, 11, 0.12)', 
+              border: isBirthday ? '1px solid rgba(236, 72, 153, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)', 
+              flexShrink: 0, 
+              padding: '2px 0',
+              boxSizing: 'border-box'
+            }}
+          >
+            <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: pillColor, lineHeight: 1, tracking: '0.05em' }}>
+              {monthDisplay}
+            </span>
+            <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1.1, marginTop: '2px' }}>
+              {dayDisplay}
+            </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
-            {/* Person Name with PCO Profile Link */}
-            <a
-              href={item.pcoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`View ${item.name}'s Planning Center Profile`}
-              style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-            >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
+            {/* Person Name (whole card is clickable to male card link) */}
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <span>{item.name}</span>
-              <ExternalLink size={11} style={{ opacity: 0.5, flexShrink: 0 }} />
-            </a>
+              <ExternalLink size={11} style={{ opacity: 0.4, flexShrink: 0 }} />
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
               {/* Type Pill */}
-              <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: pillBg, color: pillColor, border: pillBorder, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+              <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', borderRadius: '4px', background: pillBg, color: pillColor, border: pillBorder, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                 {isBirthday ? <Cake size={10} /> : <Heart size={10} />}
-                {isBirthday ? "Birthday" : "Anniversary"} - {item.formattedDate}
+                {isBirthday ? "Birthday" : "Anniversary"}
               </span>
 
               {/* Days Until Tag */}
@@ -610,31 +665,40 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-          {/* Correction Note Pencil */}
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Correction Note Pencil Button */}
           <button
             type="button"
             title={`Add profile correction note for ${item.name}`}
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               setSelectedPersonForCorrection(item);
               setCorrectionNote("");
               setCorrectionStatus(null);
             }}
-            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.03)', color: 'var(--text)', opacity: 0.7, cursor: 'pointer' }}
+            style={{ padding: '0.4rem', borderRadius: '7px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--text)', opacity: 0.75, cursor: 'pointer' }}
           >
             <Pencil size={13} />
           </button>
 
-          {/* Called Checkbox */}
+          {/* Called Checkbox Button */}
           <button
             type="button"
             title={isCalled ? `Marked as Called for ${currentYear}` : `Mark as Called for ${currentYear}`}
-            onClick={() => handleToggleCall(item.personId, item.type, !!isCalled)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleToggleCall(item.personId, item.type, !!isCalled);
+            }}
             style={{
-              padding: '0.35rem 0.55rem',
-              borderRadius: '6px',
+              padding: '0.4rem 0.6rem',
+              borderRadius: '7px',
               border: isCalled ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--glass-border)',
-              background: isCalled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(0,0,0,0.1)',
+              background: isCalled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(0,0,0,0.12)',
               color: isCalled ? '#4ade80' : 'var(--text)',
               cursor: 'pointer',
               fontSize: '0.7rem',

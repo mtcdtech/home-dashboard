@@ -2,6 +2,22 @@
 
 ## Running Change Log
 
+### 2026-09-02 - PCO Celebrations Date Range Window, Combined Anniversaries, Prominent Date Badge & Clickable Cards (v1.21.0)
+- **Summary**: Implemented key requested enhancements for the Planning Center Celebrations widget:
+  1. **Custom Date Range Window**: Added configurable `daysBefore` (x days before today) and `daysAfter` (y days after today) settings and updated filtering in `src/lib/pco.ts` and `src/app/admin/actions.ts`.
+  2. **Combined Anniversary Profiles**: Paired married spouses on anniversary dates into a single card (e.g. "John & Jane Smith") linked directly to the male profile.
+  3. **Clickable Cards**: Made the entire card clickable to open the Planning Center profile, with `stopPropagation` added to Pencil (correction note) and Call buttons.
+  4. **Prominent MMM-DD Date Badge**: Replaced the initials circle with a calendar-style date badge displaying uppercase month (`MMM`) and day (`DD`).
+- **Files Modified**:
+  - [src/lib/pco.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/pco.ts) (updated `PcoPersonItem`, signed days calculation, and date range window filter)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `fetchPcoBirthdaysAndAnniversaries` for combined anniversary grouping and custom date window)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (updated widget UI, date badge, card click handlers, and settings modal)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.21.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 975ms with 0 errors.
+
 ### 2026-09-02 - Workspace Edits & Drag-and-Drop Server Authorization Fix (v1.20.5)
 - **Summary**: Pinpointed and fixed the exact root cause of the 500 Internal Server Error when saving workspace settings, adding sections, or performing drag-and-drop (`onDrop`). `addSectionToTab` in `src/app/admin/actions.ts` contained a redundant strict check (`tab.editors.some(...) || tab.owners.some(...)`) that threw an uncaught error for tabs without explicit owner/editor entries, overriding permission matrix rules. Removed the redundant check from `addSectionToTab` and updated `addSectionToTab` to safely update existing `tabSection` records instead of crashing on unique constraints. Updated `requireTabRole` in `src/lib/authz.ts` to grant edit permissions for unassigned non-read-only workspace tabs (`owners.length === 0 && editors.length === 0`) and allowed users (`allowedUsers`).
 - **Files Modified**:

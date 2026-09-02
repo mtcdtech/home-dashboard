@@ -4,10 +4,15 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.20.5` (Workspace Edits & Drag-and-Drop Server Authorization Fix)
+- **Current Version**: `v1.21.0` (PCO Celebrations Date Range Window, Combined Anniversaries, Prominent Date Badge & Clickable Cards)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Celebrations Enhancements (v1.21.0)**:
+  - **Customizable Date Window**: Added `daysBefore` (x days before today) and `daysAfter` (y days after today) settings inputs and backend filtering calculation.
+  - **Combined Anniversary Cards**: Combined married spouses on anniversary dates into a single card (e.g. "John & Jane Smith") linked directly to the male profile.
+  - **Clickable Cards**: Whole celebration card is clickable to open Planning Center profile, with `stopPropagation` on Pencil (correction note) and Call buttons.
+  - **Prominent MMM-DD Date Badge**: Replaced initials circle with a calendar-style date badge displaying month (`MMM`) and day (`DD`).
 - **Workspace Edits & Drag-and-Drop Server Authorization Fix (v1.20.5)**:
   - Fixed root cause of 500 Internal Server Error during workspace edits (adding sections, drag-and-drop section reordering, updating tab settings):
     1. Removed redundant strict `owners`/`editors` check in `addSectionToTab` (`src/app/admin/actions.ts`) which rejected unassigned/allowed workspace tabs.
