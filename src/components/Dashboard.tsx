@@ -19,6 +19,7 @@ import { PortainerWidget } from "./widgets/PortainerWidget";
 import { PcoBirthdaysWidget } from "./widgets/PcoBirthdaysWidget";
 import { OutlookCalendarWidget } from "./widgets/OutlookCalendarWidget";
 import { FreeScoutWidget } from "./widgets/FreeScoutWidget";
+import { WidgetErrorBoundary } from "./WidgetErrorBoundary";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -1595,15 +1596,16 @@ export function Dashboard({
                                           )}
                                        </div>
 
-                                       {/* Widget or Bookmarks */}
-                                       {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
-                                          section.isWidget ||
-                                          section.widgetType === "portainer" ||
-                                          section.widgetType === "pco_birthdays" ||
-                                          section.widgetType === "outlook-calendar" ||
-                                          section.widgetType === "outlook" ||
-                                          section.widgetType === "freescout" ? (
-                                             section.widgetType === "pco_birthdays" ? (
+                                    {/* Widget or Bookmarks */}
+                                    {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
+                                       section.isWidget ||
+                                       section.widgetType === "portainer" ||
+                                       section.widgetType === "pco_birthdays" ||
+                                       section.widgetType === "outlook-calendar" ||
+                                       section.widgetType === "outlook" ||
+                                       section.widgetType === "freescout" ? (
+                                          section.widgetType === "pco_birthdays" ? (
+                                             <WidgetErrorBoundary widgetTitle="Planning Center Celebrations">
                                                 <PcoBirthdaysWidget 
                                                    section={section}
                                                    showEditControls={showEditControls}
@@ -1611,7 +1613,9 @@ export function Dashboard({
                                                    isAdmin={isAdmin}
                                                    onRefresh={() => router.refresh()}
                                                 />
-                                             ) : section.widgetType === "freescout" ? (
+                                             </WidgetErrorBoundary>
+                                          ) : section.widgetType === "freescout" ? (
+                                             <WidgetErrorBoundary widgetTitle="FreeScout Help Desk">
                                                 <FreeScoutWidget
                                                    section={section}
                                                    showEditControls={showEditControls}
@@ -1620,7 +1624,9 @@ export function Dashboard({
                                                    onRefresh={() => router.refresh()}
                                                    filter={searchQuery}
                                                 />
-                                             ) : section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
+                                             </WidgetErrorBoundary>
+                                          ) : section.widgetType === "outlook-calendar" || section.widgetType === "outlook" ? (
+                                             <WidgetErrorBoundary widgetTitle="Outlook Calendar">
                                                 <OutlookCalendarWidget
                                                    section={section}
                                                    showEditControls={showEditControls}
@@ -1629,7 +1635,9 @@ export function Dashboard({
                                                    onRefresh={() => router.refresh()}
                                                    filter={searchQuery}
                                                 />
-                                             ) : (
+                                             </WidgetErrorBoundary>
+                                          ) : (
+                                             <WidgetErrorBoundary widgetTitle="Portainer Containers">
                                                 <PortainerWidget 
                                                    section={section}
                                                    showEditControls={showEditControls}
@@ -1659,8 +1667,9 @@ export function Dashboard({
                                                       }));
                                                    }}
                                                 />
-                                             )
-                                          ) : (
+                                             </WidgetErrorBoundary>
+                                          )
+                                       ) : (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
                                              {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => {
                                                 const isBookmarkFocused = isGridFocused && gridFocus?.sectionId === section.id && gridFocus?.bookmarkId === bookmark.id;

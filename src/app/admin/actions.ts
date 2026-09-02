@@ -1988,10 +1988,10 @@ function extractPublicUrlFromLabels(labels: Record<string, string> = {}): string
 }
 
 export async function fetchPortainerContainers(config: { url?: string; apiKey?: string; endpointId?: string }) {
-  await requireAdmin();
   const startTime = Date.now();
   let currentFetchUrl = "";
   try {
+    await requireSession();
     let rawUrl = (config.url || process.env.PORTAINER_URL || "https://docker.abraham16.com").trim();
     if (!/^https?:\/\//i.test(rawUrl)) {
       rawUrl = `https://${rawUrl}`;

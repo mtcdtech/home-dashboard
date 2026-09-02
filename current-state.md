@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.20.3` (Server Action Authorization & CSP Fonts Fix)
+- **Current Version**: `v1.20.4` (Widget Authorization & Error Boundary Diagnostics)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Widget Authorization & Error Boundary Diagnostics (v1.20.4)**:
+  - Fixed root cause of Minified React Error #441 across all widgets: changed `fetchPortainerContainers` in `src/app/admin/actions.ts` from `requireAdmin()` to `requireSession()` inside the `try` block, preventing HTTP 500 server action rejections when non-admin users view dashboard widgets.
+  - Added `WidgetErrorBoundary` component (`src/components/WidgetErrorBoundary.tsx`) and wrapped all dashboard widgets (`PortainerWidget`, `PcoBirthdaysWidget`, `FreeScoutWidget`, `OutlookCalendarWidget`) in `Dashboard.tsx` to display real-time diagnostic trace error boxes with retry controls instead of unhandled React crashes.
 - **Server Action Authorization & CSP Fonts Fix (v1.20.3)**:
   - Fixed 500 Internal Server Error when creating/adding widgets or dragging sections (`addSectionToTab`). Updated `requireSectionRole` in `src/lib/authz.ts` to accept optional `targetTabId` parameter and grant section edit access when adding unattached or brand new sections to accessible tabs. Connected real session `user.id` in `createSection` (`src/app/admin/actions.ts`).
   - Updated Content Security Policy in `next.config.ts` to allow Google Fonts stylesheet and font domains (`https://fonts.googleapis.com` and `https://fonts.gstatic.com`).

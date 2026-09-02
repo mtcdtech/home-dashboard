@@ -2,6 +2,18 @@
 
 ## Running Change Log
 
+### 2026-09-02 - Widget Authorization & Error Boundary Diagnostics (v1.20.4)
+- **Summary**: Identified and resolved the root cause of Minified React Error #441 affecting all widgets for non-admin users. During audit hardening, `fetchPortainerContainers` in `src/app/admin/actions.ts` called `requireAdmin()` outside its `try` block. Whenever a non-admin user loaded a tab containing a Portainer widget, `requireAdmin()` threw `Forbidden: Admin access required`, causing Next.js to return HTTP 500 (Internal Server Error) and React 19 to crash. Fixed `fetchPortainerContainers` to use `requireSession()` inside the `try` block. Built `WidgetErrorBoundary` component (`src/components/WidgetErrorBoundary.tsx`) and wrapped all widgets (`PortainerWidget`, `PcoBirthdaysWidget`, `FreeScoutWidget`, `OutlookCalendarWidget`) in `Dashboard.tsx` to render detailed inline diagnostic errors with a "Retry Widget Render" control instead of crashing the React application tree.
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `fetchPortainerContainers` authorization to `requireSession()`)
+  - [src/components/WidgetErrorBoundary.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/WidgetErrorBoundary.tsx) (NEW: React Error Boundary for widgets)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (wrapped all widget components in `WidgetErrorBoundary`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.20.4`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1046ms with 0 errors.
+
 ### 2026-09-02 - Server Action Authorization & CSP Fonts Fix (v1.20.3)
 - **Summary**: Fixed 500 Internal Server Error during widget addition / section drag-and-drop (`addSectionToTab`). Updated `requireSectionRole` in `src/lib/authz.ts` to support unattached brand-new sections and validate target tab authorization (`targetTabId`). Connected real session user ID in `createSection` (`src/app/admin/actions.ts`). Updated `Content-Security-Policy` header in `next.config.ts` to allow Google Fonts stylesheet and font origins (`https://fonts.googleapis.com` and `https://fonts.gstatic.com`). Added `id` and `name` attributes to form fields in `PcoBirthdaysWidget.tsx`.
 - **Files Modified**:
