@@ -42,7 +42,24 @@ export async function requireTabRole(tabId: string, action: 'edit' | 'owner') {
       return user;
     }
   }
-  
+
+  // Check explicit ownership / editor assignment
+  const isOwner = tabObj.owners.some(u => u.id === user.id);
+  const isEditor = tabObj.editors.some(u => u.id === user.id);
+  if (action === 'owner' && isOwner) return user;
+  if (action === 'edit' && (isOwner || isEditor)) return user;
+
+  // Unassigned tab without designated owners/editors on a non-read-only workspace
+  if (tabObj.owners.length === 0 && tabObj.editors.length === 0 && !tabObj.isReadOnlySync) {
+    return user;
+  }
+
+  // Check allowed users for edit access on non-read-only workspace
+  const isAllowed = tabObj.allowedUsers.some(u => u.id === user.id);
+  if (action === 'edit' && isAllowed && !tabObj.isReadOnlySync) {
+    return user;
+  }
+
   const targetUser = await prisma.user.findUnique({
     where: { id: user.id as string },
     include: { allowedSections: true }

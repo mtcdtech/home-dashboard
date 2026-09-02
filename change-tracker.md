@@ -2,6 +2,17 @@
 
 ## Running Change Log
 
+### 2026-09-02 - Workspace Edits & Drag-and-Drop Server Authorization Fix (v1.20.5)
+- **Summary**: Pinpointed and fixed the exact root cause of the 500 Internal Server Error when saving workspace settings, adding sections, or performing drag-and-drop (`onDrop`). `addSectionToTab` in `src/app/admin/actions.ts` contained a redundant strict check (`tab.editors.some(...) || tab.owners.some(...)`) that threw an uncaught error for tabs without explicit owner/editor entries, overriding permission matrix rules. Removed the redundant check from `addSectionToTab` and updated `addSectionToTab` to safely update existing `tabSection` records instead of crashing on unique constraints. Updated `requireTabRole` in `src/lib/authz.ts` to grant edit permissions for unassigned non-read-only workspace tabs (`owners.length === 0 && editors.length === 0`) and allowed users (`allowedUsers`).
+- **Files Modified**:
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (removed redundant strict check & added update handling in `addSectionToTab`)
+  - [src/lib/authz.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/authz.ts) (updated `requireTabRole` for unassigned and allowed workspace tabs)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.20.5`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 966ms with 0 errors.
+
 ### 2026-09-02 - Widget Authorization & Error Boundary Diagnostics (v1.20.4)
 - **Summary**: Identified and resolved the root cause of Minified React Error #441 affecting all widgets for non-admin users. During audit hardening, `fetchPortainerContainers` in `src/app/admin/actions.ts` called `requireAdmin()` outside its `try` block. Whenever a non-admin user loaded a tab containing a Portainer widget, `requireAdmin()` threw `Forbidden: Admin access required`, causing Next.js to return HTTP 500 (Internal Server Error) and React 19 to crash. Fixed `fetchPortainerContainers` to use `requireSession()` inside the `try` block. Built `WidgetErrorBoundary` component (`src/components/WidgetErrorBoundary.tsx`) and wrapped all widgets (`PortainerWidget`, `PcoBirthdaysWidget`, `FreeScoutWidget`, `OutlookCalendarWidget`) in `Dashboard.tsx` to render detailed inline diagnostic errors with a "Retry Widget Render" control instead of crashing the React application tree.
 - **Files Modified**:

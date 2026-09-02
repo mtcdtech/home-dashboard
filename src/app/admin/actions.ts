@@ -328,30 +328,26 @@ export async function createSection(data: any) {
 export async function addSectionToTab(sectionId: string, tabId: string, column: number = 0) {
   await requireTabRole(tabId, "edit");
   await requireSectionRole(sectionId, "edit", tabId);
-  // Permission check: only tab owners, editors, or admins can add sections
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (userId) {
-    const isAdmin = (session?.user as any)?.isAdmin;
-    if (!isAdmin) {
-      const tab = await prisma.tab.findUnique({
-        where: { id: tabId },
-        include: { editors: { select: { id: true } }, owners: { select: { id: true } } }
-      });
-      const hasEditAccess = tab?.editors?.some(e => e.id === userId) || tab?.owners?.some(o => o.id === userId);
-      if (!hasEditAccess) {
-        throw new Error("You don't have edit access to this workspace");
-      }
-    }
-  }
 
   const lastEntry = await (prisma as any).tabSection.findFirst({
     where: { tabId, column },
     orderBy: { order: "desc" },
   });
-  await (prisma as any).tabSection.create({
-    data: { sectionId, tabId, column, order: (lastEntry?.order ?? -1) + 1 },
+
+  const existing = await (prisma as any).tabSection.findUnique({
+    where: { tabId_sectionId: { tabId, sectionId } }
   });
+
+  if (existing) {
+    await (prisma as any).tabSection.update({
+      where: { tabId_sectionId: { tabId, sectionId } },
+      data: { column, order: (lastEntry?.order ?? -1) + 1 }
+    });
+  } else {
+    await (prisma as any).tabSection.create({
+      data: { sectionId, tabId, column, order: (lastEntry?.order ?? -1) + 1 },
+    });
+  }
   revalidatePath("/");
 }
 

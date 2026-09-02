@@ -4,10 +4,15 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.20.4` (Widget Authorization & Error Boundary Diagnostics)
+- **Current Version**: `v1.20.5` (Workspace Edits & Drag-and-Drop Server Authorization Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Workspace Edits & Drag-and-Drop Server Authorization Fix (v1.20.5)**:
+  - Fixed root cause of 500 Internal Server Error during workspace edits (adding sections, drag-and-drop section reordering, updating tab settings):
+    1. Removed redundant strict `owners`/`editors` check in `addSectionToTab` (`src/app/admin/actions.ts`) which rejected unassigned/allowed workspace tabs.
+    2. Updated `requireTabRole` in `src/lib/authz.ts` to explicitly allow edit access for unassigned non-read-only tabs (`owners.length === 0 && editors.length === 0`) and allowed users (`allowedUsers`).
+    3. Added `upsert` protection in `addSectionToTab` so existing `tabSection` entries update position instead of throwing unique constraint errors.
 - **Widget Authorization & Error Boundary Diagnostics (v1.20.4)**:
   - Fixed root cause of Minified React Error #441 across all widgets: changed `fetchPortainerContainers` in `src/app/admin/actions.ts` from `requireAdmin()` to `requireSession()` inside the `try` block, preventing HTTP 500 server action rejections when non-admin users view dashboard widgets.
   - Added `WidgetErrorBoundary` component (`src/components/WidgetErrorBoundary.tsx`) and wrapped all dashboard widgets (`PortainerWidget`, `PcoBirthdaysWidget`, `FreeScoutWidget`, `OutlookCalendarWidget`) in `Dashboard.tsx` to display real-time diagnostic trace error boxes with retry controls instead of unhandled React crashes.
