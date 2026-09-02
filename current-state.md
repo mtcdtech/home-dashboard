@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.21.1` (PCO Household ID Pairing for Anniversary Couple Cards)
+- **Current Version**: `v1.22.0` (PCO Multi-Select Date Ranges, Pagination Controls & Overdue Call Red Highlights)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Celebrations Multi-Select Ranges, Pagination & Red Overdue Call Highlights (v1.22.0)**:
+  - **Multi-Select Date Ranges**: Enabled multi-selection of filter ranges (`prev_month`, `current_month`, `next_month`, `prev_x_days`, `next_x_days`) with quick-filter chips in widget header.
+  - **Pagination Controls**: Added `maxItems` setting and clean `< Prev` / `Next >` page navigation bar with page indicators (`Showing 1–10 of 42 celebrations`).
+  - **Overdue Red Call Button Highlight**: If a celebration date has passed (`daysUntil < 0`) and has not been called (`!isCalled`), the Call button glows red with an animated pulsing icon and "Overdue Call" badge.
 - **PCO Household ID Anniversary Pairing (v1.21.1)**:
   - Updated PCO People API list request to include `households` (`?include=households`).
   - Extracted `householdId` from `p.relationships.households.data` and `primary_household_id`.

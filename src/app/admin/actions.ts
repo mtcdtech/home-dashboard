@@ -2372,6 +2372,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
   birthdayListIds?: string;
   anniversaryListIds?: string;
   dateRange?: string;
+  selectedRanges?: string[];
   daysBefore?: number | string;
   daysAfter?: number | string;
 }) {
@@ -2538,13 +2539,14 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
   allProcessedItems.sort((a, b) => a.daysUntil - b.daysUntil);
 
   // Custom date window parameters
-  let dBefore = typeof params.daysBefore !== "undefined" ? Number(params.daysBefore) : 0;
+  let dBefore = typeof params.daysBefore !== "undefined" ? Number(params.daysBefore) : 7;
   let dAfter = typeof params.daysAfter !== "undefined" ? Number(params.daysAfter) : 30;
 
-  if (isNaN(dBefore)) dBefore = 0;
+  if (isNaN(dBefore)) dBefore = 7;
   if (isNaN(dAfter)) dAfter = 30;
 
-  const filtered = filterByDateRange(allProcessedItems, dBefore, dAfter);
+  const { filterByMultiDateRanges } = await import("@/lib/pco");
+  const filtered = filterByMultiDateRanges(allProcessedItems, params.selectedRanges || [], dBefore, dAfter);
 
   return {
     success: true,

@@ -15,9 +15,12 @@ import {
   X, 
   Send, 
   AlertCircle, 
-  SlidersHorizontal,
   PhoneCall,
-  UserCheck
+  UserCheck,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Check
 } from "lucide-react";
 import { 
   fetchPcoBirthdaysAndAnniversaries, 
@@ -49,9 +52,17 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const [birthdayListIds, setBirthdayListIds] = useState(rawConfig.birthdayListIds || "");
   const [anniversaryListIds, setAnniversaryListIds] = useState(rawConfig.anniversaryListIds || "");
   const [workflowId, setWorkflowId] = useState(rawConfig.workflowId || "");
-  const [dateRange, setDateRange] = useState(rawConfig.dateRange || "custom");
-  const [daysBefore, setDaysBefore] = useState<number>(typeof rawConfig.daysBefore !== "undefined" ? Number(rawConfig.daysBefore) : 0);
+
+  // Multi-select date range options
+  const defaultRanges = Array.isArray(rawConfig.selectedRanges) && rawConfig.selectedRanges.length > 0 
+    ? rawConfig.selectedRanges 
+    : ["current_month", "next_x_days"];
+
+  const [selectedRanges, setSelectedRanges] = useState<string[]>(defaultRanges);
+  const [daysBefore, setDaysBefore] = useState<number>(typeof rawConfig.daysBefore !== "undefined" ? Number(rawConfig.daysBefore) : 7);
   const [daysAfter, setDaysAfter] = useState<number>(typeof rawConfig.daysAfter !== "undefined" ? Number(rawConfig.daysAfter) : 30);
+  const [maxItems, setMaxItems] = useState<number>(typeof rawConfig.maxItems !== "undefined" ? Number(rawConfig.maxItems) : 10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [viewMode, setViewMode] = useState<"combined" | "split">(rawConfig.viewMode || "combined");
 
   // Loaded Items & State
@@ -83,7 +94,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         appSecret: appSecret || undefined,
         birthdayListIds,
         anniversaryListIds,
-        dateRange,
+        selectedRanges,
         daysBefore,
         daysAfter,
       });
@@ -103,7 +114,19 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
   useEffect(() => {
     loadData();
-  }, [section?.id, dateRange, daysBefore, daysAfter]);
+    setCurrentPage(1);
+  }, [section?.id, JSON.stringify(selectedRanges), daysBefore, daysAfter]);
+
+  const toggleRangeOption = (key: string) => {
+    setSelectedRanges(prev => {
+      if (prev.includes(key)) {
+        const next = prev.filter(k => k !== key);
+        return next.length === 0 ? ["current_month"] : next;
+      } else {
+        return [...prev, key];
+      }
+    });
+  };
 
   const handleToggleCall = async (personId: string, eventType: "birthday" | "anniversary", currentChecked: boolean) => {
     const newChecked = !currentChecked;
@@ -142,9 +165,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         birthdayListIds,
         anniversaryListIds,
         workflowId,
-        dateRange,
+        selectedRanges,
         daysBefore,
         daysAfter,
+        maxItems,
         viewMode,
         callRecords,
       };
@@ -202,12 +226,24 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     );
   });
 
+  const totalPages = Math.ceil(filteredItems.length / maxItems) || 1;
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedItems = filteredItems.slice((safeCurrentPage - 1) * maxItems, safeCurrentPage * maxItems);
+
   const birthdaysList = filteredItems.filter(i => i.type === "birthday");
   const anniversariesList = filteredItems.filter(i => i.type === "anniversary");
 
   const totalCalled = items.filter(i => {
     const rec = callRecords[`${i.personId}_${i.type}`];
     return rec && rec.year === currentYear && rec.checked;
+  }).length;
+
+  const totalOverdueCalls = items.filter(i => {
+    const isPast = i.daysUntil < 0;
+    const rec = callRecords[`${i.personId}_${i.type}`];
+    const isCalled = rec && rec.year === currentYear && rec.checked;
+    return isPast && !isCalled;
   }).length;
 
   return (
@@ -231,17 +267,22 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               <UserCheck size={12} /> {totalCalled} Called
             </span>
           )}
+          {totalOverdueCalls > 0 && (
+            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+              <PhoneCall size={12} className="animate-pulse" /> {totalOverdueCalls} Overdue Call{totalOverdueCalls > 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {/* Search Bar */}
-          <div style={{ position: 'relative', width: '140px' }}>
+          <div style={{ position: 'relative', width: '130px' }}>
             <Search size={13} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
             <input
               type="text"
               placeholder="Filter names..."
               value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
+              onChange={(e) => { setSearchFilter(e.target.value); setCurrentPage(1); }}
               className="glass"
               style={{ width: '100%', padding: '0.35rem 0.5rem 0.35rem 1.8rem', borderRadius: '8px', fontSize: '0.75rem', outline: 'none', boxSizing: 'border-box' }}
             />
@@ -272,13 +313,53 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             <button
               type="button"
               onClick={() => setShowSettingsModal(true)}
-              title="Configure PCO API Settings"
+              title="Configure PCO API & Date Range Settings"
               style={{ padding: '0.4rem', borderRadius: '8px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--text)', cursor: 'pointer' }}
             >
               <Settings size={14} />
             </button>
           )}
         </div>
+      </div>
+
+      {/* Multi-Select Quick Filter Chips */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', padding: '0.2rem 0' }}>
+        <span style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <Filter size={11} /> Ranges:
+        </span>
+        {[
+          { key: "prev_month", label: "Prev Month" },
+          { key: "current_month", label: "Current Month" },
+          { key: "next_month", label: "Next Month" },
+          { key: "prev_x_days", label: `Past ${daysBefore} Days` },
+          { key: "next_x_days", label: `Next ${daysAfter} Days` },
+        ].map(opt => {
+          const isSelected = selectedRanges.includes(opt.key);
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => toggleRangeOption(opt.key)}
+              style={{
+                padding: '0.25rem 0.55rem',
+                borderRadius: '6px',
+                border: isSelected ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                background: isSelected ? 'rgba(var(--primary-rgb), 0.2)' : 'rgba(0,0,0,0.1)',
+                color: isSelected ? 'var(--primary)' : 'var(--text)',
+                fontSize: '0.7rem',
+                fontWeight: isSelected ? 700 : 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                transition: 'all 0.15s'
+              }}
+            >
+              {isSelected && <Check size={11} />}
+              <span>{opt.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Main Content Area */}
@@ -306,41 +387,136 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
       ) : filteredItems.length === 0 ? (
         <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.5, fontSize: '0.85rem' }}>
-          No upcoming birthdays or anniversaries found for the selected date range.
+          No upcoming birthdays or anniversaries match your selected date ranges.
         </div>
       ) : viewMode === "combined" ? (
         /* Combined View List */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
-          {filteredItems.map(item => renderPersonCard(item))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+            {paginatedItems.map(item => renderPersonCard(item))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.1)', padding: '0.5rem 0.85rem', borderRadius: '10px', fontSize: '0.75rem', border: '1px solid var(--glass-border)', marginTop: '0.25rem' }}>
+              <span style={{ opacity: 0.7, fontWeight: 600 }}>
+                Showing {(safeCurrentPage - 1) * maxItems + 1}–{Math.min(safeCurrentPage * maxItems, filteredItems.length)} of {filteredItems.length} celebrations
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  disabled={safeCurrentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  style={{
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--glass-border)',
+                    background: safeCurrentPage === 1 ? 'transparent' : 'rgba(var(--primary-rgb), 0.12)',
+                    color: 'var(--text)',
+                    opacity: safeCurrentPage === 1 ? 0.4 : 1,
+                    cursor: safeCurrentPage === 1 ? 'default' : 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem'
+                  }}
+                >
+                  <ChevronLeft size={13} />
+                  <span>Prev</span>
+                </button>
+
+                <span style={{ fontWeight: 700, padding: '0 0.4rem', color: 'var(--primary)' }}>
+                  {safeCurrentPage} / {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  style={{
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--glass-border)',
+                    background: safeCurrentPage >= totalPages ? 'transparent' : 'rgba(var(--primary-rgb), 0.12)',
+                    color: 'var(--text)',
+                    opacity: safeCurrentPage >= totalPages ? 0.4 : 1,
+                    cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem'
+                  }}
+                >
+                  <span>Next</span>
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Split View Columns */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-          {/* Birthdays Section */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: '#f472b6', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>
-              <Cake size={15} />
-              <span>Birthdays ({birthdaysList.length})</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {/* Birthdays Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: '#f472b6', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>
+                <Cake size={15} />
+                <span>Birthdays ({birthdaysList.length})</span>
+              </div>
+              {birthdaysList.length === 0 ? (
+                <div style={{ fontSize: '0.75rem', opacity: 0.4, padding: '0.5rem' }}>No birthdays in selected ranges.</div>
+              ) : (
+                birthdaysList.slice((safeCurrentPage - 1) * maxItems, safeCurrentPage * maxItems).map(item => renderPersonCard(item))
+              )}
             </div>
-            {birthdaysList.length === 0 ? (
-              <div style={{ fontSize: '0.75rem', opacity: 0.4, padding: '0.5rem' }}>No birthdays in this range.</div>
-            ) : (
-              birthdaysList.map(item => renderPersonCard(item))
-            )}
+
+            {/* Anniversaries Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>
+                <Heart size={15} />
+                <span>Anniversaries ({anniversariesList.length})</span>
+              </div>
+              {anniversariesList.length === 0 ? (
+                <div style={{ fontSize: '0.75rem', opacity: 0.4, padding: '0.5rem' }}>No anniversaries in selected ranges.</div>
+              ) : (
+                anniversariesList.slice((safeCurrentPage - 1) * maxItems, safeCurrentPage * maxItems).map(item => renderPersonCard(item))
+              )}
+            </div>
           </div>
 
-          {/* Anniversaries Section */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>
-              <Heart size={15} />
-              <span>Anniversaries ({anniversariesList.length})</span>
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.1)', padding: '0.5rem 0.85rem', borderRadius: '10px', fontSize: '0.75rem', border: '1px solid var(--glass-border)', marginTop: '0.25rem' }}>
+              <span style={{ opacity: 0.7, fontWeight: 600 }}>
+                Page {safeCurrentPage} of {totalPages} ({filteredItems.length} total)
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  disabled={safeCurrentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.12)', color: 'var(--text)', opacity: safeCurrentPage === 1 ? 0.4 : 1, cursor: safeCurrentPage === 1 ? 'default' : 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                >
+                  <ChevronLeft size={13} />
+                  <span>Prev</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.12)', color: 'var(--text)', opacity: safeCurrentPage >= totalPages ? 0.4 : 1, cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                >
+                  <span>Next</span>
+                  <ChevronRight size={13} />
+                </button>
+              </div>
             </div>
-            {anniversariesList.length === 0 ? (
-              <div style={{ fontSize: '0.75rem', opacity: 0.4, padding: '0.5rem' }}>No anniversaries in this range.</div>
-            ) : (
-              anniversariesList.map(item => renderPersonCard(item))
-            )}
-          </div>
+          )}
         </div>
       )}
 
@@ -491,16 +667,57 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 />
               </div>
 
-              {/* Customizable Window (Days Before & Days After) */}
+              {/* Multi-Select Date Ranges */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.3rem', fontWeight: 600 }}>
+                  Date Range Filtering Options (Select multiple)
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {[
+                    { key: "prev_month", label: "Previous Month" },
+                    { key: "current_month", label: "Current Month" },
+                    { key: "next_month", label: "Next Month" },
+                    { key: "prev_x_days", label: `Past X Days (${daysBefore}d)` },
+                    { key: "next_x_days", label: `Next X Days (${daysAfter}d)` },
+                  ].map(opt => {
+                    const active = selectedRanges.includes(opt.key);
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => toggleRangeOption(opt.key)}
+                        style={{
+                          padding: '0.35rem 0.65rem',
+                          borderRadius: '8px',
+                          border: active ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                          background: active ? 'rgba(var(--primary-rgb), 0.2)' : 'rgba(0,0,0,0.1)',
+                          color: active ? 'var(--primary)' : 'var(--text)',
+                          fontSize: '0.75rem',
+                          fontWeight: active ? 700 : 500,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem'
+                        }}
+                      >
+                        {active && <Check size={12} />}
+                        <span>{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Customizable Window (Days Before & Days After) & Max Listings */}
               <div style={{ background: 'rgba(var(--primary-rgb), 0.04)', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>
-                  Custom Date Window Customization
+                  Custom Range Window & Pagination Settings
                 </label>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                   <div>
                     <label htmlFor="pco_days_before" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.2rem' }}>
-                      Days Before Today (e.g. 0 to 30)
+                      Days Before (X)
                     </label>
                     <input
                       id="pco_days_before"
@@ -516,7 +733,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
                   <div>
                     <label htmlFor="pco_days_after" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.2rem' }}>
-                      Days After Today (e.g. 1 to 180)
+                      Days After (X)
                     </label>
                     <input
                       id="pco_days_after"
@@ -526,6 +743,22 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                       max={365}
                       value={daysAfter}
                       onChange={(e) => setDaysAfter(Number(e.target.value))}
+                      style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.15)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="pco_max_items" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.2rem' }}>
+                      Max Listings / Page
+                    </label>
+                    <input
+                      id="pco_max_items"
+                      name="pco_max_items"
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={maxItems}
+                      onChange={(e) => { setMaxItems(Number(e.target.value)); setCurrentPage(1); }}
                       style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.15)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
@@ -574,6 +807,9 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     const record = callRecords[`${item.personId}_${item.type}`];
     const isCalled = record && record.year === currentYear && record.checked;
 
+    const isPastDate = item.daysUntil < 0;
+    const isPastUncalled = isPastDate && !isCalled;
+
     const isBirthday = item.type === "birthday";
     const pillBg = isBirthday ? "rgba(236, 72, 153, 0.15)" : "rgba(245, 158, 11, 0.15)";
     const pillColor = isBirthday ? "#f472b6" : "#fbbf24";
@@ -607,8 +843,16 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
           justify: 'space-between',
           padding: '0.75rem 0.85rem',
           borderRadius: '14px',
-          background: isCalled ? 'rgba(34, 197, 94, 0.06)' : 'rgba(0,0,0,0.15)',
-          border: isCalled ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+          background: isCalled 
+            ? 'rgba(34, 197, 94, 0.06)' 
+            : isPastUncalled 
+            ? 'rgba(239, 68, 68, 0.08)' 
+            : 'rgba(0,0,0,0.15)',
+          border: isCalled 
+            ? '1px solid rgba(34, 197, 94, 0.3)' 
+            : isPastUncalled 
+            ? '1px solid rgba(239, 68, 68, 0.45)' 
+            : '1px solid var(--glass-border)',
           transition: 'all 0.2s',
           gap: '0.75rem',
           cursor: 'pointer',
@@ -627,14 +871,22 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               width: '46px', 
               height: '46px', 
               borderRadius: '11px', 
-              background: isBirthday ? 'rgba(236, 72, 153, 0.12)' : 'rgba(245, 158, 11, 0.12)', 
-              border: isBirthday ? '1px solid rgba(236, 72, 153, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)', 
+              background: isPastUncalled
+                ? 'rgba(239, 68, 68, 0.18)'
+                : isBirthday 
+                ? 'rgba(236, 72, 153, 0.12)' 
+                : 'rgba(245, 158, 11, 0.12)', 
+              border: isPastUncalled
+                ? '1px solid rgba(239, 68, 68, 0.5)'
+                : isBirthday 
+                ? '1px solid rgba(236, 72, 153, 0.3)' 
+                : '1px solid rgba(245, 158, 11, 0.3)', 
               flexShrink: 0, 
               padding: '2px 0',
               boxSizing: 'border-box'
             }}
           >
-            <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: pillColor, lineHeight: 1, tracking: '0.05em' }}>
+            <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: isPastUncalled ? '#f87171' : pillColor, lineHeight: 1, tracking: '0.05em' }}>
               {monthDisplay}
             </span>
             <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1.1, marginTop: '2px' }}>
@@ -657,7 +909,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               </span>
 
               {/* Days Until Tag */}
-              <span style={{ fontSize: '0.65rem', opacity: 0.6, fontWeight: 600 }}>
+              <span style={{ fontSize: '0.65rem', opacity: 0.6, fontWeight: 600, color: isPastUncalled ? '#f87171' : 'inherit' }}>
                 ({daysText})
               </span>
             </div>
@@ -685,31 +937,57 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             <Pencil size={13} />
           </button>
 
-          {/* Called Checkbox Button */}
+          {/* Called Checkbox Button - Highlighted in RED if celebration passed & not called */}
           <button
             type="button"
-            title={isCalled ? `Marked as Called for ${currentYear}` : `Mark as Called for ${currentYear}`}
+            title={
+              isCalled 
+                ? `Marked as Called for ${currentYear}` 
+                : isPastUncalled 
+                ? `OVERDUE: Date passed (${daysText}). Click to mark as Called!` 
+                : `Mark as Called for ${currentYear}`
+            }
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               handleToggleCall(item.personId, item.type, !!isCalled);
             }}
             style={{
-              padding: '0.4rem 0.6rem',
+              padding: '0.4rem 0.65rem',
               borderRadius: '7px',
-              border: isCalled ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--glass-border)',
-              background: isCalled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(0,0,0,0.12)',
-              color: isCalled ? '#4ade80' : 'var(--text)',
+              border: isCalled 
+                ? '1px solid rgba(34, 197, 94, 0.4)' 
+                : isPastUncalled 
+                ? '1px solid rgba(239, 68, 68, 0.7)' 
+                : '1px solid var(--glass-border)',
+              background: isCalled 
+                ? 'rgba(34, 197, 94, 0.2)' 
+                : isPastUncalled 
+                ? 'rgba(239, 68, 68, 0.25)' 
+                : 'rgba(0,0,0,0.12)',
+              color: isCalled 
+                ? '#4ade80' 
+                : isPastUncalled 
+                ? '#f87171' 
+                : 'var(--text)',
               cursor: 'pointer',
               fontSize: '0.7rem',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: '0.3rem'
+              gap: '0.3rem',
+              boxShadow: isPastUncalled ? '0 0 10px rgba(239, 68, 68, 0.3)' : 'none',
+              transition: 'all 0.2s'
             }}
           >
-            {isCalled ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-            <span>{isCalled ? "Called" : "Call"}</span>
+            {isCalled ? (
+              <CheckCircle2 size={13} />
+            ) : isPastUncalled ? (
+              <PhoneCall size={13} className="animate-pulse" />
+            ) : (
+              <Circle size={13} />
+            )}
+            <span>{isCalled ? "Called" : isPastUncalled ? "Overdue Call" : "Call"}</span>
           </button>
         </div>
       </div>

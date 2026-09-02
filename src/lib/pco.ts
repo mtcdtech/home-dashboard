@@ -90,17 +90,55 @@ export function formatMonthDay(monthDay: string): string {
 }
 
 /**
- * Filter event list by custom date window (daysBefore and daysAfter)
+ * Multi-select filter for date range options:
+ * - "prev_month": Previous calendar month
+ * - "current_month": Current calendar month
+ * - "next_month": Next calendar month
+ * - "prev_x_days": Past X days (-daysBefore <= daysUntil < 0)
+ * - "next_x_days": Next X days (0 <= daysUntil <= daysAfter)
+ */
+export function filterByMultiDateRanges(
+  items: PcoPersonItem[],
+  selectedRanges: string[] = [],
+  daysBefore: number = 7,
+  daysAfter: number = 30
+): PcoPersonItem[] {
+  if (!selectedRanges || selectedRanges.length === 0 || selectedRanges.includes("all")) {
+    const minDays = -Math.abs(daysBefore);
+    const maxDays = Math.abs(daysAfter);
+    return items.filter((item) => item.daysUntil >= minDays && item.daysUntil <= maxDays);
+  }
+
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-11
+  const prevMonth = (currentMonth - 1 + 12) % 12;
+  const nextMonth = (currentMonth + 1) % 12;
+
+  const minDays = -Math.abs(daysBefore);
+  const maxDays = Math.abs(daysAfter);
+
+  return items.filter((item) => {
+    const [mStr] = item.dateMonthDay.split("-");
+    const itemMonth = parseInt(mStr, 10) - 1;
+
+    for (const range of selectedRanges) {
+      if (range === "prev_month" && itemMonth === prevMonth) return true;
+      if (range === "current_month" && itemMonth === currentMonth) return true;
+      if (range === "next_month" && itemMonth === nextMonth) return true;
+      if (range === "prev_x_days" && item.daysUntil >= minDays && item.daysUntil < 0) return true;
+      if (range === "next_x_days" && item.daysUntil >= 0 && item.daysUntil <= maxDays) return true;
+    }
+    return false;
+  });
+}
+
+/**
+ * Backward compatible filter
  */
 export function filterByDateRange(
   items: PcoPersonItem[], 
   daysBefore: number = 0, 
   daysAfter: number = 30
 ): PcoPersonItem[] {
-  const minDays = -Math.abs(daysBefore);
-  const maxDays = Math.abs(daysAfter);
-
-  return items.filter((item) => {
-    return item.daysUntil >= minDays && item.daysUntil <= maxDays;
-  });
+  return filterByMultiDateRanges(items, [], daysBefore, daysAfter);
 }
