@@ -4,10 +4,17 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.15.1` (Portainer Container Global Search & Section Position Persistence Fix)
+- **Current Version**: `v1.16.0` (Planning Center Celebrations Widget)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Planning Center (PCO) Birthdays & Anniversaries Widget (v1.16.0)**:
+  - Added new `PcoBirthdaysWidget.tsx` component connecting to Planning Center Online API v2 via `src/lib/pco.ts` and `src/app/admin/actions.ts`.
+  - Parses birthdays and anniversaries from PCO lists, sorts upcoming celebrations chronologically, and supports flexible date range filtering (`This Month`, `Next Month`, `Next 30/60/90 Days`).
+  - Added direct links to Planning Center person profiles (`https://people.planningcenteronline.com/people/{person_id}`) with custom avatars and pill badges.
+  - Implemented annual call tracking persistence (`togglePcoCallStatus`), keeping a record of who was called for the current year in `Section.widgetConfig` and automatically rolling over annually.
+  - Implemented profile correction workflow submission (`submitPcoProfileCorrection`). Clicking the pencil icon allows users to submit notes (e.g. updated phone numbers or spelling fixes) directly into a Planning Center Workflow.
+  - Registered `pco_birthdays` in Catalog Widgets (`Dashboard.tsx`) with secure credential configuration.
 - **Portainer Container Global Search & Section Order Fix (v1.15.1)**:
   - Fixed section order mapping bug in `src/app/page.tsx` where `ts.order` was omitted during `tabSections` mapping, causing moved sections (including Portainer widgets) to reset to initial creation order upon expanding/collapsing or server re-validation.
   - Integrated Portainer Docker containers into global dashboard search (`filteredTabs` and `flatMatchedBookmarks`). Typing in the dashboard search bar now dynamically filters Portainer container cards, displays matched Docker containers in top search results, and enables keyboard navigation/Enter launch directly to container public URLs.

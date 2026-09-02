@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-09-02 - Planning Center (PCO) Birthdays & Anniversaries Widget (v1.16.0)
+- **Summary**: Implemented a new Planning Center Online (PCO) Birthdays & Anniversaries Widget. Connects to PCO People API v2 to fetch upcoming birthdays and anniversaries from specified list IDs. Displays person photo/avatar, name (with direct links to PCO profiles at `https://people.planningcenteronline.com/people/{person_id}`), event pill badges, and days-until tags. Supports `Combined Feed` or `Split Sections` layouts, flexible date range filtering (`This Month`, `Next Month`, `Next 30/60/90 Days`), annual call tracking persistence (`togglePcoCallStatus`), and profile correction note submission directly into PCO Workflows (`submitPcoProfileCorrection`). Registered in Catalog Widgets (`Dashboard.tsx`).
+- **Files Modified**:
+  - [src/lib/pco.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/pco.ts) (created PCO API auth, date calculation, formatting, and filtering helpers)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (added `fetchPcoBirthdaysAndAnniversaries`, `submitPcoProfileCorrection`, and `togglePcoCallStatus` server actions)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (created PCO widget component with profile links, call tracking, correction notes, and settings modal)
+  - [src/components/Dashboard.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/Dashboard.tsx) (registered `pco_birthdays` in Catalog Widgets and rendered widget component)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.16.0`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1654ms with 0 errors.
+
 ### 2026-08-31 - Portainer Container Global Search & Section Position Persistence Fix (v1.15.1)
 - **Summary**: Resolved 2 critical user issues: (1) Fixed section order mapping bug in `src/app/page.tsx` where `ts.order` was missing in `visibleSections` mapping, causing moved widget sections to revert to creation order when expanded or revalidated. (2) Integrated Portainer Docker containers into global dashboard search (`filteredTabs` and `flatMatchedBookmarks` in `Dashboard.tsx`). Searching in the top search bar now filters Portainer container cards, displays matching containers in keyboard search results, and launches container public URLs on Enter or click.
 - **Files Modified**:

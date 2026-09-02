@@ -2335,3 +2335,254 @@ export async function deleteCustomUploadedIcon(iconUrl: string) {
   }
 }
 
+// --- PLANNING CENTER (PCO) BIRTHDAYS & ANNIVERSARIES ACTIONS ---
+
+export async function fetchPcoBirthdaysAndAnniversaries(params: {
+  appId?: string;
+  appSecret?: string;
+  birthdayListIds?: string;
+  anniversaryListIds?: string;
+  dateRange?: string;
+}) {
+  await requireSession();
+
+  const appId = (params.appId || process.env.PCO_APP_ID || "").trim();
+  const appSecret = (params.appSecret || process.env.PCO_SECRET || "").trim();
+
+  if (!appId || !appSecret) {
+    return {
+      success: false,
+      error: "Planning Center API Application ID or Secret Key is missing.",
+      items: [],
+    };
+  }
+
+  const { getPcoAuthHeader, getDaysUntilEvent, formatMonthDay, filterByDateRange } = await import("@/lib/pco");
+  const authHeader = getPcoAuthHeader(appId, appSecret);
+
+  const items: any[] = [];
+  const processedKeys = new Set<string>();
+
+  const fetchListPeople = async (listId: string, eventType: "birthday" | "anniversary") => {
+    const cleanId = listId.trim();
+    if (!cleanId) return;
+
+    try {
+      const url = `https://api.planningcenteronline.com/people/v2/lists/${cleanId}/people?per_page=100`;
+      const resp = await fetch(url, {
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!resp.ok) {
+        console.warn(`PCO List ${cleanId} request returned HTTP ${resp.status}`);
+        return;
+      }
+
+      const data = await resp.json();
+      const people = data.data || [];
+
+      for (const p of people) {
+        const attrs = p.attributes || {};
+        const personId = p.id;
+
+        const rawDate = eventType === "birthday" ? attrs.birthdate : attrs.anniversary;
+        if (!rawDate) continue;
+
+        const dedupKey = `${personId}_${eventType}`;
+        if (processedKeys.has(dedupKey)) continue;
+        processedKeys.add(dedupKey);
+
+        let monthDay = "";
+        if (rawDate.length >= 10 && rawDate.includes("-")) {
+          const parts = rawDate.split("-");
+          monthDay = `${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+        } else if (rawDate.includes("-")) {
+          const parts = rawDate.split("-");
+          monthDay = `${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`;
+        }
+
+        if (!monthDay) continue;
+
+        const { daysUntil } = getDaysUntilEvent(monthDay);
+        const name = attrs.name || `${attrs.first_name || ""} ${attrs.last_name || ""}`.trim() || "Unknown";
+
+        items.push({
+          id: `${eventType}_${personId}`,
+          personId,
+          name,
+          firstName: attrs.first_name || name,
+          lastName: attrs.last_name || "",
+          photoUrl: attrs.avatar || attrs.photo_url || null,
+          type: eventType,
+          dateRaw: rawDate,
+          dateMonthDay: monthDay,
+          formattedDate: formatMonthDay(monthDay),
+          daysUntil,
+          pcoUrl: `https://people.planningcenteronline.com/people/${personId}`,
+        });
+      }
+    } catch (err: any) {
+      console.error(`Error fetching PCO list ${cleanId}:`, err.message);
+    }
+  };
+
+  const bdayIds = (params.birthdayListIds || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const annivIds = (params.anniversaryListIds || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+  for (const id of bdayIds) {
+    await fetchListPeople(id, "birthday");
+  }
+
+  for (const id of annivIds) {
+    await fetchListPeople(id, "anniversary");
+  }
+
+  items.sort((a, b) => a.daysUntil - b.daysUntil);
+  const filtered = filterByDateRange(items, params.dateRange || "all");
+
+  return {
+    success: true,
+    items: filtered,
+    totalCount: filtered.length,
+  };
+}
+
+export async function submitPcoProfileCorrection(params: {
+  appId?: string;
+  appSecret?: string;
+  workflowId?: string;
+  personId: string;
+  personName: string;
+  note: string;
+}) {
+  await requireSession();
+
+  const appId = (params.appId || process.env.PCO_APP_ID || "").trim();
+  const appSecret = (params.appSecret || process.env.PCO_SECRET || "").trim();
+  const workflowId = (params.workflowId || "").trim();
+
+  if (!appId || !appSecret) {
+    return { success: false, error: "PCO Application ID or Secret Key missing." };
+  }
+
+  if (!workflowId) {
+    return { success: false, error: "PCO Workflow ID for profile corrections is not configured." };
+  }
+
+  if (!params.note?.trim()) {
+    return { success: false, error: "Correction note text cannot be empty." };
+  }
+
+  const { getPcoAuthHeader } = await import("@/lib/pco");
+  const authHeader = getPcoAuthHeader(appId, appSecret);
+
+  try {
+    const url = `https://api.planningcenteronline.com/workflows/v2/workflows/${workflowId}/cards`;
+    const body = {
+      data: {
+        type: "Card",
+        attributes: {
+          person_id: params.personId,
+          stage: "ready",
+        },
+        relationships: {
+          person: {
+            data: {
+              type: "Person",
+              id: params.personId,
+            },
+          },
+        },
+      },
+    };
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`PCO Workflow POST failed HTTP ${resp.status}:`, errText);
+      return {
+        success: false,
+        error: `PCO Workflow API returned HTTP ${resp.status}. Please verify Workflow ID.`,
+      };
+    }
+
+    const cardData = await resp.json();
+    const cardId = cardData.data?.id;
+
+    if (cardId) {
+      const noteUrl = `https://api.planningcenteronline.com/workflows/v2/cards/${cardId}/notes`;
+      const noteBody = {
+        data: {
+          type: "CardNote",
+          attributes: {
+            note: `[Profile Correction Request from Home Dashboard]:\n${params.note.trim()}`,
+          },
+        },
+      };
+      await fetch(noteUrl, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(noteBody),
+        signal: AbortSignal.timeout(5000),
+      });
+    }
+
+    await logActionActivity("pco_correction", `Submitted profile correction for ${params.personName}: ${params.note.slice(0, 50)}...`);
+
+    return {
+      success: true,
+      cardId,
+      message: `Profile correction for ${params.personName} submitted to Planning Center Workflow!`,
+    };
+  } catch (err: any) {
+    console.error("Failed to submit PCO workflow correction:", err);
+    return { success: false, error: err.message || "Failed to submit correction to PCO Workflow" };
+  }
+}
+
+export async function togglePcoCallStatus(params: {
+  sectionId: string;
+  personId: string;
+  eventType: "birthday" | "anniversary";
+  year: number;
+  checked: boolean;
+}) {
+  await requireSession();
+
+  const section = await prisma.section.findUnique({ where: { id: params.sectionId } });
+  if (!section) throw new Error("Section not found");
+
+  let widgetConfig: any = typeof section.widgetConfig === "string"
+    ? JSON.parse(section.widgetConfig || "{}")
+    : section.widgetConfig || {};
+
+  if (!widgetConfig.callRecords) widgetConfig.callRecords = {};
+
+  const recordKey = `${params.personId}_${params.eventType}`;
+  widgetConfig.callRecords[recordKey] = {
+    year: params.year,
+    checked: params.checked,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await prisma.section.update({
+    where: { id: params.sectionId },
+    data: { widgetConfig: JSON.stringify(widgetConfig) },
+  });
+
+  revalidatePath("/");
+  return { success: true, callRecords: widgetConfig.callRecords };
+}

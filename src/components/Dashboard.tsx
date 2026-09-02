@@ -16,6 +16,7 @@ import { TabModal } from "./TabModal";
 import { SectionModal } from "./SectionModal";
 import { BookmarkModal } from "./BookmarkModal";
 import { PortainerWidget } from "./widgets/PortainerWidget";
+import { PcoBirthdaysWidget } from "./widgets/PcoBirthdaysWidget";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -362,8 +363,8 @@ export function Dashboard({
       if (srcId.startsWith("catalogWidget:")) {
          const widgetType = srcId.replace("catalogWidget:", "");
          try {
-            const title = widgetType === "portainer" ? "Portainer Docker Containers" : "Widget Section";
-            const icon = widgetType === "portainer" ? "Server" : "LayoutGrid";
+            const title = widgetType === "portainer" ? "Portainer Docker Containers" : widgetType === "pco_birthdays" ? "PCO Birthdays & Anniversaries" : "Widget Section";
+            const icon = widgetType === "portainer" ? "Server" : widgetType === "pco_birthdays" ? "Heart" : "LayoutGrid";
             const newSec = await actions.createSection({
                title,
                icon,
@@ -1522,21 +1523,31 @@ export function Dashboard({
 
                                        {/* Widget or Bookmarks */}
                                        {!(searchQuery.trim() === "" ? (collapsedSections[`${tab.id}_${section.id}`] ?? section.defaultCollapsed) : false) && (
-                                          section.isWidget || section.widgetType === "portainer" ? (
-                                             <PortainerWidget 
-                                                section={section}
-                                                showEditControls={showEditControls}
-                                                hasEditAccess={hasSectionEditAccess(section, tab)}
-                                                isAdmin={isAdmin}
-                                                onRefresh={() => router.refresh()}
-                                                filter={searchQuery}
-                                                onContainersLoaded={(sectionId, containersList) => {
-                                                   setPortainerContainersMap(prev => ({
-                                                      ...prev,
-                                                      [sectionId]: containersList
-                                                   }));
-                                                }}
-                                             />
+                                          section.isWidget || section.widgetType === "portainer" || section.widgetType === "pco_birthdays" ? (
+                                             section.widgetType === "pco_birthdays" ? (
+                                                <PcoBirthdaysWidget 
+                                                   section={section}
+                                                   showEditControls={showEditControls}
+                                                   hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                   isAdmin={isAdmin}
+                                                   onRefresh={() => router.refresh()}
+                                                />
+                                             ) : (
+                                                <PortainerWidget 
+                                                   section={section}
+                                                   showEditControls={showEditControls}
+                                                   hasEditAccess={hasSectionEditAccess(section, tab)}
+                                                   isAdmin={isAdmin}
+                                                   onRefresh={() => router.refresh()}
+                                                   filter={searchQuery}
+                                                   onContainersLoaded={(sectionId, containersList) => {
+                                                      setPortainerContainersMap(prev => ({
+                                                         ...prev,
+                                                         [sectionId]: containersList
+                                                      }));
+                                                   }}
+                                                />
+                                             )
                                           ) : (
                                           <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowX: 'hidden', pointerEvents: draggedSectionId ? 'none' : 'auto' }}>
                                              {section.bookmarks.sort((a, b) => a.order - b.order).map(bookmark => {
@@ -1839,6 +1850,13 @@ export function Dashboard({
                                  title: "Portainer Docker Containers",
                                  icon: "Server",
                                  description: "Live interactive status, stats, and shortcuts for all active Docker containers via Portainer API."
+                              },
+                              {
+                                 id: "pco-birthdays-widget",
+                                 type: "pco_birthdays",
+                                 title: "Planning Center Celebrations",
+                                 icon: "Heart",
+                                 description: "Upcoming birthdays & anniversaries from Planning Center Online with call tracking and workflow profile correction notes."
                               }
                            ].filter(w => w.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || w.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
 
