@@ -9,13 +9,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
-# Prune devDependencies for production image size optimization
-FROM base AS prod-deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-COPY --from=deps /app/node_modules ./node_modules
-RUN npm prune --omit=dev
-
 # Intermediate stage for development
 FROM base AS development
 WORKDIR /app
@@ -61,12 +54,11 @@ COPY --from=builder /app/public ./public
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
-# Copy standalone build and static assets
+# Copy standalone build and static assets (standalone already contains pruned prod node_modules)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy pruned production node_modules and Prisma CLI modules
-COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Copy Prisma CLI modules for runtime database sync
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
 

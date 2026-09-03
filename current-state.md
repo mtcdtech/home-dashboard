@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.23.0` (Delete Workspace Column Control & Production Image Pruning)
+- **Current Version**: `v1.23.1` (Workflow Run Title Versioning & Standalone Docker Build Speed Optimization)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Workflow Run Title Versioning & Build Speed Fix (v1.23.1)**:
+  - **Dynamic GitHub Actions Titles**: Added `run-name: "Deploy [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"` to `.github/workflows/deploy.yml` so every run title prominently displays the branch and version commit string for quick scanning down the GitHub Actions list. Added `Print Version Summary` steps for `amd64` and `arm64` jobs.
+  - **Standalone Build Optimization**: Removed redundant `npm prune --omit=dev` stage from `Dockerfile` (which was causing 2–3 minutes of disk I/O churn scanning files on ARM runners). Next.js standalone mode (`output: 'standalone'`) automatically prunes node_modules down to ~150MB, restoring fast compilation.
 - **Delete Workspace Column & Docker Image Size Optimization (v1.23.0)**:
   - **Delete Workspace Column**: Added a red `Delete Column` button with trash icon at the top of each workspace column in Edit mode (`Dashboard.tsx`). Added `deleteWorkspaceColumn` server action in `src/app/admin/actions.ts` which automatically pushes existing sections in the deleted column to the next column (or previous column if deleting the last column) and re-indexes remaining columns cleanly.
   - **Production Image Size Pruning**: Added `prod-deps` stage in `Dockerfile` with `npm prune --omit=dev`, reducing the production container image size from 1GB to ~250MB for dramatically faster Docker Hub pushes and Portainer pulls.

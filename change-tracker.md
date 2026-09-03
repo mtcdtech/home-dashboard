@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-09-03 - Workflow Run Title Versioning & Standalone Build Speed Optimization (v1.23.1)
+- **Summary**: Implemented dynamic workflow title versioning and resolved build slowdown:
+  1. **GitHub Actions Run Titles**: Configured `run-name: "Deploy [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"` in `.github/workflows/deploy.yml` so every run in the GitHub Actions interface displays the version and commit message prominently when scanning down the runs list.
+  2. **Eliminated `npm prune` Overhead**: Removed the redundant `prod-deps` (`npm prune --omit=dev`) stage from `Dockerfile`. Next.js standalone mode (`output: 'standalone'`) automatically prunes production dependencies into `.next/standalone` (~150MB), eliminating 2–3 minutes of disk I/O churn on ARM runners while keeping the production image lightweight.
+- **Files Modified**:
+  - [.github/workflows/deploy.yml](file:///.github/workflows/deploy.yml) (added run-name and step summaries)
+  - [Dockerfile](file:///Dockerfile) (removed redundant prod-deps stage, leveraging Next.js standalone pruning)
+  - [package.json](file:///package.json) (bumped version to `1.23.1`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 707ms with 0 errors.
+
 ### 2026-09-03 - Delete Workspace Column Control & Production Image Pruning (v1.23.0)
 - **Summary**: Delivered two major enhancements for workspace management and deployment efficiency:
   1. **Delete Workspace Column**: Added a red `Delete Column` button with trash icon at the top header of each workspace column in Edit mode ([Dashboard.tsx](file:///src/components/Dashboard.tsx#L1530-L1562)). Created `deleteWorkspaceColumn` in [actions.ts](file:///src/app/admin/actions.ts#L494-L550) which re-assigns sections in the deleted column to the next column (or previous column if deleting the last column) and decrements column count cleanly.
