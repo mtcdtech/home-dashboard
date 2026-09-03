@@ -246,56 +246,33 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     return isPast && !isCalled;
   }).length;
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-      {/* Widget Control Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', background: 'rgba(0,0,0,0.15)', padding: '0.65rem 0.85rem', borderRadius: '14px', border: '1px solid var(--glass-border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)' }}>
-            <Heart size={16} style={{ color: '#ec4899' }} />
-            <span>PCO Celebrations</span>
-          </div>
+  const rangeLabels: Record<string, string> = {
+    prev_month: "Prev Month",
+    current_month: "Current Month",
+    next_month: "Next Month",
+    prev_x_days: `Past ${daysBefore} Days`,
+    next_x_days: `Next ${daysAfter} Days`,
+  };
+  const activeFilterNote = selectedRanges.map(r => rangeLabels[r] || r).join(", ");
 
-          <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: 'rgba(236, 72, 153, 0.15)', color: '#f472b6', fontWeight: 600 }}>
-            {birthdaysList.length} Birthdays
-          </span>
-          <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', fontWeight: 600 }}>
-            {anniversariesList.length} Anniversaries
-          </span>
-          {totalCalled > 0 && (
-            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <UserCheck size={12} /> {totalCalled} Called
-            </span>
-          )}
-          {totalOverdueCalls > 0 && (
-            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-              <PhoneCall size={12} className="animate-pulse" /> {totalOverdueCalls} Overdue Call{totalOverdueCalls > 1 ? "s" : ""}
-            </span>
-          )}
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
+      {/* Single-Line Widget Control Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.15)', padding: '0.5rem 0.75rem', borderRadius: '12px', border: '1px solid var(--glass-border)', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+          <Heart size={16} style={{ color: '#ec4899' }} />
+          <span>PCO B&A</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {/* Search Bar */}
-          <div style={{ position: 'relative', width: '130px' }}>
-            <Search size={13} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
-            <input
-              type="text"
-              placeholder="Filter names..."
-              value={searchFilter}
-              onChange={(e) => { setSearchFilter(e.target.value); setCurrentPage(1); }}
-              className="glass"
-              style={{ width: '100%', padding: '0.35rem 0.5rem 0.35rem 1.8rem', borderRadius: '8px', fontSize: '0.75rem', outline: 'none', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          {/* View Mode Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          {/* Combined / Separate Toggle */}
           <button
             type="button"
-            title={viewMode === "combined" ? "Switch to Split View" : "Switch to Combined View"}
+            title={viewMode === "combined" ? "Switch to Separate View" : "Switch to Combined View"}
             onClick={() => setViewMode(prev => prev === "combined" ? "split" : "combined")}
-            style={{ padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+            style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.06)', color: 'var(--text)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            {viewMode === "combined" ? "Combined" : "Split"}
+            {viewMode === "combined" ? "Combined" : "Separate"}
           </button>
 
           {/* Refresh Button */}
@@ -303,7 +280,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             type="button"
             onClick={loadData}
             title="Refresh Planning Center List"
-            style={{ padding: '0.4rem', borderRadius: '8px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', cursor: 'pointer' }}
+            style={{ padding: '0.35rem', borderRadius: '6px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
@@ -313,8 +290,8 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             <button
               type="button"
               onClick={() => setShowSettingsModal(true)}
-              title="Configure PCO API & Date Range Settings"
-              style={{ padding: '0.4rem', borderRadius: '8px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--text)', cursor: 'pointer' }}
+              title="Configure Settings & Date Filters"
+              style={{ padding: '0.35rem', borderRadius: '6px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
               <Settings size={14} />
             </button>
@@ -322,44 +299,10 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
       </div>
 
-      {/* Multi-Select Quick Filter Chips */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', padding: '0.2rem 0' }}>
-        <span style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <Filter size={11} /> Ranges:
-        </span>
-        {[
-          { key: "prev_month", label: "Prev Month" },
-          { key: "current_month", label: "Current Month" },
-          { key: "next_month", label: "Next Month" },
-          { key: "prev_x_days", label: `Past ${daysBefore} Days` },
-          { key: "next_x_days", label: `Next ${daysAfter} Days` },
-        ].map(opt => {
-          const isSelected = selectedRanges.includes(opt.key);
-          return (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => toggleRangeOption(opt.key)}
-              style={{
-                padding: '0.25rem 0.55rem',
-                borderRadius: '6px',
-                border: isSelected ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
-                background: isSelected ? 'rgba(var(--primary-rgb), 0.2)' : 'rgba(0,0,0,0.1)',
-                color: isSelected ? 'var(--primary)' : 'var(--text)',
-                fontSize: '0.7rem',
-                fontWeight: isSelected ? 700 : 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                transition: 'all 0.15s'
-              }}
-            >
-              {isSelected && <Check size={11} />}
-              <span>{opt.label}</span>
-            </button>
-          );
-        })}
+      {/* Applied Filter Note Row */}
+      <div style={{ fontSize: '0.72rem', opacity: 0.7, padding: '0 0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <Filter size={11} style={{ opacity: 0.6 }} />
+        <span>Filter applied: <strong>{activeFilterNote || "Default"}</strong></span>
       </div>
 
       {/* Main Content Area */}

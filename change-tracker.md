@@ -2,6 +2,21 @@
 
 ## Running Change Log
 
+### 2026-09-03 - Streamlined PCO B&A Header, Full Node Modules Fix & Version Prefix Titles (v1.23.2)
+- **Summary**: Delivered requested UI header cleanup, missing module prevention, and workflow title formatting:
+  1. **Streamlined PCO B&A Header**: Updated [PcoBirthdaysWidget.tsx](file:///src/components/widgets/PcoBirthdaysWidget.tsx#L249-L330) to a clean single-line header row featuring "PCO B&A" title, Combined/Separate view toggle button, Refresh icon, and Settings icon. Removed search input, count pills, and inline filter chips. Added an applied filter note row (e.g. `Filter applied: Current Month, Next 30 Days`).
+  2. **Complete Module Coverage**: Restored `COPY --from=deps /app/node_modules ./node_modules` in [Dockerfile](file:///Dockerfile#L67-L69) runner stage to guarantee 100% missing module prevention for Prisma CLI and runtime imports.
+  3. **Version-First Workflow Titles**: Updated `run-name` in [.github/workflows/deploy.yml](file:///.github/workflows/deploy.yml#L2) to start directly with the version string (`v1.23.2 [main] - ...`) so version numbers are never truncated when scanning down GitHub Actions runs.
+- **Files Modified**:
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///src/components/widgets/PcoBirthdaysWidget.tsx) (single-line header and active filter note row)
+  - [Dockerfile](file:///Dockerfile) (copied complete node_modules to runner stage)
+  - [.github/workflows/deploy.yml](file:///.github/workflows/deploy.yml) (updated run-name format to start with version string)
+  - [package.json](file:///package.json) (bumped version to `1.23.2`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1106ms with 0 errors.
+
 ### 2026-09-03 - Workflow Run Title Versioning & Standalone Build Speed Optimization (v1.23.1)
 - **Summary**: Implemented dynamic workflow title versioning and resolved build slowdown:
   1. **GitHub Actions Run Titles**: Configured `run-name: "Deploy [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"` in `.github/workflows/deploy.yml` so every run in the GitHub Actions interface displays the version and commit message prominently when scanning down the runs list.

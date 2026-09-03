@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.23.1` (Workflow Run Title Versioning & Standalone Docker Build Speed Optimization)
+- **Current Version**: `v1.23.2` (Streamlined PCO B&A Header, Full Node Modules Fix & Version Prefix Titles)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Streamlined PCO B&A Widget Header & GitHub Actions Run Titles (v1.23.2)**:
+  - **PCO B&A Header Streamlining**: Replaced multi-row header in `PcoBirthdaysWidget.tsx` with a single-line control bar featuring "PCO B&A" title, Combined/Separate view toggle, Refresh icon, and Settings icon on one line. Removed search bar, numbering pills, and filter chips. Added a subtle note row displaying active filter summary (e.g. `Filter applied: Current Month, Next 30 Days`).
+  - **Full Node Modules Protection**: Restored `COPY --from=deps /app/node_modules ./node_modules` in `Dockerfile` runner stage to guarantee 100% missing module protection for Prisma CLI and runtime dependencies.
+  - **Version Prefix Run Titles**: Formatted GitHub Actions `run-name` to start directly with the version string (`v1.23.2 [main] - ...`) so versions never get truncated when scanning down workflow runs.
 - **Workflow Run Title Versioning & Build Speed Fix (v1.23.1)**:
   - **Dynamic GitHub Actions Titles**: Added `run-name: "Deploy [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"` to `.github/workflows/deploy.yml` so every run title prominently displays the branch and version commit string for quick scanning down the GitHub Actions list. Added `Print Version Summary` steps for `amd64` and `arm64` jobs.
   - **Standalone Build Optimization**: Removed redundant `npm prune --omit=dev` stage from `Dockerfile` (which was causing 2–3 minutes of disk I/O churn scanning files on ARM runners). Next.js standalone mode (`output: 'standalone'`) automatically prunes node_modules down to ~150MB, restoring fast compilation.

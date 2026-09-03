@@ -1,5 +1,5 @@
 name: Build, Push, and Deploy
-run-name: "Deploy [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"
+run-name: "v1.23.2 [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"
 
 on:
   push:
