@@ -2,6 +2,21 @@
 
 ## Running Change Log
 
+### 2026-09-03 - CI/CD Pipeline & Docker Build Speed Optimizations (v1.22.3)
+- **Summary**: Implemented high-impact performance optimizations for the multi-arch build, push, and deployment pipeline:
+  1. **GitHub Actions Native Cache (`type=gha`)**: Updated `.github/workflows/deploy.yml` to use `type=gha,scope=amd64` and `type=gha,scope=arm64` caching instead of slow external registry transfers.
+  2. **`npm ci` in Docker Layer**: Updated `deps` stage in `Dockerfile` to use `npm ci` with `package-lock.json`.
+  3. **Removed Duplicate `npm install`**: Eliminated the redundant `RUN npm install prisma...` step in the final `runner` container stage of `Dockerfile`.
+  4. **Optimized Deploy Verification**: Reduced live version polling interval from 30s to 10s.
+- **Files Modified**:
+  - [.github/workflows/deploy.yml](file:///.github/workflows/deploy.yml) (updated GHA build cache scope and sleep interval)
+  - [Dockerfile](file:///Dockerfile) (updated `npm ci` and removed redundant npm install)
+  - [package.json](file:///package.json) (bumped version to `1.22.3`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 621ms with 0 errors.
+
 ### 2026-09-03 - Outlook Module Section Authorization Alignment & Permissions Fix (v1.22.2)
 - **Summary**: Resolved issue where granting access to the Outlook Calendar module to users (such as `vicar@mtcd.org`) produced `"Forbidden: You do not have edit access to this section"`:
   1. Updated `/api/widgets/outlook/auth` route to use `requireSectionRole(sectionId, "edit")` instead of an ad-hoc inline check that missed tab-level authorization and allowed users.

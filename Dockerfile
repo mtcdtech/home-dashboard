@@ -5,9 +5,9 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm install
+# Install dependencies based on package-lock.json
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Intermediate stage for development
 FROM base AS development
@@ -43,9 +43,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install Prisma CLI for migration at runtime
 RUN apk add --no-cache libc6-compat
-RUN npm install prisma@7.6.0 @prisma/config effect
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs

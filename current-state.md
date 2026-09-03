@@ -4,10 +4,15 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.22.2` (Outlook Module Section Authorization Alignment & Permissions Fix)
+- **Current Version**: `v1.22.3` (CI/CD Pipeline & Docker Build Optimization)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **CI/CD Build & Push Speed Optimizations (v1.22.3)**:
+  - Switched Docker Buildx cache in `.github/workflows/deploy.yml` from `type=registry` to native GitHub Actions cache (`type=gha,scope=amd64` / `type=gha,scope=arm64`).
+  - Switched Dockerfile dependency installation from `npm install` to `npm ci`.
+  - Removed duplicate `RUN npm install prisma...` in final `runner` stage of `Dockerfile`.
+  - Optimized deployment verification polling sleep from 30s to 10s intervals.
 - **Outlook Module Section Authorization Alignment (v1.22.2)**:
   - Replaced hardcoded ad-hoc `isEditor` check in `/api/widgets/outlook/auth` route with `requireSectionRole(sectionId, "edit")`.
   - Updated `requireSectionRole` in `src/lib/authz.ts` to include `allowedUsers` and email/ID matching, granting Outlook access to authorized users (such as `vicar@mtcd.org`), workspace tab editors/owners, allowed users, unassigned sections, and admins.
