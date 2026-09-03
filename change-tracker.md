@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-09-03 - Prisma Binary Path & Entrypoint Fix for Production Container (v1.22.4)
+- **Summary**: Fixed container startup failure (`sh: prisma: not found` during `Starting Database Sync...`):
+  1. Updated `Dockerfile` runner stage to copy `node_modules/.bin` (`COPY --from=builder /app/node_modules/.bin ./node_modules/.bin`) and added `ENV PATH="/app/node_modules/.bin:${PATH}"`.
+  2. Updated `entrypoint.sh` to check for `./node_modules/.bin/prisma` or `./node_modules/prisma/build/index.js` before executing `prisma db push`.
+- **Files Modified**:
+  - [Dockerfile](file:///Dockerfile) (copied `.bin` and exported PATH in runner stage)
+  - [entrypoint.sh](file:///entrypoint.sh) (added robust fallback resolution for prisma binary)
+  - [package.json](file:///package.json) (bumped version to `1.22.4`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 623ms with 0 errors.
+
 ### 2026-09-03 - CI/CD Pipeline & Docker Build Speed Optimizations (v1.22.3)
 - **Summary**: Implemented high-impact performance optimizations for the multi-arch build, push, and deployment pipeline:
   1. **GitHub Actions Native Cache (`type=gha`)**: Updated `.github/workflows/deploy.yml` to use `type=gha,scope=amd64` and `type=gha,scope=arm64` caching instead of slow external registry transfers.

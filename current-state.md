@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.22.3` (CI/CD Pipeline & Docker Build Optimization)
+- **Current Version**: `v1.22.4` (Prisma Binary Path & Entrypoint Fix for Production Container)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Prisma CLI Binary Resolution in Runner Container (v1.22.4)**:
+  - Fixed `sh: prisma: not found` error during container startup (`Starting Database Sync...`).
+  - Added `COPY --from=builder /app/node_modules/.bin ./node_modules/.bin` and `ENV PATH="/app/node_modules/.bin:${PATH}"` to `Dockerfile`.
+  - Updated `entrypoint.sh` to check for `./node_modules/.bin/prisma` or `./node_modules/prisma/build/index.js` before executing database sync.
 - **CI/CD Build & Push Speed Optimizations (v1.22.3)**:
   - Switched Docker Buildx cache in `.github/workflows/deploy.yml` from `type=registry` to native GitHub Actions cache (`type=gha,scope=amd64` / `type=gha,scope=arm64`).
   - Switched Dockerfile dependency installation from `npm install` to `npm ci`.
