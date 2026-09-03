@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install dependencies based on package-lock.json
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Intermediate stage for development
 FROM base AS development
@@ -32,9 +32,9 @@ ENV DATABASE_URL=postgresql://user:password@localhost:5432/dashboard
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build Next.js
+# Build Next.js with cache mount
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx next build
+RUN --mount=type=cache,target=/app/.next/cache npx next build
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -58,17 +58,11 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema and CLI for runtime migrations
+# Copy complete node_modules for 100% runtime & Prisma CLI compatibility
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Copy Prisma schema and scripts
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/effect ./node_modules/effect
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/c12 ./node_modules/c12
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/deepmerge-ts ./node_modules/deepmerge-ts
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/empathic ./node_modules/empathic
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
@@ -87,8 +81,6 @@ USER nextjs
 EXPOSE 4000
 
 ENV PORT=4000
-# set hostname to localhost
 ENV HOSTNAME="0.0.0.0"
 
 ENTRYPOINT ["./entrypoint.sh"]
-

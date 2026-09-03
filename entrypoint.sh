@@ -4,8 +4,6 @@ set -e
 echo "Starting Database Sync..."
 if [ -f "./node_modules/.bin/prisma" ]; then
   ./node_modules/.bin/prisma db push --accept-data-loss
-elif [ -f "./node_modules/prisma/build/index.js" ]; then
-  node ./node_modules/prisma/build/index.js db push --accept-data-loss
 else
   npx prisma db push --accept-data-loss
 fi

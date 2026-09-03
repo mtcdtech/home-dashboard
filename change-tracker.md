@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-09-03 - Full Node Modules Copy & Buildx Cache Mounts Optimization (v1.22.6)
+- **Summary**: Implemented comprehensive fix for runtime module imports and build caching:
+  1. **Complete Runtime Node Modules**: Updated `runner` stage in `Dockerfile` to copy the complete `node_modules` directory from `deps` stage (`COPY --from=deps /app/node_modules ./node_modules`). Eliminates all missing module errors for Prisma CLI and runtime packages permanently.
+  2. **Buildx Cache Mounts**: Added `RUN --mount=type=cache,target=/root/.npm npm ci` and `RUN --mount=type=cache,target=/app/.next/cache npx next build` in `Dockerfile` to enable persistent caching for npm downloads and Next.js page compilation.
+- **Files Modified**:
+  - [Dockerfile](file:///Dockerfile) (copied complete node_modules and added npm/Next.js cache mounts)
+  - [entrypoint.sh](file:///entrypoint.sh)
+  - [package.json](file:///package.json) (bumped version to `1.22.6`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 610ms with 0 errors.
+
 ### 2026-09-03 - Prisma 7 CLI Runtime Dependencies Fix (v1.22.5)
 - **Summary**: Fixed container startup failure (`Cannot find module 'effect'` required by `@prisma/config` during runtime `prisma db push`):
   1. Copied Prisma 7 CLI dependencies (`effect`, `c12`, `deepmerge-ts`, `empathic`) from `builder` to `runner` stage in `Dockerfile`.
