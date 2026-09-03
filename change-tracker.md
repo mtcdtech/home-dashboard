@@ -2,6 +2,17 @@
 
 ## Running Change Log
 
+### 2026-09-03 - Prisma 7 CLI Runtime Dependencies Fix (v1.22.5)
+- **Summary**: Fixed container startup failure (`Cannot find module 'effect'` required by `@prisma/config` during runtime `prisma db push`):
+  1. Copied Prisma 7 CLI dependencies (`effect`, `c12`, `deepmerge-ts`, `empathic`) from `builder` to `runner` stage in `Dockerfile`.
+- **Files Modified**:
+  - [Dockerfile](file:///Dockerfile) (copied Prisma 7 dependencies to runner stage)
+  - [package.json](file:///package.json) (bumped version to `1.22.5`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 670ms with 0 errors.
+
 ### 2026-09-03 - Prisma Binary Path & Entrypoint Fix for Production Container (v1.22.4)
 - **Summary**: Fixed container startup failure (`sh: prisma: not found` during `Starting Database Sync...`):
   1. Updated `Dockerfile` runner stage to copy `node_modules/.bin` (`COPY --from=builder /app/node_modules/.bin ./node_modules/.bin`) and added `ENV PATH="/app/node_modules/.bin:${PATH}"`.

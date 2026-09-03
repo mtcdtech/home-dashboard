@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.22.4` (Prisma Binary Path & Entrypoint Fix for Production Container)
+- **Current Version**: `v1.22.5` (Prisma 7 CLI Runtime Dependencies Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Prisma 7 CLI Runtime Dependencies (v1.22.5)**:
+  - Fixed `Cannot find module 'effect'` error during runtime database sync (`@prisma/config` dependency).
+  - Added Prisma 7 CLI dependencies (`effect`, `c12`, `deepmerge-ts`, `empathic`) to `Dockerfile` runner stage copy rules from `builder`.
 - **Prisma CLI Binary Resolution in Runner Container (v1.22.4)**:
   - Fixed `sh: prisma: not found` error during container startup (`Starting Database Sync...`).
   - Added `COPY --from=builder /app/node_modules/.bin ./node_modules/.bin` and `ENV PATH="/app/node_modules/.bin:${PATH}"` to `Dockerfile`.
