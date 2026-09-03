@@ -2,6 +2,21 @@
 
 ## Running Change Log
 
+### 2026-09-03 - Outlook Module Section Authorization Alignment & Permissions Fix (v1.22.2)
+- **Summary**: Resolved issue where granting access to the Outlook Calendar module to users (such as `vicar@mtcd.org`) produced `"Forbidden: You do not have edit access to this section"`:
+  1. Updated `/api/widgets/outlook/auth` route to use `requireSectionRole(sectionId, "edit")` instead of an ad-hoc inline check that missed tab-level authorization and allowed users.
+  2. Updated `requireSectionRole` in `src/lib/authz.ts` to query `allowedUsers` and perform email + user ID matching.
+  3. Updated `updateSection` in `src/app/admin/actions.ts` to properly persist Prisma `set` relations for `allowedUsers`, `editors`, and `owners`.
+- **Files Modified**:
+  - [src/app/api/widgets/outlook/auth/route.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/api/widgets/outlook/auth/route.ts) (integrated `requireSectionRole`)
+  - [src/lib/authz.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/authz.ts) (updated `requireSectionRole` with `allowedUsers` and email/ID matching)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (updated `updateSection` Prisma relation mapping)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.22.2`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1027ms with 0 errors.
+
 ### 2026-09-02 - PCO Workflow ID & URL Auto-Parser Fix (v1.22.1)
 - **Summary**: Resolved issue submitting profile correction notes to PCO Workflows:
   1. Identified **`489142`** as the Workflow ID (and `1270054` as the Step ID) from the URL `https://people.planningcenteronline.com/workflows/489142/steps/1270054/assignees/93343352/ready`.

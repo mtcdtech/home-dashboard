@@ -4,10 +4,14 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.22.1` (PCO Workflow ID & URL Auto-Parser Fix)
+- **Current Version**: `v1.22.2` (Outlook Module Section Authorization Alignment & Permissions Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Outlook Module Section Authorization Alignment (v1.22.2)**:
+  - Replaced hardcoded ad-hoc `isEditor` check in `/api/widgets/outlook/auth` route with `requireSectionRole(sectionId, "edit")`.
+  - Updated `requireSectionRole` in `src/lib/authz.ts` to include `allowedUsers` and email/ID matching, granting Outlook access to authorized users (such as `vicar@mtcd.org`), workspace tab editors/owners, allowed users, unassigned sections, and admins.
+  - Updated `updateSection` in `src/app/admin/actions.ts` to properly format Prisma set relationships for `allowedUsers`, `editors`, and `owners`.
 - **PCO Workflow ID & URL Auto-Parser Fix (v1.22.1)**:
   - Clarified PCO Workflow ID (`489142` from `https://people.planningcenteronline.com/workflows/489142/...`).
   - Added full URL auto-parser to `submitPcoProfileCorrection` in `src/app/admin/actions.ts`: users can paste either `489142` or the full PCO URL, and it automatically extracts `workflowId` (`489142`) and `stepId` (`1270054`).

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getMicrosoftAuthConfig } from "@/lib/outlook";
+import { requireSectionRole } from "@/lib/authz";
 import crypto from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -20,29 +21,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing sectionId parameter." }, { status: 400 });
   }
 
+  try {
+    await requireSectionRole(sectionId, "edit");
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Forbidden: You do not have edit access to this section." },
+      { status: 403 }
+    );
+  }
+
   // Retrieve the section from DB
   const section = await prisma.section.findUnique({
     where: { id: sectionId },
-    include: {
-      editors: { select: { email: true } },
-      owners: { select: { email: true } },
-    },
   });
 
   if (!section) {
     return NextResponse.json({ error: "Section not found." }, { status: 404 });
-  }
-
-  const userEmail = session.user.email.toLowerCase();
-  const isAdmin = (session.user as { isAdmin?: boolean })?.isAdmin === true || userEmail === "admin@local.host";
-  const isEditor =
-    isAdmin ||
-    section.isGlobal ||
-    section.editors.some((e) => e.email?.toLowerCase() === userEmail) ||
-    section.owners.some((o) => o.email?.toLowerCase() === userEmail);
-
-  if (!isEditor) {
-    return NextResponse.json({ error: "Forbidden: You do not have edit access to this section." }, { status: 403 });
   }
 
   // Parse existing widgetConfig if present

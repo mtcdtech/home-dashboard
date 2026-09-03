@@ -377,13 +377,27 @@ export async function updateSection(id: string, data: any) {
   const requestedLibrary = data.isLibraryItem ?? false;
   const isLibraryItem = existing?.isReadOnlySync ? false : requestedLibrary;
 
+  const { allowedUserIds, editorUserIds, ownerUserIds, ...rest } = data;
+
+  const updateData: any = {
+    ...rest,
+    isLibraryItem,
+    description: rest.description || null
+  };
+
+  if (allowedUserIds && Array.isArray(allowedUserIds)) {
+    updateData.allowedUsers = { set: allowedUserIds.map((uid: string) => ({ id: uid })) };
+  }
+  if (editorUserIds && Array.isArray(editorUserIds)) {
+    updateData.editors = { set: editorUserIds.map((uid: string) => ({ id: uid })) };
+  }
+  if (ownerUserIds && Array.isArray(ownerUserIds)) {
+    updateData.owners = { set: ownerUserIds.map((uid: string) => ({ id: uid })) };
+  }
+
   await prisma.section.update({
     where: { id },
-    data: {
-      ...data,
-      isLibraryItem,
-      description: data.description || null
-    }
+    data: updateData
   });
   revalidatePath("/");
   revalidatePath("/admin/sections");

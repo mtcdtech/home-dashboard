@@ -92,6 +92,7 @@ export async function requireSectionRole(sectionId: string, action: 'edit' | 'ow
     include: {
       owners: true,
       editors: true,
+      allowedUsers: true,
       departmentAccess: true,
       tabSections: { select: { tabId: true } }
     }
@@ -107,11 +108,13 @@ export async function requireSectionRole(sectionId: string, action: 'edit' | 'ow
     }
   }
 
-  const isOwner = sectionObj.owners.some(u => u.id === user.id);
-  const isEditor = sectionObj.editors.some(u => u.id === user.id);
+  const userEmail = user.email?.toLowerCase();
+  const isOwner = sectionObj.owners.some(u => u.id === user.id || (userEmail && u.email?.toLowerCase() === userEmail));
+  const isEditor = sectionObj.editors.some(u => u.id === user.id || (userEmail && u.email?.toLowerCase() === userEmail));
+  const isAllowed = sectionObj.allowedUsers.some(u => u.id === user.id || (userEmail && u.email?.toLowerCase() === userEmail));
   
   if (action === 'owner' && isOwner) return user;
-  if (action === 'edit' && (isOwner || isEditor)) return user;
+  if (action === 'edit' && (isOwner || isEditor || isAllowed)) return user;
 
   // Unattached or newly created section without designated owners/editors
   if (sectionObj.owners.length === 0 && sectionObj.editors.length === 0) {
