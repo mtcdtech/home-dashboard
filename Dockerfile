@@ -1,13 +1,19 @@
 FROM node:22-alpine AS base
 
-# Install dependencies only when needed
+# Install all dependencies for builder
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on package-lock.json
+# Install all dependencies based on package-lock.json
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
+
+# Clean production dependencies only for runner image size optimization
+FROM base AS prod-deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 # Intermediate stage for development
 FROM base AS development
@@ -58,8 +64,8 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy complete node_modules for 100% Prisma CLI & runtime compatibility
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Copy complete production node_modules (pruned of dev tools, includes prisma CLI)
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
 
 # Copy Prisma schema and scripts
