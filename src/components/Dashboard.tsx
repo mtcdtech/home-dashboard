@@ -1490,7 +1490,7 @@ export function Dashboard({
                               }}
                            >
                               {showEditControls && hasTabEditAccess(tab) && (
-                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '0.25rem', paddingRight: '0.5rem', color: 'var(--text)', opacity: 0.8, fontSize: '0.8rem' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', padding: '0 0.5rem', color: 'var(--text)', opacity: 0.85, fontSize: '0.8rem' }}>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                                        <input 
                                           type="checkbox" 
@@ -1528,6 +1528,40 @@ export function Dashboard({
                                        />
                                        Single section open
                                     </label>
+
+                                    {(tab.columns || 3) > 1 && (
+                                       <button
+                                          type="button"
+                                          title={`Delete Column ${colIdx + 1}`}
+                                          onClick={async () => {
+                                             const targetColNum = colIdx === (tab.columns || 3) - 1 ? colIdx : colIdx + 2;
+                                             if (confirm(`Delete Column ${colIdx + 1}? Any existing sections in this column will be moved to Column ${targetColNum}.`)) {
+                                                try {
+                                                   await actions.deleteWorkspaceColumn(tab.id, colIdx);
+                                                   router.refresh();
+                                                } catch (err: any) {
+                                                   alert(err.message || "Failed to delete column");
+                                                }
+                                             }
+                                          }}
+                                          style={{
+                                             background: 'rgba(239, 68, 68, 0.12)',
+                                             border: '1px solid rgba(239, 68, 68, 0.3)',
+                                             color: '#f87171',
+                                             borderRadius: '6px',
+                                             padding: '0.2rem 0.5rem',
+                                             fontSize: '0.7rem',
+                                             fontWeight: 600,
+                                             cursor: 'pointer',
+                                             display: 'flex',
+                                             alignItems: 'center',
+                                             gap: '0.25rem'
+                                          }}
+                                       >
+                                          <Trash2 size={12} />
+                                          <span>Delete Column</span>
+                                       </button>
+                                    )}
                                  </div>
                               )}
                               {sectionsInCol

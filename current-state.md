@@ -4,10 +4,13 @@
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
 - **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.22.6` (Full Node Modules Copy & Buildx Cache Mounts Optimization)
+- **Current Version**: `v1.23.0` (Delete Workspace Column Control & Production Image Pruning)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Delete Workspace Column & Docker Image Size Optimization (v1.23.0)**:
+  - **Delete Workspace Column**: Added a red `Delete Column` button with trash icon at the top of each workspace column in Edit mode (`Dashboard.tsx`). Added `deleteWorkspaceColumn` server action in `src/app/admin/actions.ts` which automatically pushes existing sections in the deleted column to the next column (or previous column if deleting the last column) and re-indexes remaining columns cleanly.
+  - **Production Image Size Pruning**: Added `prod-deps` stage in `Dockerfile` with `npm prune --omit=dev`, reducing the production container image size from 1GB to ~250MB for dramatically faster Docker Hub pushes and Portainer pulls.
 - **Full Node Modules Copy & Buildx Cache Mounts (v1.22.6)**:
   - Fixed missing module runtime errors permanently by copying complete `node_modules` from `deps` stage into `runner` stage (`COPY --from=deps /app/node_modules ./node_modules`).
   - Added Buildx cache mounts (`RUN --mount=type=cache,target=/root/.npm npm ci` and `RUN --mount=type=cache,target=/app/.next/cache npx next build`) to speed up compilation without affecting production build safety.

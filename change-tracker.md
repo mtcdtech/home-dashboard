@@ -2,6 +2,20 @@
 
 ## Running Change Log
 
+### 2026-09-03 - Delete Workspace Column Control & Production Image Pruning (v1.23.0)
+- **Summary**: Delivered two major enhancements for workspace management and deployment efficiency:
+  1. **Delete Workspace Column**: Added a red `Delete Column` button with trash icon at the top header of each workspace column in Edit mode ([Dashboard.tsx](file:///src/components/Dashboard.tsx#L1530-L1562)). Created `deleteWorkspaceColumn` in [actions.ts](file:///src/app/admin/actions.ts#L494-L550) which re-assigns sections in the deleted column to the next column (or previous column if deleting the last column) and decrements column count cleanly.
+  2. **Production Image Pruning (`npm prune --omit=dev`)**: Updated [Dockerfile](file:///Dockerfile#L12-L17) with a `prod-deps` stage to prune dev dependencies, shrinking the container image size from 1GB down to ~250MB for 3x faster Docker Hub uploads and Portainer downloads.
+- **Files Modified**:
+  - [src/components/Dashboard.tsx](file:///src/components/Dashboard.tsx) (added Delete Column button in edit mode header)
+  - [src/app/admin/actions.ts](file:///src/app/admin/actions.ts) (added `deleteWorkspaceColumn` server action)
+  - [Dockerfile](file:///Dockerfile) (added `prod-deps` prune stage)
+  - [package.json](file:///package.json) (bumped version to `1.23.0`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled cleanly in 1426ms with 0 errors.
+
 ### 2026-09-03 - Full Node Modules Copy & Buildx Cache Mounts Optimization (v1.22.6)
 - **Summary**: Implemented comprehensive fix for runtime module imports and build caching:
   1. **Complete Runtime Node Modules**: Updated `runner` stage in `Dockerfile` to copy the complete `node_modules` directory from `deps` stage (`COPY --from=deps /app/node_modules ./node_modules`). Eliminates all missing module errors for Prisma CLI and runtime packages permanently.

@@ -491,6 +491,64 @@ export async function toggleSingleSectionColumn(tabId: string, colIndex: number,
   revalidatePath("/");
 }
 
+export async function deleteWorkspaceColumn(tabId: string, colIndex: number) {
+  await requireTabRole(tabId, "edit");
+
+  const tab = await prisma.tab.findUnique({
+    where: { id: tabId },
+    include: { tabSections: true }
+  });
+
+  if (!tab) throw new Error("Tab not found");
+
+  const currentCols = tab.columns ?? 3;
+  if (currentCols <= 1) {
+    throw new Error("Cannot delete column. Workspace must have at least one column.");
+  }
+
+  // Target column for sections in colIndex:
+  // If it's the last column, push to previous column (colIndex - 1).
+  // Otherwise, push to next column (colIndex + 1).
+  const targetCol = colIndex === currentCols - 1 ? colIndex - 1 : colIndex + 1;
+
+  // Move sections in colIndex to targetCol
+  const sectionsToMove = tab.tabSections.filter(ts => ts.column === colIndex);
+  for (const ts of sectionsToMove) {
+    await (prisma as any).tabSection.update({
+      where: { id: ts.id },
+      data: { column: targetCol }
+    });
+  }
+
+  // Shift column index for all sections in columns > colIndex
+  const allTabSections = await (prisma as any).tabSection.findMany({ where: { tabId } });
+  for (const ts of allTabSections) {
+    if (ts.column > colIndex) {
+      await (prisma as any).tabSection.update({
+        where: { id: ts.id },
+        data: { column: ts.column - 1 }
+      });
+    }
+  }
+
+  // Update singleSectionColumns array
+  let newSingleSectionCols = (tab as any).singleSectionColumns || [];
+  newSingleSectionCols = newSingleSectionCols
+    .filter((c: number) => c !== colIndex)
+    .map((c: number) => (c > colIndex ? c - 1 : c));
+
+  await prisma.tab.update({
+    where: { id: tabId },
+    data: {
+      columns: currentCols - 1,
+      singleSectionColumns: newSingleSectionCols
+    } as any
+  });
+
+  revalidatePath("/");
+  revalidatePath("/admin/tabs");
+}
+
 export async function updateUserDefaultTab(userId: string, defaultTabId: string | null) {
   const session = await requireSession();
   const targetUser = await prisma.user.findUnique({ where: { id: userId } });
