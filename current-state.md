@@ -3,88 +3,21 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Tech Stack**: Next.js 16 (App Router), React 19, Prisma (PostgreSQL), NextAuth v5, Tailwind CSS / Vanilla CSS, Docker / Portainer.
-- **Current Version**: `v1.23.3` (Production Dependency Alignment & Lightweight Container Optimization)
+- **Current Version**: `v1.23.5` (PCO Birthdays 2-Layer Intersecting Filter: Month Window & Relative Window)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Birthdays 2-Layer Intersecting Filter (v1.23.5)**:
+  - Implemented 2-layer `AND` intersecting filter logic in `filterByMultiDateRanges` (`src/lib/pco.ts`):
+    - **Layer 1 (Calendar Month Window)**: Multi-select Previous Month, Current Month, and Next Month.
+    - **Layer 2 (Relative Date Window)**: Multi-select Past X Days (`-daysBefore <= daysUntil <= 0`) and Next X Days (`0 <= daysUntil <= daysAfter`).
+  - Dates must satisfy **both** active layers (e.g. Current Month + Past 10 Days only displays current month dates within the past 10 days, strictly excluding previous month days).
+  - Updated settings modal UI in `PcoBirthdaysWidget.tsx` to clearly separate Layer 1 and Layer 2 button groups and enhanced active filter summary note.
+- **Portainer Container App Icon Size Parity (v1.23.4)**:
+  - Enforced exact icon container and icon sizing parity between Portainer container cards and standard dashboard bookmark cards.
+  - Increased Portainer container icon container box from `28px` to `36px` (`width: 36px, height: 36px, borderRadius: 8px`).
+  - Increased Portainer `IconComponent` size from `16` to `28` and fallback `Server` icon size from `15` to `22`.
 - **Production Dependency Alignment & Automated Omit-Dev Pruning (v1.23.3)**:
-  - **Prisma CLI Moved to Production Dependencies**: Moved `"prisma": "^7.6.0"` from `devDependencies` to `dependencies` in `package.json` so `npm` recognizes Prisma CLI as a production runtime requirement.
-  - **Automated `npm ci --omit=dev` Stage**: Configured `prod-deps` stage in `Dockerfile` with `RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev`. Programmatically extracts 100% of production packages and their exact transitive dependencies from `package-lock.json` while stripping 650MB of dev tools (TypeScript, ESLint, PostCSS).
-  - **Lightweight Production Container**: Shrinks the final Docker container image size from 1GB to ~180MB, resulting in 3x faster Docker Hub uploads and Portainer deployment downloads with zero missing module crashes.
-- **Streamlined PCO B&A Widget Header & GitHub Actions Run Titles (v1.23.2)**:
-  - **PCO B&A Header Streamlining**: Replaced multi-row header in `PcoBirthdaysWidget.tsx` with a single-line control bar featuring "PCO B&A" title, Combined/Separate view toggle, Refresh icon, and Settings icon on one line. Removed search bar, numbering pills, and filter chips. Added a subtle note row displaying active filter summary (e.g. `Filter applied: Current Month, Next 30 Days`).
-  - **Full Node Modules Protection**: Restored `COPY --from=deps /app/node_modules ./node_modules` in `Dockerfile` runner stage to guarantee 100% missing module protection for Prisma CLI and runtime dependencies.
-  - **Version Prefix Run Titles**: Formatted GitHub Actions `run-name` to start directly with the version string (`v1.23.2 [main] - ...`) so versions never get truncated when scanning down workflow runs.
-- **Workflow Run Title Versioning & Build Speed Fix (v1.23.1)**:
-  - **Dynamic GitHub Actions Titles**: Added `run-name: "Deploy [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"` to `.github/workflows/deploy.yml` so every run title prominently displays the branch and version commit string for quick scanning down the GitHub Actions list. Added `Print Version Summary` steps for `amd64` and `arm64` jobs.
-  - **Standalone Build Optimization**: Removed redundant `npm prune --omit=dev` stage from `Dockerfile` (which was causing 2–3 minutes of disk I/O churn scanning files on ARM runners). Next.js standalone mode (`output: 'standalone'`) automatically prunes node_modules down to ~150MB, restoring fast compilation.
-- **Delete Workspace Column & Docker Image Size Optimization (v1.23.0)**:
-  - **Delete Workspace Column**: Added a red `Delete Column` button with trash icon at the top of each workspace column in Edit mode (`Dashboard.tsx`). Added `deleteWorkspaceColumn` server action in `src/app/admin/actions.ts` which automatically pushes existing sections in the deleted column to the next column (or previous column if deleting the last column) and re-indexes remaining columns cleanly.
-  - **Production Image Size Pruning**: Added `prod-deps` stage in `Dockerfile` with `npm prune --omit=dev`, reducing the production container image size from 1GB to ~250MB for dramatically faster Docker Hub pushes and Portainer pulls.
-- **Full Node Modules Copy & Buildx Cache Mounts (v1.22.6)**:
-  - Fixed missing module runtime errors permanently by copying complete `node_modules` from `deps` stage into `runner` stage (`COPY --from=deps /app/node_modules ./node_modules`).
-  - Added Buildx cache mounts (`RUN --mount=type=cache,target=/root/.npm npm ci` and `RUN --mount=type=cache,target=/app/.next/cache npx next build`) to speed up compilation without affecting production build safety.
-- **Prisma 7 CLI Runtime Dependencies (v1.22.5)**:
-  - Fixed `Cannot find module 'effect'` error during runtime database sync (`@prisma/config` dependency).
-  - Added Prisma 7 CLI dependencies (`effect`, `c12`, `deepmerge-ts`, `empathic`) to `Dockerfile` runner stage copy rules from `builder`.
-- **Prisma CLI Binary Resolution in Runner Container (v1.22.4)**:
-  - Fixed `sh: prisma: not found` error during container startup (`Starting Database Sync...`).
-  - Added `COPY --from=builder /app/node_modules/.bin ./node_modules/.bin` and `ENV PATH="/app/node_modules/.bin:${PATH}"` to `Dockerfile`.
-  - Updated `entrypoint.sh` to check for `./node_modules/.bin/prisma` or `./node_modules/prisma/build/index.js` before executing database sync.
-- **CI/CD Build & Push Speed Optimizations (v1.22.3)**:
-  - Switched Docker Buildx cache in `.github/workflows/deploy.yml` from `type=registry` to native GitHub Actions cache (`type=gha,scope=amd64` / `type=gha,scope=arm64`).
-  - Switched Dockerfile dependency installation from `npm install` to `npm ci`.
-  - Removed duplicate `RUN npm install prisma...` in final `runner` stage of `Dockerfile`.
-  - Optimized deployment verification polling sleep from 30s to 10s intervals.
-- **Outlook Module Section Authorization Alignment (v1.22.2)**:
-  - Replaced hardcoded ad-hoc `isEditor` check in `/api/widgets/outlook/auth` route with `requireSectionRole(sectionId, "edit")`.
-  - Updated `requireSectionRole` in `src/lib/authz.ts` to include `allowedUsers` and email/ID matching, granting Outlook access to authorized users (such as `vicar@mtcd.org`), workspace tab editors/owners, allowed users, unassigned sections, and admins.
-  - Updated `updateSection` in `src/app/admin/actions.ts` to properly format Prisma set relationships for `allowedUsers`, `editors`, and `owners`.
-- **PCO Workflow ID & URL Auto-Parser Fix (v1.22.1)**:
-  - Clarified PCO Workflow ID (`489142` from `https://people.planningcenteronline.com/workflows/489142/...`).
-  - Added full URL auto-parser to `submitPcoProfileCorrection` in `src/app/admin/actions.ts`: users can paste either `489142` or the full PCO URL, and it automatically extracts `workflowId` (`489142`) and `stepId` (`1270054`).
-  - Fixed card creation payload schema by removing unpermitted `stage: "ready"` attribute, and added step fallback handling and exact PCO API error message reporting.
-- **PCO Celebrations Multi-Select Ranges, Pagination & Red Overdue Call Highlights (v1.22.0)**:
-  - **Multi-Select Date Ranges**: Enabled multi-selection of filter ranges (`prev_month`, `current_month`, `next_month`, `prev_x_days`, `next_x_days`) with quick-filter chips in widget header.
-  - **Pagination Controls**: Added `maxItems` setting and clean `< Prev` / `Next >` page navigation bar with page indicators (`Showing 1–10 of 42 celebrations`).
-  - **Overdue Red Call Button Highlight**: If a celebration date has passed (`daysUntil < 0`) and has not been called (`!isCalled`), the Call button glows red with an animated pulsing icon and "Overdue Call" badge.
-- **PCO Household ID Anniversary Pairing (v1.21.1)**:
-  - Updated PCO People API list request to include `households` (`?include=households`).
-  - Extracted `householdId` from `p.relationships.households.data` and `primary_household_id`.
-  - Grouped anniversary profiles by `householdId` (`hh_${householdId}_${dateMonthDay}`), ensuring couples with different last names (e.g. 118896795 & 118896800) are accurately combined into a single anniversary card.
-- **PCO Celebrations Enhancements (v1.21.0)**:
-  - **Customizable Date Window**: Added `daysBefore` (x days before today) and `daysAfter` (y days after today) settings inputs and backend filtering calculation.
-  - **Combined Anniversary Cards**: Combined married spouses on anniversary dates into a single card (e.g. "John & Jane Smith") linked directly to the male profile.
-  - **Clickable Cards**: Whole celebration card is clickable to open Planning Center profile, with `stopPropagation` on Pencil (correction note) and Call buttons.
-  - **Prominent MMM-DD Date Badge**: Replaced initials circle with a calendar-style date badge displaying month (`MMM`) and day (`DD`).
-- **Workspace Edits & Drag-and-Drop Server Authorization Fix (v1.20.5)**:
-  - Fixed root cause of 500 Internal Server Error during workspace edits (adding sections, drag-and-drop section reordering, updating tab settings):
-    1. Removed redundant strict `owners`/`editors` check in `addSectionToTab` (`src/app/admin/actions.ts`) which rejected unassigned/allowed workspace tabs.
-    2. Updated `requireTabRole` in `src/lib/authz.ts` to explicitly allow edit access for unassigned non-read-only tabs (`owners.length === 0 && editors.length === 0`) and allowed users (`allowedUsers`).
-    3. Added `upsert` protection in `addSectionToTab` so existing `tabSection` entries update position instead of throwing unique constraint errors.
-- **Widget Authorization & Error Boundary Diagnostics (v1.20.4)**:
-  - Fixed root cause of Minified React Error #441 across all widgets: changed `fetchPortainerContainers` in `src/app/admin/actions.ts` from `requireAdmin()` to `requireSession()` inside the `try` block, preventing HTTP 500 server action rejections when non-admin users view dashboard widgets.
-  - Added `WidgetErrorBoundary` component (`src/components/WidgetErrorBoundary.tsx`) and wrapped all dashboard widgets (`PortainerWidget`, `PcoBirthdaysWidget`, `FreeScoutWidget`, `OutlookCalendarWidget`) in `Dashboard.tsx` to display real-time diagnostic trace error boxes with retry controls instead of unhandled React crashes.
-- **Server Action Authorization & CSP Fonts Fix (v1.20.3)**:
-  - Fixed 500 Internal Server Error when creating/adding widgets or dragging sections (`addSectionToTab`). Updated `requireSectionRole` in `src/lib/authz.ts` to accept optional `targetTabId` parameter and grant section edit access when adding unattached or brand new sections to accessible tabs. Connected real session `user.id` in `createSection` (`src/app/admin/actions.ts`).
-  - Updated Content Security Policy in `next.config.ts` to allow Google Fonts stylesheet and font domains (`https://fonts.googleapis.com` and `https://fonts.gstatic.com`).
-  - Added explicit `id` and `name` attributes to PCO widget settings and correction modal form controls.
-- **PCO Celebrations & Widget Identification Fix (v1.20.2)**:
-  - Fixed `isPortainer` widget identification check in `Dashboard.tsx` (lines 576, 980, 1003, 1023) where any section with `isWidget: true` (such as `pco_birthdays`) was incorrectly evaluated as a Portainer widget during search matching and keyboard navigation, causing React Error #441 when dereferencing Docker container data.
-  - Added safe JSON configuration parsing and explicit string coercion to error boundaries and item initial rendering in `PcoBirthdaysWidget.tsx`.
-  - Converted dynamic `@/lib/pco` import in `src/app/admin/actions.ts` to a top-level static import for maximum execution efficiency.
-- **Workspace Edit Permissions & React Error #441 Fix (v1.20.1)**:
-  - Fixed `requireTabRole` permission check in `src/lib/authz.ts` to grant Admin users (`isAdmin: true`) full edit/owner access to all non-readOnlySync tabs, resolving workspace settings saving failures (`updateTab`) and section addition errors (`addSectionToTab`).
-  - Added `getEffectiveUserId()` to `createSection` in `src/app/admin/actions.ts` to ensure section creators are properly registered as section owners.
-  - Wrapped async widget catalog addition (`actions.createSection` & `actions.addSectionToTab`) and modal forms (`TabModal`, `SectionModal`) in `try/catch` blocks with explicit error alerts, eliminating Minified React Error #441 and surfacing clear diagnostic messages.
-- **Planning Center (PCO) Birthdays & Anniversaries Widget (v1.20.0)**:
-  - Added new `PcoBirthdaysWidget.tsx` component connecting to Planning Center Online API v2 via `src/lib/pco.ts` and `src/app/admin/actions.ts`.
-  - Parses birthdays and anniversaries from PCO lists, sorts upcoming celebrations chronologically, and supports flexible date range filtering (`This Month`, `Next Month`, `Next 30/60/90 Days`).
-  - Added direct links to Planning Center person profiles (`https://people.planningcenteronline.com/people/{person_id}`) with custom avatars and pill badges.
-  - Implemented annual call tracking persistence (`togglePcoCallStatus`), keeping a record of who was called for the current year in `Section.widgetConfig` and automatically rolling over annually.
-  - Implemented profile correction workflow submission (`submitPcoProfileCorrection`). Clicking the pencil icon allows users to submit notes (e.g. updated phone numbers or spelling fixes) directly into a Planning Center Workflow.
-  - Registered `pco_birthdays` in Catalog Widgets (`Dashboard.tsx`) with secure credential configuration.
 - **FreeScout In Progress Label, Draggable Mailbox & Status Ordering (v1.18.3)**:
   - Renamed "Pending" status label across all widget surfaces (header counter badges, conversation status pills, and settings modal) to "In Progress".
   - Implemented drag-and-drop reordering for mailboxes in the settings modal (`mailboxOrder`), with tab rendering respecting this custom order.

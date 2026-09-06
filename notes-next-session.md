@@ -67,18 +67,30 @@
 4. **Modal Lazy Loading**: Lazy-load heavy modals (`ThemeModal`, `TabModal`, `SectionModal`, `BookmarkModal`) using `next/dynamic` to reduce initial client bundle size.
 5. **Prisma Permission Filtering**: Push per-user permission filtering into Prisma `where` queries directly rather than filtering in JavaScript post-fetch (`resolveTabAccess`/`resolveSectionAccess`).
 
-## FreeScout & Portainer Widget Customization & Draggable Sorting (v1.19.1)
+## PCO Birthdays 2-Layer Date Filtering (v1.23.5)
+- **2-Layer AND Filtering**:
+  - Layer 1 (Calendar Month Window): Multi-select Previous Month, Current Month, Next Month.
+  - Layer 2 (Relative Date Window): Multi-select Past X Days (`-daysBefore <= daysUntil <= 0`) and Next X Days (`0 <= daysUntil <= daysAfter`).
+  - Items must satisfy both active layers, enabling precise date windows (e.g. Current Month + Past 10 Days only shows current month dates).
+  - Cleanly categorized Settings modal UI and formatted active filter note summary.
+
+## FreeScout & Portainer Widget Customization & Draggable Sorting (v1.19.2)
 - **FreeScout Widget**:
   - Checkboxes for card element visibility (Ticket #, Mailbox Name, Status Pill, Date / Time, Message Preview, Customer / Submitter, Assigned Owner).
   - Multi-tier draggable sort priority with individual Asc/Desc order direction (Status, Last Updated, Created Date, Ticket #, Customer Name, Subject).
   - Up/Down chevron reordering buttons and HTML5 drag handles for mailboxes, statuses, and sort rules.
 - **Portainer Widget**:
+  - App icon container and icon sizes match standard bookmark cards (`36px` container box, `28px` icon size, `22px` fallback server icon).
   - Multi-tier draggable sort priority with individual Asc/Desc order direction (Status, Container Name, Manual Order, Docker Image, Created Date).
   - Up/Down chevron reordering buttons and HTML5 drag handles for sort rules.
   - Search bar selection integration and keyboard arrow navigation support.
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.19.1).
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.23.5).
+- Test PCO B&A widget settings:
+  - Select "Current Month" + "Past X Days (10d)": Verify only current month celebrations within the past 10 days are displayed (no prior month dates).
+  - Select "Previous Month" + "Current Month" + "Past X Days (10d)": Verify dates from both months falling within the 10-day past window are displayed.
+- Verify Portainer container cards display app icons at full size (`36px` wrapper / `28px` icon), identical in scale and prominence to standard bookmark cards.
 - Click Settings icon on Portainer widget to verify settings modal opens smoothly without errors.
 - Type in the top search bar and use `ArrowDown`/`ArrowUp` to navigate across bookmarks and Portainer containers. Verify the matching Portainer container card highlights and pressing `Enter` opens the container URL.
 - Test grid arrow-key navigation on Portainer widget sections with `ArrowDown`/`ArrowUp` and `Enter`.

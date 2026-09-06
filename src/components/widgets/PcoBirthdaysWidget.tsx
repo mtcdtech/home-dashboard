@@ -120,8 +120,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const toggleRangeOption = (key: string) => {
     setSelectedRanges(prev => {
       if (prev.includes(key)) {
-        const next = prev.filter(k => k !== key);
-        return next.length === 0 ? ["current_month"] : next;
+        return prev.filter(k => k !== key);
       } else {
         return [...prev, key];
       }
@@ -250,10 +249,26 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     prev_month: "Prev Month",
     current_month: "Current Month",
     next_month: "Next Month",
-    prev_x_days: `Past ${daysBefore} Days`,
-    next_x_days: `Next ${daysAfter} Days`,
+    prev_x_days: `Past ${daysBefore}d`,
+    next_x_days: `Next ${daysAfter}d`,
   };
-  const activeFilterNote = selectedRanges.map(r => rangeLabels[r] || r).join(", ");
+  const monthLabels = selectedRanges
+    .filter(r => ["prev_month", "current_month", "next_month"].includes(r))
+    .map(r => rangeLabels[r] || r);
+  const relativeLabels = selectedRanges
+    .filter(r => ["prev_x_days", "next_x_days"].includes(r))
+    .map(r => rangeLabels[r] || r);
+
+  let activeFilterNote = "";
+  if (monthLabels.length > 0 && relativeLabels.length > 0) {
+    activeFilterNote = `${monthLabels.join(", ")} & ${relativeLabels.join(", ")}`;
+  } else if (monthLabels.length > 0) {
+    activeFilterNote = monthLabels.join(", ");
+  } else if (relativeLabels.length > 0) {
+    activeFilterNote = relativeLabels.join(", ");
+  } else {
+    activeFilterNote = "All Dates";
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
@@ -610,16 +625,62 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 />
               </div>
 
-              {/* Multi-Select Date Ranges */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.3rem', fontWeight: 600 }}>
-                  Date Range Filtering Options (Select multiple)
-                </label>
+              {/* Layer 1: Calendar Month Window (Multi-Select) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '0.75rem', opacity: 0.85, fontWeight: 700 }}>
+                    Layer 1: Calendar Month Window (Multi-Select)
+                  </label>
+                  <span style={{ fontSize: '0.68rem', opacity: 0.5 }}>
+                    Filter by month boundaries
+                  </span>
+                </div>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                   {[
                     { key: "prev_month", label: "Previous Month" },
                     { key: "current_month", label: "Current Month" },
                     { key: "next_month", label: "Next Month" },
+                  ].map(opt => {
+                    const active = selectedRanges.includes(opt.key);
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => toggleRangeOption(opt.key)}
+                        style={{
+                          padding: '0.35rem 0.65rem',
+                          borderRadius: '8px',
+                          border: active ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                          background: active ? 'rgba(var(--primary-rgb), 0.2)' : 'rgba(0,0,0,0.1)',
+                          color: active ? 'var(--primary)' : 'var(--text)',
+                          fontSize: '0.75rem',
+                          fontWeight: active ? 700 : 500,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem'
+                        }}
+                      >
+                        {active && <Check size={12} />}
+                        <span>{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Layer 2: Relative Date Window (Multi-Select) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '0.75rem', opacity: 0.85, fontWeight: 700 }}>
+                    Layer 2: Relative Date Window (Multi-Select)
+                  </label>
+                  <span style={{ fontSize: '0.68rem', opacity: 0.5 }}>
+                    Constrain by days from today (must pass both layers)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {[
                     { key: "prev_x_days", label: `Past X Days (${daysBefore}d)` },
                     { key: "next_x_days", label: `Next X Days (${daysAfter}d)` },
                   ].map(opt => {

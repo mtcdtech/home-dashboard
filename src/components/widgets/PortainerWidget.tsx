@@ -397,12 +397,12 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                   cursor: (showEditControls && hasEditAccess) || openUrl ? 'pointer' : 'default'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
-                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: isRunning ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0, flex: 1 }}>
+                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', background: isRunning ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: 'relative' }}>
                     {setting.icon ? (
-                      <IconComponent name={setting.icon} size={16} />
+                      <IconComponent name={setting.icon} size={28} />
                     ) : (
-                      <Server size={15} color={isRunning ? '#10b981' : '#ef4444'} />
+                      <Server size={22} color={isRunning ? '#10b981' : '#ef4444'} />
                     )}
                     <span 
                       title={`Status: ${c.status || c.state}`}
@@ -420,7 +420,7 @@ export function PortainerWidget({ section, showEditControls, hasEditAccess, isAd
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)' }}>
                       {displayName}
                     </span>
                     <span style={{ fontSize: '0.65rem', opacity: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

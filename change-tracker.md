@@ -2,6 +2,39 @@
 
 ## Running Change Log
 
+### 2026-09-05 - PCO Birthdays 2-Layer Intersecting Date Filtering (v1.23.5)
+- **Summary**:
+  1. Replaced simple `OR` union date range logic in `filterByMultiDateRanges` (`src/lib/pco.ts`) with strict 2-layer `AND` intersecting filtering:
+     - **Layer 1 (Month Window)**: Multi-select Previous Month, Current Month, Next Month.
+     - **Layer 2 (Relative Window)**: Multi-select Past X Days (`-daysBefore <= daysUntil <= 0`) and Next X Days (`0 <= daysUntil <= daysAfter`).
+     - Items must satisfy both active layers, ensuring selections like Current Month + Past 10 Days strictly exclude prior month days.
+  2. Updated Settings modal UI in `PcoBirthdaysWidget.tsx` to visually group and label Layer 1 and Layer 2 filters separately with clear explanations.
+  3. Formatted active filter note in widget header to show Layer 1 and Layer 2 combination (e.g. `Current Month & Past 10d`).
+- **Files Modified**:
+  - [src/lib/pco.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/pco.ts) (implemented 2-layer `AND` intersecting date filter logic)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (modal 2-layer UI grouping, independent toggle handler, active filter note)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.23.5`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - Validated with automated test cases covering single-layer, multi-layer, and cross-month boundary intersections.
+  - `npm run build` compiled 100% cleanly in 1.1s.
+
+### 2026-09-05 - Portainer Container App Icon Size Parity (v1.23.4)
+- **Summary**:
+  1. Increased the Portainer container icon container box from `28px` to `36px` (`width: 36px, height: 36px`), matching standard dashboard bookmark cards.
+  2. Increased the `IconComponent` size for container icons from `16` to `28` and fallback `Server` icon size from `15` to `22`.
+  3. Adjusted container text styling and spacing (`gap: 0.65rem`, `fontSize: 0.85rem`, `fontWeight: 600`) so Portainer container cards seamlessly match the visual scale and prominence of all other dashboard bookmarks.
+- **Files Modified**:
+  - [src/components/widgets/PortainerWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PortainerWidget.tsx) (increased icon container box to 36px, IconComponent to 28, Server icon to 22)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.23.4`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled 100% cleanly.
+
 ### 2026-09-03 - Production Dependency Alignment & Lightweight Container Optimization (v1.23.3)
 - **Summary**: Resolved package categorization and automated production dependency pruning:
   1. **Audited & Re-categorized Prisma CLI**: Moved `"prisma": "^7.6.0"` from `devDependencies` to `dependencies` in [package.json](file:///package.json#L28-L32) so npm treats Prisma CLI as a production requirement for `prisma db push` during container boot.
@@ -253,6 +286,8 @@
   - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
 - **Validation**:
   - `npm run build` compiled cleanly in 1654ms with 0 errors.
+
+
 
 ### 2026-09-01 - Portainer Modal Crash Fix & Search Bar + Arrow Navigation Selection (v1.19.1)
 - **Summary**:

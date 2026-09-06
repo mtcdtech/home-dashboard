@@ -90,12 +90,10 @@ export function formatMonthDay(monthDay: string): string {
 }
 
 /**
- * Multi-select filter for date range options:
- * - "prev_month": Previous calendar month
- * - "current_month": Current calendar month
- * - "next_month": Next calendar month
- * - "prev_x_days": Past X days (-daysBefore <= daysUntil < 0)
- * - "next_x_days": Next X days (0 <= daysUntil <= daysAfter)
+ * Multi-select 2-layer filter for date range options:
+ * - Layer 1 (Calendar Month Window): "prev_month", "current_month", "next_month"
+ * - Layer 2 (Relative Date Window): "prev_x_days" (-daysBefore <= daysUntil <= 0), "next_x_days" (0 <= daysUntil <= daysAfter)
+ * Items must pass BOTH active layers (Layer 1 AND Layer 2).
  */
 export function filterByMultiDateRanges(
   items: PcoPersonItem[],
@@ -117,18 +115,32 @@ export function filterByMultiDateRanges(
   const minDays = -Math.abs(daysBefore);
   const maxDays = Math.abs(daysAfter);
 
+  const monthRanges = selectedRanges.filter((r) => ["prev_month", "current_month", "next_month"].includes(r));
+  const relativeRanges = selectedRanges.filter((r) => ["prev_x_days", "next_x_days"].includes(r));
+
   return items.filter((item) => {
     const [mStr] = item.dateMonthDay.split("-");
     const itemMonth = parseInt(mStr, 10) - 1;
 
-    for (const range of selectedRanges) {
-      if (range === "prev_month" && itemMonth === prevMonth) return true;
-      if (range === "current_month" && itemMonth === currentMonth) return true;
-      if (range === "next_month" && itemMonth === nextMonth) return true;
-      if (range === "prev_x_days" && item.daysUntil >= minDays && item.daysUntil < 0) return true;
-      if (range === "next_x_days" && item.daysUntil >= 0 && item.daysUntil <= maxDays) return true;
+    // Layer 1: Calendar Month Filter (passes if no month filters are selected, or matches any selected month)
+    let passesMonthLayer = true;
+    if (monthRanges.length > 0) {
+      passesMonthLayer =
+        (monthRanges.includes("prev_month") && itemMonth === prevMonth) ||
+        (monthRanges.includes("current_month") && itemMonth === currentMonth) ||
+        (monthRanges.includes("next_month") && itemMonth === nextMonth);
     }
-    return false;
+
+    // Layer 2: Relative Date Window Filter (passes if no relative filters are selected, or matches any selected relative range)
+    let passesRelativeLayer = true;
+    if (relativeRanges.length > 0) {
+      passesRelativeLayer =
+        (relativeRanges.includes("prev_x_days") && item.daysUntil >= minDays && item.daysUntil <= 0) ||
+        (relativeRanges.includes("next_x_days") && item.daysUntil >= 0 && item.daysUntil <= maxDays);
+    }
+
+    // Must satisfy BOTH layers
+    return passesMonthLayer && passesRelativeLayer;
   });
 }
 
