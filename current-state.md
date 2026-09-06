@@ -3,10 +3,17 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Current Version**: `v1.23.6` (PCO Full Month Span Without Relative Limit, Overdue Inclusion & Called Checkbox Button)
+- **Current Version**: `v1.23.7` (PCO Birthdays Time Mark Cutoff Date for Automatic Call Status)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Birthdays Time Mark Cutoff Date (v1.23.7)**:
+  - Added **Time Mark Cutoff Date** (`timeMarkDate`) setting in the Settings Modal:
+    - Allows specifying a cutoff date (`YYYY-MM-DD`). All celebrations before this date are automatically marked as `"Called"`.
+    - Includes quick-action presets: **"Today"**, **"1st of Month"**, and **"Clear"**.
+    - Displays active time mark indicator badge in the widget control bar (`< YYYY-MM-DD`).
+    - Integrated with `isPcoItemCalled` helper in `src/lib/pco.ts` and `src/app/admin/actions.ts`: respects manual user overrides in `callRecords` while automating uncalled status for previous celebrations.
+    - Properly updates total called count, overdue call counters, and filter queries.
 - **PCO Full Month Span, Overdue Inclusion & Called Checkbox (v1.23.6)**:
   - Updated `filterByMultiDateRanges` (`src/lib/pco.ts`):
     - When a month filter is active and Past X Days is unselected, the entire past portion of the selected month(s) is displayed without date cuts.

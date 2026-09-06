@@ -2,6 +2,25 @@
 
 ## Running Change Log
 
+### 2026-09-05 - PCO Birthdays Time Mark Cutoff Date for Automatic Call Status (v1.23.7)
+- **Summary**:
+  1. Added **Time Mark Cutoff Date** (`timeMarkDate`) setting in the PCO Birthdays & Anniversaries settings modal.
+  2. Celebrations before the specified cutoff date are automatically treated as `"Called"`.
+  3. Added quick preset buttons: **"Today"**, **"1st of Month"**, and **"Clear"**.
+  4. Added indicator badge in the widget header bar (`< YYYY-MM-DD`).
+  5. Implemented `isPcoItemCalled` helper in `src/lib/pco.ts` and updated `src/app/admin/actions.ts` & `src/components/widgets/PcoBirthdaysWidget.tsx` to respect individual manual overrides while automating previous celebrations.
+- **Files Modified**:
+  - [src/lib/pco.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/pco.ts) (exported `isPcoItemCalled`, updated `filterByMultiDateRanges` with `timeMarkDate`)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (passed `timeMarkDate` in `fetchPcoBirthdaysAndAnniversaries`)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (timeMarkDate state, settings modal UI, control bar badge, isPcoItemCalled integration)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.23.7`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - Tested with automated script testing default behavior, time mark automation, manual overrides, and overdue interactions.
+  - `npm run build` compiled 100% cleanly.
+
 ### 2026-09-05 - PCO Full Month Span, Overdue Option & Checkbox Button (v1.23.6)
 - **Summary**:
   1. Updated `filterByMultiDateRanges` (`src/lib/pco.ts`) so unselected relative filter directions do not prematurely truncate active calendar months (e.g. if Past X Days is unselected, all past days of selected months show; same for Next X Days and future days).

@@ -90,6 +90,30 @@ export function formatMonthDay(monthDay: string): string {
 }
 
 /**
+ * Helper to determine if a PCO birthday/anniversary celebration is marked as Called
+ * either via explicit call records or automatically via a time mark cutoff date.
+ */
+export function isPcoItemCalled(
+  item: { personId: string; type: string; dateMonthDay: string },
+  callRecords: Record<string, { year: number; checked: boolean }> = {},
+  timeMarkDate?: string,
+  currentYear: number = new Date().getFullYear()
+): boolean {
+  const rec = callRecords[`${item.personId}_${item.type}`];
+  if (rec && rec.year === currentYear) {
+    return rec.checked;
+  }
+  if (timeMarkDate && timeMarkDate.trim()) {
+    const celebrationDate = `${currentYear}-${item.dateMonthDay}`;
+    const targetCutoff = timeMarkDate.trim().length === 5 ? `${currentYear}-${timeMarkDate.trim()}` : timeMarkDate.trim();
+    if (celebrationDate < targetCutoff) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Multi-select 2-layer filter for date range options:
  * - Layer 1 (Calendar Month Window): "prev_month", "current_month", "next_month"
  * - Layer 2 (Relative Date Window): "prev_x_days" (-daysBefore <= daysUntil <= 0), "next_x_days" (0 <= daysUntil <= daysAfter)
@@ -109,7 +133,8 @@ export function filterByMultiDateRanges(
   selectedRanges: string[] = [],
   daysBefore: number = 7,
   daysAfter: number = 30,
-  callRecords: Record<string, { year: number; checked: boolean }> = {}
+  callRecords: Record<string, { year: number; checked: boolean }> = {},
+  timeMarkDate?: string
 ): PcoPersonItem[] {
   if (!selectedRanges || selectedRanges.length === 0 || selectedRanges.includes("all")) {
     const minDays = -Math.abs(daysBefore);
@@ -139,12 +164,16 @@ export function filterByMultiDateRanges(
     const itemMonth = parseInt(mStr, 10) - 1;
 
     // Check if this is an overdue uncalled celebration
-    const rec = callRecords[`${item.personId}_${item.type}`];
-    const isCalled = rec && rec.year === currentYear && rec.checked;
+    const isCalled = isPcoItemCalled(item, callRecords, timeMarkDate, currentYear);
     const isOverdue = item.daysUntil < 0 && !isCalled;
 
     if (includeOverdue && isOverdue) {
       return true;
+    }
+
+    // If only overdue filter was selected and item is not overdue, exclude it
+    if (includeOverdue && !hasMonthFilter && !hasPastRelFilter && !hasFutureRelFilter) {
+      return false;
     }
 
     // Month boundary check

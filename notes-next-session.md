@@ -1,5 +1,8 @@
 # Notes for Next Session: Home Dashboard
 
+- **Current Version**: `v1.23.7`
+- **PCO Birthdays Time Mark**: Time mark cutoff date allows automatically setting celebrations before a specific date to "Called" while honoring manual call check overrides. Settings modal provides date selection, quick presets ("Today", "1st of Month", "Clear"), and header badge indicator.
+
 ## Deploy Contract (canonical, as of 2026-08-11)
 - **Both servers are deployed from `mtcdtech/home-dashboard`.** There is no active abraham fork.
   - Push to `main` → deploys to Church Synology (`https://home.server.mtcd.org`)

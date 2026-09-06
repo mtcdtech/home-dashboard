@@ -28,6 +28,7 @@ import {
   togglePcoCallStatus, 
   updateSectionWidgetConfig 
 } from "@/app/admin/actions";
+import { isPcoItemCalled } from "@/lib/pco";
 
 export interface PcoBirthdaysWidgetProps {
   section: any;
@@ -64,6 +65,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const [maxItems, setMaxItems] = useState<number>(typeof rawConfig.maxItems !== "undefined" ? Number(rawConfig.maxItems) : 10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [viewMode, setViewMode] = useState<"combined" | "split">(rawConfig.viewMode || "combined");
+  const [timeMarkDate, setTimeMarkDate] = useState<string>(rawConfig.timeMarkDate || "");
 
   // Loaded Items & State
   const [items, setItems] = useState<any[]>([]);
@@ -98,6 +100,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         daysBefore,
         daysAfter,
         callRecords,
+        timeMarkDate,
       });
 
       if (res && res.success && Array.isArray(res.items)) {
@@ -116,7 +119,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   useEffect(() => {
     loadData();
     setCurrentPage(1);
-  }, [section?.id, JSON.stringify(selectedRanges), daysBefore, daysAfter]);
+  }, [section?.id, JSON.stringify(selectedRanges), daysBefore, daysAfter, timeMarkDate]);
 
   const toggleRangeOption = (key: string) => {
     setSelectedRanges(prev => {
@@ -171,6 +174,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         maxItems,
         viewMode,
         callRecords,
+        timeMarkDate,
       };
 
       await updateSectionWidgetConfig(section.id, newConfig);
@@ -234,15 +238,11 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const birthdaysList = filteredItems.filter(i => i.type === "birthday");
   const anniversariesList = filteredItems.filter(i => i.type === "anniversary");
 
-  const totalCalled = items.filter(i => {
-    const rec = callRecords[`${i.personId}_${i.type}`];
-    return rec && rec.year === currentYear && rec.checked;
-  }).length;
+  const totalCalled = items.filter(i => isPcoItemCalled(i, callRecords, timeMarkDate, currentYear)).length;
 
   const totalOverdueCalls = items.filter(i => {
     const isPast = i.daysUntil < 0;
-    const rec = callRecords[`${i.personId}_${i.type}`];
-    const isCalled = rec && rec.year === currentYear && rec.checked;
+    const isCalled = isPcoItemCalled(i, callRecords, timeMarkDate, currentYear);
     return isPast && !isCalled;
   }).length;
 
@@ -276,6 +276,26 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
           <Heart size={16} style={{ color: '#ec4899' }} />
           <span>PCO B&A</span>
+          {timeMarkDate && (
+            <span
+              title={`Time Mark Active: All dates before ${timeMarkDate} are automatically marked as Called`}
+              style={{
+                fontSize: '0.68rem',
+                color: '#60a5fa',
+                background: 'rgba(59, 130, 246, 0.12)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                padding: '0.15rem 0.4rem',
+                borderRadius: '5px',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              <Calendar size={10} />
+              <span>&lt; {timeMarkDate}</span>
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -734,9 +754,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Overdue Calls Option */}
+              </div>              {/* Overdue Calls Option */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', background: 'rgba(239, 68, 68, 0.05)', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <label style={{ fontSize: '0.75rem', opacity: 0.9, fontWeight: 700, color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -768,6 +786,102 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                     {selectedRanges.includes("show_overdue") ? <CheckSquare size={13} /> : <Square size={13} />}
                     <span>Show Overdue Calls (Uncalled Past Dates)</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Time Mark Cutoff Date Section */}
+              <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '0.85rem', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.25)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Calendar size={14} />
+                    <span>Time Mark Cutoff Date</span>
+                  </label>
+                  {timeMarkDate && (
+                    <span style={{ fontSize: '0.7rem', color: '#60a5fa', fontWeight: 600, background: 'rgba(59, 130, 246, 0.15)', padding: '0.15rem 0.45rem', borderRadius: '6px' }}>
+                      Active: {timeMarkDate}
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.72rem', opacity: 0.7, margin: 0, lineHeight: 1.35 }}>
+                  Automatically set all birthdays and anniversaries before this date as &quot;Called&quot;.
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <input
+                    type="date"
+                    value={timeMarkDate}
+                    onChange={(e) => setTimeMarkDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      minWidth: '150px',
+                      padding: '0.45rem 0.65rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--glass-border)',
+                      background: 'rgba(0,0,0,0.2)',
+                      color: 'var(--text)',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                      colorScheme: 'dark'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      setTimeMarkDate(`${currentYear}-${m}-${day}`);
+                    }}
+                    style={{
+                      padding: '0.45rem 0.65rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      color: '#93c5fd',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      setTimeMarkDate(`${currentYear}-${m}-01`);
+                    }}
+                    style={{
+                      padding: '0.45rem 0.65rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      color: '#93c5fd',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    1st of Month
+                  </button>
+                  {timeMarkDate && (
+                    <button
+                      type="button"
+                      onClick={() => setTimeMarkDate("")}
+                      style={{
+                        padding: '0.45rem 0.65rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--glass-border)',
+                        background: 'rgba(0,0,0,0.15)',
+                        color: 'var(--text)',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -867,9 +981,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   );
 
   function renderPersonCard(item: any) {
-    const record = callRecords[`${item.personId}_${item.type}`];
-    const isCalled = record && record.year === currentYear && record.checked;
-
+    const isCalled = isPcoItemCalled(item, callRecords, timeMarkDate, currentYear);
     const isPastDate = item.daysUntil < 0;
     const isPastUncalled = isPastDate && !isCalled;
 
