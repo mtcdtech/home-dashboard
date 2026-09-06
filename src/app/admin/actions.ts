@@ -2447,6 +2447,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
   selectedRanges?: string[];
   daysBefore?: number | string;
   daysAfter?: number | string;
+  callRecords?: Record<string, { year: number; checked: boolean }>;
 }) {
   await requireSession();
 
@@ -2618,7 +2619,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
   if (isNaN(dAfter)) dAfter = 30;
 
   const { filterByMultiDateRanges } = await import("@/lib/pco");
-  const filtered = filterByMultiDateRanges(allProcessedItems, params.selectedRanges || [], dBefore, dAfter);
+  const filtered = filterByMultiDateRanges(allProcessedItems, params.selectedRanges || [], dBefore, dAfter, params.callRecords || {});
 
   return {
     success: true,

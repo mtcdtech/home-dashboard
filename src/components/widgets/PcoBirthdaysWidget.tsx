@@ -5,8 +5,6 @@ import {
   Cake, 
   Heart, 
   Calendar, 
-  CheckCircle2, 
-  Circle, 
   Pencil, 
   ExternalLink, 
   RefreshCw, 
@@ -20,7 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  Check
+  Check,
+  CheckSquare,
+  Square
 } from "lucide-react";
 import { 
   fetchPcoBirthdaysAndAnniversaries, 
@@ -97,6 +97,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         selectedRanges,
         daysBefore,
         daysAfter,
+        callRecords,
       });
 
       if (res && res.success && Array.isArray(res.items)) {
@@ -251,6 +252,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     next_month: "Next Month",
     prev_x_days: `Past ${daysBefore}d`,
     next_x_days: `Next ${daysAfter}d`,
+    show_overdue: "Overdue Calls",
   };
   const monthLabels = selectedRanges
     .filter(r => ["prev_month", "current_month", "next_month"].includes(r))
@@ -258,17 +260,14 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const relativeLabels = selectedRanges
     .filter(r => ["prev_x_days", "next_x_days"].includes(r))
     .map(r => rangeLabels[r] || r);
+  const hasOverdueSelected = selectedRanges.includes("show_overdue");
 
   let activeFilterNote = "";
-  if (monthLabels.length > 0 && relativeLabels.length > 0) {
-    activeFilterNote = `${monthLabels.join(", ")} & ${relativeLabels.join(", ")}`;
-  } else if (monthLabels.length > 0) {
-    activeFilterNote = monthLabels.join(", ");
-  } else if (relativeLabels.length > 0) {
-    activeFilterNote = relativeLabels.join(", ");
-  } else {
-    activeFilterNote = "All Dates";
-  }
+  const filterParts: string[] = [];
+  if (monthLabels.length > 0) filterParts.push(monthLabels.join(", "));
+  if (relativeLabels.length > 0) filterParts.push(relativeLabels.join(", "));
+  if (hasOverdueSelected) filterParts.push("+ Overdue Calls");
+  activeFilterNote = filterParts.length > 0 ? filterParts.join(" & ") : "All Dates";
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
@@ -280,6 +279,31 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          {/* Overdue Calls Filter Pill */}
+          {totalOverdueCalls > 0 && (
+            <button
+              type="button"
+              onClick={() => toggleRangeOption("show_overdue")}
+              title={selectedRanges.includes("show_overdue") ? "Overdue calls included in view. Click to toggle." : "Click to include overdue uncalled celebrations in list."}
+              style={{
+                padding: '0.25rem 0.55rem',
+                borderRadius: '6px',
+                border: selectedRanges.includes("show_overdue") ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(239, 68, 68, 0.3)',
+                background: selectedRanges.includes("show_overdue") ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.1)',
+                color: '#f87171',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                cursor: 'pointer'
+              }}
+            >
+              <PhoneCall size={12} className={selectedRanges.includes("show_overdue") ? "" : "animate-pulse"} />
+              <span>{totalOverdueCalls} Overdue</span>
+            </button>
+          )}
+
           {/* Combined / Separate Toggle */}
           <button
             type="button"
@@ -712,6 +736,41 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 </div>
               </div>
 
+              {/* Overdue Calls Option */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', background: 'rgba(239, 68, 68, 0.05)', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '0.75rem', opacity: 0.9, fontWeight: 700, color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <AlertCircle size={13} />
+                    <span>Overdue Calls Inclusion</span>
+                  </label>
+                  <span style={{ fontSize: '0.68rem', opacity: 0.6 }}>
+                    Include past uncalled celebrations
+                  </span>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggleRangeOption("show_overdue")}
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '8px',
+                      border: selectedRanges.includes("show_overdue") ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid var(--glass-border)',
+                      background: selectedRanges.includes("show_overdue") ? 'rgba(239, 68, 68, 0.25)' : 'rgba(0,0,0,0.15)',
+                      color: selectedRanges.includes("show_overdue") ? '#f87171' : 'var(--text)',
+                      fontSize: '0.75rem',
+                      fontWeight: selectedRanges.includes("show_overdue") ? 700 : 500,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}
+                  >
+                    {selectedRanges.includes("show_overdue") ? <CheckSquare size={13} /> : <Square size={13} />}
+                    <span>Show Overdue Calls (Uncalled Past Dates)</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Customizable Window (Days Before & Days After) & Max Listings */}
               <div style={{ background: 'rgba(var(--primary-rgb), 0.04)', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>
@@ -985,13 +1044,13 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             }}
           >
             {isCalled ? (
-              <CheckCircle2 size={13} />
+              <CheckSquare size={13} />
             ) : isPastUncalled ? (
-              <PhoneCall size={13} className="animate-pulse" />
+              <Square size={13} />
             ) : (
-              <Circle size={13} />
+              <Square size={13} />
             )}
-            <span>{isCalled ? "Called" : isPastUncalled ? "Overdue Call" : "Call"}</span>
+            <span>Called</span>
           </button>
         </div>
       </div>

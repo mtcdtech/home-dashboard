@@ -2,6 +2,23 @@
 
 ## Running Change Log
 
+### 2026-09-05 - PCO Full Month Span, Overdue Option & Checkbox Button (v1.23.6)
+- **Summary**:
+  1. Updated `filterByMultiDateRanges` (`src/lib/pco.ts`) so unselected relative filter directions do not prematurely truncate active calendar months (e.g. if Past X Days is unselected, all past days of selected months show; same for Next X Days and future days).
+  2. Added `show_overdue` filter option and header pill badge to include uncalled past celebrations regardless of month or relative window.
+  3. Replaced circle icon with square checkbox (`CheckSquare` / `Square`) and standardized button text to `"Called"`.
+- **Files Modified**:
+  - [src/lib/pco.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/pco.ts) (updated month span preservation & overdue logic)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (passed `callRecords` into `fetchPcoBirthdaysAndAnniversaries`)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (overdue calls toggle, header indicator, Called checkbox button)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.23.6`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - Validated with automated test matrix covering full month spans, directional relative window constraints, and overdue inclusion.
+  - `npm run build` compiled 100% cleanly in 1.6s.
+
 ### 2026-09-05 - PCO Birthdays 2-Layer Intersecting Date Filtering (v1.23.5)
 - **Summary**:
   1. Replaced simple `OR` union date range logic in `filterByMultiDateRanges` (`src/lib/pco.ts`) with strict 2-layer `AND` intersecting filtering:

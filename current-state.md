@@ -3,10 +3,17 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Current Version**: `v1.23.5` (PCO Birthdays 2-Layer Intersecting Filter: Month Window & Relative Window)
+- **Current Version**: `v1.23.6` (PCO Full Month Span Without Relative Limit, Overdue Inclusion & Called Checkbox Button)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Full Month Span, Overdue Inclusion & Called Checkbox (v1.23.6)**:
+  - Updated `filterByMultiDateRanges` (`src/lib/pco.ts`):
+    - When a month filter is active and Past X Days is unselected, the entire past portion of the selected month(s) is displayed without date cuts.
+    - When a month filter is active and Next X Days is unselected, the entire future portion of the selected month(s) is displayed without date cuts.
+    - Added `show_overdue` filter option to automatically include all past uncalled celebrations regardless of date window boundaries.
+  - Replaced circle icon with square checkbox (`CheckSquare` / `Square`) and standardized button label to `"Called"` across all states.
+  - Added header badge indicator for overdue calls allowing quick 1-click toggle to view overdue celebrations.
 - **PCO Birthdays 2-Layer Intersecting Filter (v1.23.5)**:
   - Implemented 2-layer `AND` intersecting filter logic in `filterByMultiDateRanges` (`src/lib/pco.ts`):
     - **Layer 1 (Calendar Month Window)**: Multi-select Previous Month, Current Month, and Next Month.

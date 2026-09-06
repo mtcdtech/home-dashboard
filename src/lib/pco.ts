@@ -93,13 +93,23 @@ export function formatMonthDay(monthDay: string): string {
  * Multi-select 2-layer filter for date range options:
  * - Layer 1 (Calendar Month Window): "prev_month", "current_month", "next_month"
  * - Layer 2 (Relative Date Window): "prev_x_days" (-daysBefore <= daysUntil <= 0), "next_x_days" (0 <= daysUntil <= daysAfter)
- * Items must pass BOTH active layers (Layer 1 AND Layer 2).
+ * - Special Filter Option: "show_overdue" (includes all uncalled past celebrations regardless of month/window)
+ *
+ * Rules:
+ * 1. If an item is an overdue uncalled celebration and "show_overdue" is selected, it passes immediately.
+ * 2. If month filter(s) are selected, the item's month must match the selected months.
+ * 3. If past x days is NOT selected and a month filter is active, all past days of the selected month(s) are included.
+ *    If past x days IS selected, past days are constrained to item.daysUntil >= -Math.abs(daysBefore).
+ * 4. If next x days is NOT selected and a month filter is active, all future days of the selected month(s) are included.
+ *    If next x days IS selected, future days are constrained to item.daysUntil <= Math.abs(daysAfter).
+ * 5. If no month filter is selected, relative filters constrain past/future accordingly (or all pass if no relative filters).
  */
 export function filterByMultiDateRanges(
   items: PcoPersonItem[],
   selectedRanges: string[] = [],
   daysBefore: number = 7,
-  daysAfter: number = 30
+  daysAfter: number = 30,
+  callRecords: Record<string, { year: number; checked: boolean }> = {}
 ): PcoPersonItem[] {
   if (!selectedRanges || selectedRanges.length === 0 || selectedRanges.includes("all")) {
     const minDays = -Math.abs(daysBefore);
@@ -108,6 +118,7 @@ export function filterByMultiDateRanges(
   }
 
   const now = new Date();
+  const currentYear = now.getFullYear();
   const currentMonth = now.getMonth(); // 0-11
   const prevMonth = (currentMonth - 1 + 12) % 12;
   const nextMonth = (currentMonth + 1) % 12;
@@ -117,30 +128,73 @@ export function filterByMultiDateRanges(
 
   const monthRanges = selectedRanges.filter((r) => ["prev_month", "current_month", "next_month"].includes(r));
   const relativeRanges = selectedRanges.filter((r) => ["prev_x_days", "next_x_days"].includes(r));
+  const includeOverdue = selectedRanges.includes("show_overdue") || selectedRanges.includes("include_overdue");
+
+  const hasMonthFilter = monthRanges.length > 0;
+  const hasPastRelFilter = relativeRanges.includes("prev_x_days");
+  const hasFutureRelFilter = relativeRanges.includes("next_x_days");
 
   return items.filter((item) => {
     const [mStr] = item.dateMonthDay.split("-");
     const itemMonth = parseInt(mStr, 10) - 1;
 
-    // Layer 1: Calendar Month Filter (passes if no month filters are selected, or matches any selected month)
-    let passesMonthLayer = true;
-    if (monthRanges.length > 0) {
-      passesMonthLayer =
+    // Check if this is an overdue uncalled celebration
+    const rec = callRecords[`${item.personId}_${item.type}`];
+    const isCalled = rec && rec.year === currentYear && rec.checked;
+    const isOverdue = item.daysUntil < 0 && !isCalled;
+
+    if (includeOverdue && isOverdue) {
+      return true;
+    }
+
+    // Month boundary check
+    let inMonthWindow = true;
+    if (hasMonthFilter) {
+      inMonthWindow =
         (monthRanges.includes("prev_month") && itemMonth === prevMonth) ||
         (monthRanges.includes("current_month") && itemMonth === currentMonth) ||
         (monthRanges.includes("next_month") && itemMonth === nextMonth);
     }
 
-    // Layer 2: Relative Date Window Filter (passes if no relative filters are selected, or matches any selected relative range)
-    let passesRelativeLayer = true;
-    if (relativeRanges.length > 0) {
-      passesRelativeLayer =
-        (relativeRanges.includes("prev_x_days") && item.daysUntil >= minDays && item.daysUntil <= 0) ||
-        (relativeRanges.includes("next_x_days") && item.daysUntil >= 0 && item.daysUntil <= maxDays);
+    if (!inMonthWindow) {
+      return false;
     }
 
-    // Must satisfy BOTH layers
-    return passesMonthLayer && passesRelativeLayer;
+    // Relative constraints
+    if (item.daysUntil < 0) {
+      // Past day
+      if (hasPastRelFilter) {
+        return item.daysUntil >= minDays;
+      }
+      // If past x days is NOT selected:
+      // If month filter is active, entire past month/current month is included
+      if (hasMonthFilter) {
+        return true;
+      }
+      // If no month filter and only future rel filter was selected, exclude past
+      if (hasFutureRelFilter) {
+        return false;
+      }
+      return true;
+    } else if (item.daysUntil > 0) {
+      // Future day
+      if (hasFutureRelFilter) {
+        return item.daysUntil <= maxDays;
+      }
+      // If next x days is NOT selected:
+      // If month filter is active, entire future month/current month is included
+      if (hasMonthFilter) {
+        return true;
+      }
+      // If no month filter and only past rel filter was selected, exclude future
+      if (hasPastRelFilter) {
+        return false;
+      }
+      return true;
+    } else {
+      // Today (daysUntil === 0)
+      return true;
+    }
   });
 }
 

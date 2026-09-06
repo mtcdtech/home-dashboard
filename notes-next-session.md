@@ -67,12 +67,14 @@
 4. **Modal Lazy Loading**: Lazy-load heavy modals (`ThemeModal`, `TabModal`, `SectionModal`, `BookmarkModal`) using `next/dynamic` to reduce initial client bundle size.
 5. **Prisma Permission Filtering**: Push per-user permission filtering into Prisma `where` queries directly rather than filtering in JavaScript post-fetch (`resolveTabAccess`/`resolveSectionAccess`).
 
-## PCO Birthdays 2-Layer Date Filtering (v1.23.5)
-- **2-Layer AND Filtering**:
-  - Layer 1 (Calendar Month Window): Multi-select Previous Month, Current Month, Next Month.
-  - Layer 2 (Relative Date Window): Multi-select Past X Days (`-daysBefore <= daysUntil <= 0`) and Next X Days (`0 <= daysUntil <= daysAfter`).
-  - Items must satisfy both active layers, enabling precise date windows (e.g. Current Month + Past 10 Days only shows current month dates).
-  - Cleanly categorized Settings modal UI and formatted active filter note summary.
+## PCO Birthdays Full Month Span, Overdue Option & Checkbox (v1.23.6)
+- **Full Month Window Without Relative Cap**:
+  - When Past X Days is unselected and a month filter is active, all past days of the selected month(s) are included.
+  - When Next X Days is unselected and a month filter is active, all future days of the selected month(s) are included.
+- **Overdue Calls**:
+  - Added `show_overdue` option in modal and header badge to include uncalled past celebrations regardless of month/window.
+- **Checkbox & Label**:
+  - Replaced circle with square checkbox (`Square` / `CheckSquare`) and standardized button label to `"Called"`.
 
 ## FreeScout & Portainer Widget Customization & Draggable Sorting (v1.19.2)
 - **FreeScout Widget**:
@@ -86,11 +88,9 @@
   - Search bar selection integration and keyboard arrow navigation support.
 
 ## Post-Deploy Sanity Checks (do these after any real change)
-- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.23.5).
+- Both `https://home.server.mtcd.org/login` and `https://home.abraham16.com/login` footers show the version from `package.json` (v1.23.6).
 - Test PCO B&A widget settings:
-  - Select "Current Month" + "Past X Days (10d)": Verify only current month celebrations within the past 10 days are displayed (no prior month dates).
-  - Select "Previous Month" + "Current Month" + "Past X Days (10d)": Verify dates from both months falling within the 10-day past window are displayed.
-- Verify Portainer container cards display app icons at full size (`36px` wrapper / `28px` icon), identical in scale and prominence to standard bookmark cards.
-- Click Settings icon on Portainer widget to verify settings modal opens smoothly without errors.
-- Type in the top search bar and use `ArrowDown`/`ArrowUp` to navigate across bookmarks and Portainer containers. Verify the matching Portainer container card highlights and pressing `Enter` opens the container URL.
-- Test grid arrow-key navigation on Portainer widget sections with `ArrowDown`/`ArrowUp` and `Enter`.
+  - Select "Current Month" with neither relative box selected: Verify the entire current month (both past and future dates) is displayed.
+  - Select "Previous Month" + "Current Month": Verify all dates from both months are displayed.
+  - Toggle "Show Overdue Calls": Verify past uncalled celebrations outside active months appear with red highlight.
+  - Check person card: Verify checkbox square icon appears and button label reads "Called".
