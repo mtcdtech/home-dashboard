@@ -3,10 +3,14 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Current Version**: `v1.23.7` (PCO Birthdays Time Mark Cutoff Date for Automatic Call Status)
+- **Current Version**: `v1.23.8` (OIDC / Authentik Single Sign-On Double-Login Loop Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **OIDC / Authentik Single Sign-On Double-Login Fix (v1.23.8)**:
+  - Removed `prompt: "login"` from authorization parameters in `src/auth.config.ts` across all 4 Authentik providers (`authentik`, `authentik-pco`, `authentik-ms`, `authentik-cc`).
+  - Allows seamless SSO session reuse without forcing users to re-authenticate when an active Authentik session cookie already exists.
+  - Kept all standard scopes (`openid profile email groups mtcd_person`) and security checks (`pkce`, `state`) intact.
 - **PCO Birthdays Time Mark Cutoff Date (v1.23.7)**:
   - Added **Time Mark Cutoff Date** (`timeMarkDate`) setting in the Settings Modal:
     - Allows specifying a cutoff date (`YYYY-MM-DD`). All celebrations before this date are automatically marked as `"Called"`.

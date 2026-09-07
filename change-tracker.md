@@ -2,6 +2,20 @@
 
 ## Running Change Log
 
+### 2026-09-07 - Fix OIDC / Authentik Double-Login Loop (v1.23.8)
+- **Problem**: When users signed in via Authentik, they were prompted to log in twice because the OIDC authorization parameters included `prompt: "login"`. This instructed Authentik to ignore existing active session cookies and force a re-authentication prompt on every authorization flow.
+- **Summary**:
+  1. Audited all OIDC / Authentik provider configurations in `src/auth.config.ts`.
+  2. Removed `prompt: "login"` from authorization parameters across all 4 Authentik providers (`authentik`, `authentik-pco`, `authentik-ms`, `authentik-cc`), keeping all scopes (`openid profile email groups mtcd_person`) and security checks (`pkce`, `state`) intact.
+  3. Enables seamless single sign-on without re-prompting when a valid Authentik session already exists.
+- **Files Modified**:
+  - [src/auth.config.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/auth.config.ts) (removed `prompt: "login"` from all Authentik providers)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.23.8`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled 100% cleanly in 432ms with all static and dynamic routes validated.
+
 ### 2026-09-05 - PCO Birthdays Time Mark Cutoff Date for Automatic Call Status (v1.23.7)
 - **Summary**:
   1. Added **Time Mark Cutoff Date** (`timeMarkDate`) setting in the PCO Birthdays & Anniversaries settings modal.

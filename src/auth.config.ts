@@ -115,7 +115,7 @@ if (process.env.AUTHENTIK_CLIENT_ID) {
     issuer: process.env.AUTHENTIK_ISSUER,
     clientId: process.env.AUTHENTIK_CLIENT_ID,
     clientSecret: process.env.AUTHENTIK_CLIENT_SECRET,
-    authorization: { params: { scope: "openid profile email groups", prompt: "login" } },
+    authorization: { params: { scope: "openid profile email groups" } },
     checks: ["pkce", "state"],
     allowDangerousEmailAccountLinking: true,
     profile(profile: any) {
@@ -140,7 +140,7 @@ if (process.env.AUTHENTIK_PCO_CLIENT_ID) {
     issuer: process.env.AUTHENTIK_PCO_ISSUER,            // https://auth.server.mtcd.org/application/o/home-dashboard-pco/
     clientId: process.env.AUTHENTIK_PCO_CLIENT_ID,
     clientSecret: process.env.AUTHENTIK_PCO_CLIENT_SECRET,
-    authorization: { params: { scope: "openid profile email groups mtcd_person", prompt: "login" } },
+    authorization: { params: { scope: "openid profile email groups mtcd_person" } },
     checks: ["pkce", "state"],
     // Account linking by verified email: trust assumption is that configured IdPs
     // (Authentik/Planning Center/Microsoft/Synology) verify email ownership before issuing claims.
@@ -167,7 +167,7 @@ if (process.env.AUTHENTIK_MS_CLIENT_ID) {
     issuer: process.env.AUTHENTIK_MS_ISSUER,             // https://auth.server.mtcd.org/application/o/home-dashboard-ms/
     clientId: process.env.AUTHENTIK_MS_CLIENT_ID,
     clientSecret: process.env.AUTHENTIK_MS_CLIENT_SECRET,
-    authorization: { params: { scope: "openid profile email groups mtcd_person", prompt: "login" } },
+    authorization: { params: { scope: "openid profile email groups mtcd_person" } },
     checks: ["pkce", "state"],
     allowDangerousEmailAccountLinking: true,
     profile(profile: any) {
@@ -192,7 +192,7 @@ if (process.env.AUTHENTIK_CC_CLIENT_ID) {
     issuer: process.env.AUTHENTIK_CC_ISSUER,             // https://auth.server.mtcd.org/application/o/home-dashboard-cc/
     clientId: process.env.AUTHENTIK_CC_CLIENT_ID,
     clientSecret: process.env.AUTHENTIK_CC_CLIENT_SECRET,
-    authorization: { params: { scope: "openid profile email groups mtcd_person", prompt: "login" } },
+    authorization: { params: { scope: "openid profile email groups mtcd_person" } },
     checks: ["pkce", "state"],
     allowDangerousEmailAccountLinking: true,
     profile(profile: any) {
