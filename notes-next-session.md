@@ -1,7 +1,7 @@
 # Notes for Next Session: Home Dashboard
 
-- **Current Version**: `v1.23.7`
-- **PCO Birthdays Time Mark**: Time mark cutoff date allows automatically setting celebrations before a specific date to "Called" while honoring manual call check overrides. Settings modal provides date selection, quick presets ("Today", "1st of Month", "Clear"), and header badge indicator.
+- **Current Version**: `v1.23.9`
+- **PCO Celebrations Viewer Timezone**: Relative day calculations ("Today!", "Tomorrow", "Yesterday", and `daysUntil`) and multi-layer month window filters now adapt to the viewer's IANA timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`), ensuring midnight rollover matches the viewer's local calendar instead of the backend server's system time.
 
 ## Deploy Contract (canonical, as of 2026-08-11)
 - **Both servers are deployed from `mtcdtech/home-dashboard`.** There is no active abraham fork.

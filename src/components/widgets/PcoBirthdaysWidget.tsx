@@ -91,6 +91,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     setLoading(true);
     setError(null);
     try {
+      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await fetchPcoBirthdaysAndAnniversaries({
         appId: appId || undefined,
         appSecret: appSecret || undefined,
@@ -101,6 +102,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         daysAfter,
         callRecords,
         timeMarkDate,
+        timeZone: userTimeZone,
       });
 
       if (res && res.success && Array.isArray(res.items)) {

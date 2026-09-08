@@ -1,5 +1,3 @@
-import { isSafeUrl } from "@/lib/ssrf";
-
 export interface PcoPersonItem {
   id: string;
   personId: string;
@@ -38,9 +36,46 @@ export function getPcoAuthHeader(appId: string, appSecret: string): string {
 const MONTH_NAMES_SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 /**
- * Calculate signed days from today for a month & day (0 = today, negative = past days, positive = future days)
+ * Helper to get year, month (0-11), and day (1-31) in a specific IANA timeZone (or local system time)
  */
-export function getDaysUntilEvent(monthDay: string): { 
+export function getViewerDate(timeZone?: string, refDate: Date = new Date()): { year: number; month: number; day: number } {
+  if (!timeZone || !timeZone.trim()) {
+    return {
+      year: refDate.getFullYear(),
+      month: refDate.getMonth(),
+      day: refDate.getDate(),
+    };
+  }
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timeZone.trim(),
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    });
+    const parts = formatter.formatToParts(refDate);
+    const year = parseInt(parts.find((p) => p.type === "year")?.value || String(refDate.getFullYear()), 10);
+    const month = parseInt(parts.find((p) => p.type === "month")?.value || String(refDate.getMonth() + 1), 10) - 1;
+    const day = parseInt(parts.find((p) => p.type === "day")?.value || String(refDate.getDate()), 10);
+    return { year, month, day };
+  } catch {
+    return {
+      year: refDate.getFullYear(),
+      month: refDate.getMonth(),
+      day: refDate.getDate(),
+    };
+  }
+}
+
+/**
+ * Calculate signed days from today for a month & day (0 = today, negative = past days, positive = future days),
+ * accounting for the viewer's timezone.
+ */
+export function getDaysUntilEvent(
+  monthDay: string,
+  timeZone?: string,
+  refDate: Date = new Date()
+): { 
   daysUntil: number; 
   monthStr: string; 
   dayStr: string; 
@@ -48,29 +83,30 @@ export function getDaysUntilEvent(monthDay: string): {
   nextDate: Date;
 } {
   const [mStr, dStr] = monthDay.split("-");
-  const month = parseInt(mStr, 10) - 1; // 0-indexed
+  const month = parseInt(mStr, 10) - 1; // 0-indexed (0 = Jan, 11 = Dec)
   const day = parseInt(dStr, 10);
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const today = new Date(currentYear, now.getMonth(), now.getDate());
-  
-  let target = new Date(currentYear, month, day);
+  const { year: currentYear, month: curMonth, day: curDay } = getViewerDate(timeZone, refDate);
 
-  const diffTime = target.getTime() - today.getTime();
-  let daysUntil = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  // Use UTC timestamps for midnight-to-midnight exact calendar day difference (immune to DST hour shifts)
+  const todayUtc = Date.UTC(currentYear, curMonth, curDay);
+  let targetUtc = Date.UTC(currentYear, month, day);
+
+  const oneDayMs = 1000 * 60 * 60 * 24;
+  const diffTime = targetUtc - todayUtc;
+  let daysUntil = Math.round(diffTime / oneDayMs);
 
   // If the date passed earlier this year by more than 180 days, consider next year's occurrence for future sorting
   if (daysUntil < -180) {
-    target = new Date(currentYear + 1, month, day);
-    daysUntil = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    targetUtc = Date.UTC(currentYear + 1, month, day);
+    daysUntil = Math.round((targetUtc - todayUtc) / oneDayMs);
   } else if (daysUntil > 180) {
     // If date is more than 180 days in the future, it could be late last year's date window if checking daysBefore
-    const prevYearTarget = new Date(currentYear - 1, month, day);
-    const prevDays = Math.round((prevYearTarget.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const prevYearTargetUtc = Date.UTC(currentYear - 1, month, day);
+    const prevDays = Math.round((prevYearTargetUtc - todayUtc) / oneDayMs);
     if (Math.abs(prevDays) < Math.abs(daysUntil)) {
       daysUntil = prevDays;
-      target = prevYearTarget;
+      targetUtc = prevYearTargetUtc;
     }
   }
 
@@ -78,14 +114,14 @@ export function getDaysUntilEvent(monthDay: string): {
   const dayStr = String(day).padStart(2, "0");
   const formattedDate = `${monthStr}-${dayStr}`;
 
-  return { daysUntil, monthStr, dayStr, formattedDate, nextDate: target };
+  return { daysUntil, monthStr, dayStr, formattedDate, nextDate: new Date(targetUtc) };
 }
 
 /**
  * Format a Date object into human-readable month day (e.g. "SEP-14")
  */
-export function formatMonthDay(monthDay: string): string {
-  const { formattedDate } = getDaysUntilEvent(monthDay);
+export function formatMonthDay(monthDay: string, timeZone?: string): string {
+  const { formattedDate } = getDaysUntilEvent(monthDay, timeZone);
   return formattedDate;
 }
 
@@ -134,7 +170,8 @@ export function filterByMultiDateRanges(
   daysBefore: number = 7,
   daysAfter: number = 30,
   callRecords: Record<string, { year: number; checked: boolean }> = {},
-  timeMarkDate?: string
+  timeMarkDate?: string,
+  timeZone?: string
 ): PcoPersonItem[] {
   if (!selectedRanges || selectedRanges.length === 0 || selectedRanges.includes("all")) {
     const minDays = -Math.abs(daysBefore);
@@ -142,9 +179,7 @@ export function filterByMultiDateRanges(
     return items.filter((item) => item.daysUntil >= minDays && item.daysUntil <= maxDays);
   }
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-11
+  const { year: currentYear, month: currentMonth } = getViewerDate(timeZone);
   const prevMonth = (currentMonth - 1 + 12) % 12;
   const nextMonth = (currentMonth + 1) % 12;
 

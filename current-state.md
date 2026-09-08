@@ -3,10 +3,14 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Current Version**: `v1.23.8` (OIDC / Authentik Single Sign-On Double-Login Loop Fix)
+- **Current Version**: `v1.23.9` (PCO Celebrations Viewer Timezone Calculation)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Celebrations Viewer Timezone Calculation (v1.23.9)**:
+  - Added `getViewerDate(timeZone)` helper and updated `getDaysUntilEvent` & `filterByMultiDateRanges` in `src/lib/pco.ts` to compute relative calendar day differences (`daysUntil`, "Today!", "Tomorrow", "Yesterday", and month window boundaries) relative to the viewer's active IANA timezone.
+  - Passes client timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) from `PcoBirthdaysWidget.tsx` to server action `fetchPcoBirthdaysAndAnniversaries` in `src/app/admin/actions.ts`.
+  - Guarantees exact date parity between client browser and server regardless of Docker/node server hosting timezone (e.g. UTC server vs Central Time viewer).
 - **OIDC / Authentik Single Sign-On Double-Login Fix (v1.23.8)**:
   - Removed `prompt: "login"` from authorization parameters in `src/auth.config.ts` across all 4 Authentik providers (`authentik`, `authentik-pco`, `authentik-ms`, `authentik-cc`).
   - Allows seamless SSO session reuse without forcing users to re-authenticate when an active Authentik session cookie already exists.

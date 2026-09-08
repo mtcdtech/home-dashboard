@@ -2,6 +2,26 @@
 
 ## Running Change Log
 
+### 2026-09-07 - PCO Celebrations Viewer Timezone Calculation (v1.23.9)
+- **Problem**: In the celebrations widget (PCO Birthdays & Anniversaries), relative day calculations ("Today!", "Tomorrow", "Yesterday", and `daysUntil`) and month boundary filters evaluated `new Date()` on the Node.js backend server. When the server ran in UTC and the viewer accessed the dashboard from US Central Time (CDT, UTC-5), celebrations for the current calendar day would prematurely shift to "Yesterday" or tomorrow's events would appear as "Today" during the evening hours.
+- **Summary**:
+  1. Added `getViewerDate(timeZone?: string, refDate?: Date)` helper in `src/lib/pco.ts` to reliably resolve the viewer's current year, month, and day using `Intl.DateTimeFormat`.
+  2. Updated `getDaysUntilEvent` in `src/lib/pco.ts` to calculate UTC midnight-to-midnight day differences against the viewer's current calendar date, ensuring exact integer day offsets immune to daylight saving shifts.
+  3. Updated `filterByMultiDateRanges` in `src/lib/pco.ts` to compute current, previous, and next month boundaries relative to the viewer's timezone.
+  4. Updated `fetchPcoBirthdaysAndAnniversaries` in `src/app/admin/actions.ts` to accept `timeZone?: string` and pass it down to `getDaysUntilEvent` and `filterByMultiDateRanges`.
+  5. Updated `PcoBirthdaysWidget.tsx` to pass the browser's resolved IANA timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) during data loading.
+- **Files Modified**:
+  - [src/lib/pco.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/lib/pco.ts) (added `getViewerDate`, updated `getDaysUntilEvent`, `formatMonthDay`, `filterByMultiDateRanges`)
+  - [src/app/admin/actions.ts](file:///Users/benny2168/Antigravity/home-dashboard/src/app/admin/actions.ts) (passed `timeZone` in `fetchPcoBirthdaysAndAnniversaries`)
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///Users/benny2168/Antigravity/home-dashboard/src/components/widgets/PcoBirthdaysWidget.tsx) (passed browser `timeZone` in `loadData`)
+  - [package.json](file:///Users/benny2168/Antigravity/home-dashboard/package.json) (bumped version to `1.23.9`)
+  - [current-state.md](file:///Users/benny2168/Antigravity/home-dashboard/current-state.md)
+  - [notes-next-session.md](file:///Users/benny2168/Antigravity/home-dashboard/notes-next-session.md)
+  - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
+- **Validation**:
+  - Automated unit tests across timezone boundaries (UTC vs `America/Chicago` during late evening rollover and year-end boundaries).
+  - Next.js production build (`npm run build`) passed with 0 errors.
+
 ### 2026-09-07 - Fix OIDC / Authentik Double-Login Loop (v1.23.8)
 - **Problem**: When users signed in via Authentik, they were prompted to log in twice because the OIDC authorization parameters included `prompt: "login"`. This instructed Authentik to ignore existing active session cookies and force a re-authentication prompt on every authorization flow.
 - **Summary**:

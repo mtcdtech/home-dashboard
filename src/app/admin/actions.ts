@@ -2449,6 +2449,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
   daysAfter?: number | string;
   callRecords?: Record<string, { year: number; checked: boolean }>;
   timeMarkDate?: string;
+  timeZone?: string;
 }) {
   await requireSession();
 
@@ -2517,7 +2518,7 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
           attrs.household_id || 
           null;
 
-        const { daysUntil, monthStr, dayStr, formattedDate } = getDaysUntilEvent(monthDay);
+        const { daysUntil, monthStr, dayStr, formattedDate } = getDaysUntilEvent(monthDay, params.timeZone);
         const name = attrs.name || `${attrs.first_name || ""} ${attrs.last_name || ""}`.trim() || "Unknown";
 
         rawItems.push({
@@ -2626,7 +2627,8 @@ export async function fetchPcoBirthdaysAndAnniversaries(params: {
     dBefore,
     dAfter,
     params.callRecords || {},
-    params.timeMarkDate
+    params.timeMarkDate,
+    params.timeZone
   );
 
   return {
