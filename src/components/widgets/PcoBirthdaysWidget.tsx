@@ -5,6 +5,8 @@ import {
   Cake, 
   Heart, 
   Calendar, 
+  CheckCircle2,
+  Circle,
   Pencil, 
   ExternalLink, 
   RefreshCw, 

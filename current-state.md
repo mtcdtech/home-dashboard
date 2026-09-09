@@ -3,10 +3,13 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Current Version**: `v1.24.0` (PCO Birthdays & Anniversaries Module Enhancements)
+- **Current Version**: `v1.24.1` (PCO Widget Icon Import Fix & Dynamic Actions Title)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Widget Icon Import Fix & Dynamic Actions Title (v1.24.1)**:
+  - **CheckCircle2 & Circle Icon Import Fix**: Restored missing `CheckCircle2` and `Circle` imports in `PcoBirthdaysWidget.tsx` from `lucide-react`, fixing the runtime `CheckCircle2 is not defined` widget diagnostic error.
+  - **Dynamic GitHub Actions Title**: Updated `run-name` in `.github/workflows/deploy.yml` to `${{ github.event.head_commit.message }}` so workflow run titles dynamically display the exact version string from commit messages (e.g. `v1.24.1 [main] - ...`) instead of sticking to a static string.
 - **PCO Birthdays & Anniversaries Module Enhancements (v1.24.0)**:
   - **PCO API 404 Workflow Resolution**: Updated `submitPcoProfileCorrection` in `src/app/admin/actions.ts` to fetch initial step ID via `GET /workflows/v2/workflows/{workflowId}/steps` if missing, creating cards under `/workflows/v2/steps/{stepId}/cards` and attaching notes without 404 errors when targeting workflow `489142`.
   - **Top-Row Called & Overdue Filter Toggles**: Added single-line compact toggle buttons in `PcoBirthdaysWidget.tsx` header for `Called` and `Overdue` items. Moved "Combined" / "Separate" display mode toggle into the Settings Modal to keep the top bar clean and un-wrapped.

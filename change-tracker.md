@@ -2,6 +2,19 @@
 
 ## Running Change Log
 
+### 2026-09-08 - PCO Widget Icon Import Fix & Dynamic Actions Title (v1.24.1)
+- **Summary**: Fixed runtime icon import error and workflow run title setting:
+  1. **Icon Import Fix**: Restored missing `CheckCircle2` and `Circle` imports in `src/components/widgets/PcoBirthdaysWidget.tsx` from `lucide-react`, resolving `CheckCircle2 is not defined` runtime component crash.
+  2. **Dynamic Actions Run Title**: Updated `run-name` in `.github/workflows/deploy.yml` to `${{ github.event.head_commit.message }}` so every push automatically renders the version tag from the commit message in GitHub Actions runs.
+- **Files Modified**:
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///src/components/widgets/PcoBirthdaysWidget.tsx) (added `CheckCircle2` and `Circle` imports)
+  - [.github/workflows/deploy.yml](file:///.github/workflows/deploy.yml) (updated `run-name` to `${{ github.event.head_commit.message }}`)
+  - [package.json](file:///package.json) (bumped version to `1.24.1`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled production build with 0 errors.
+
 ### 2026-09-08 - PCO Birthdays & Anniversaries Module Enhancements (v1.24.0)
 - **Summary**: Implemented key UI, filter, and backend enhancements for the PCO Birthdays & Anniversaries (B&A) module:
   1. **PCO API 404 Workflow Step Resolution**: Fixed PCO card creation 404 error when targeting workflow ID `489142`. Updated `submitPcoProfileCorrection` in `src/app/admin/actions.ts` to automatically fetch initial step ID via `GET /workflows/v2/workflows/{workflowId}/steps` if missing, creating cards under `/workflows/v2/steps/{stepId}/cards` and attaching notes cleanly.
