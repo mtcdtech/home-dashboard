@@ -20,13 +20,15 @@ import {
   Filter,
   Check,
   CheckSquare,
-  Square
+  Square,
+  FileText
 } from "lucide-react";
 import { 
   fetchPcoBirthdaysAndAnniversaries, 
   submitPcoProfileCorrection, 
   togglePcoCallStatus, 
-  updateSectionWidgetConfig 
+  updateSectionWidgetConfig,
+  savePcoPersonNote
 } from "@/app/admin/actions";
 import { isPcoItemCalled } from "@/lib/pco";
 
@@ -67,6 +69,18 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const [viewMode, setViewMode] = useState<"combined" | "split">(rawConfig.viewMode || "combined");
   const [timeMarkDate, setTimeMarkDate] = useState<string>(rawConfig.timeMarkDate || "");
 
+  // Top header filter toggles (Called & Overdue)
+  const [showCalledFilter, setShowCalledFilter] = useState<boolean>(typeof rawConfig.showCalledFilter !== "undefined" ? Boolean(rawConfig.showCalledFilter) : true);
+  const [showOverdueFilter, setShowOverdueFilter] = useState<boolean>(typeof rawConfig.showOverdueFilter !== "undefined" ? Boolean(rawConfig.showOverdueFilter) : true);
+
+  // Custom Notes per Person
+  const [personNotes, setPersonNotes] = useState<Record<string, string>>(
+    rawConfig.personNotes && typeof rawConfig.personNotes === "object" ? rawConfig.personNotes : {}
+  );
+  const [selectedPersonForNote, setSelectedPersonForNote] = useState<any | null>(null);
+  const [personNoteText, setPersonNoteText] = useState("");
+  const [savingPersonNote, setSavingPersonNote] = useState(false);
+
   // Loaded Items & State
   const [items, setItems] = useState<any[]>([]);
   const [callRecords, setCallRecords] = useState<Record<string, { year: number; checked: boolean }>>(
@@ -80,7 +94,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   // Correction Modal State
   const [selectedPersonForCorrection, setSelectedPersonForCorrection] = useState<any | null>(null);
   const [correctionNote, setCorrectionNote] = useState("");
-  const [submittingNote, setSubmittingNote] = useState(false);
+  const [submittingCorrection, setSubmittingCorrection] = useState(false);
   const [correctionStatus, setCorrectionStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   const [savingSettings, setSavingSettings] = useState(false);
@@ -108,7 +122,8 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
       if (res && res.success && Array.isArray(res.items)) {
         setItems(res.items);
       } else {
-        const errStr = typeof res?.error === "string" ? res.error : res?.error?.message ? String(res.error.message) : "Failed to load Planning Center data";
+        const errObj: any = res?.error;
+        const errStr = typeof errObj === "string" ? errObj : errObj?.message ? String(errObj.message) : "Failed to load Planning Center data";
         setError(errStr);
       }
     } catch (err: any) {
@@ -175,6 +190,9 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         daysAfter,
         maxItems,
         viewMode,
+        showCalledFilter,
+        showOverdueFilter,
+        personNotes,
         callRecords,
         timeMarkDate,
       };
@@ -192,7 +210,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
   const handleSubmitCorrection = async () => {
     if (!selectedPersonForCorrection || !correctionNote.trim()) return;
-    setSubmittingNote(true);
+    setSubmittingCorrection(true);
     setCorrectionStatus(null);
     try {
       const res = await submitPcoProfileCorrection({
@@ -217,18 +235,67 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     } catch (err: any) {
       setCorrectionStatus({ success: false, message: err.message || "Submission error." });
     } finally {
-      setSubmittingNote(false);
+      setSubmittingCorrection(false);
     }
   };
 
-  // Filter items by search filter
+  const handleSaveNote = async () => {
+    if (!selectedPersonForNote) return;
+    setSavingPersonNote(true);
+    try {
+      const personId = selectedPersonForNote.personId;
+      const res = await savePcoPersonNote({
+        sectionId: section.id,
+        personId,
+        note: personNoteText,
+      });
+
+      if (res.success && res.personNotes) {
+        setPersonNotes(res.personNotes);
+      } else {
+        setPersonNotes(prev => ({
+          ...prev,
+          [personId]: personNoteText.trim()
+        }));
+      }
+      setSelectedPersonForNote(null);
+      setPersonNoteText("");
+    } catch (err: any) {
+      alert("Failed to save personal note: " + (err.message || err));
+    } finally {
+      setSavingPersonNote(false);
+    }
+  };
+
+  const totalCalled = items.filter(i => {
+    const rec = callRecords[`${i.personId}_${i.type}`];
+    return rec && rec.year === currentYear && rec.checked;
+  }).length;
+
+  const totalOverdueCalls = items.filter(i => {
+    const isPast = i.daysUntil < 0;
+    const isCalled = isPcoItemCalled(i, callRecords, timeMarkDate, currentYear);
+    return isPast && !isCalled;
+  }).length;
+
+  // Filter items based on search filter AND top header filter toggles (Called & Overdue)
   const filteredItems = items.filter(item => {
+    const record = callRecords[`${item.personId}_${item.type}`];
+    const isCalled = record && record.year === currentYear && record.checked;
+    const isPastUncalled = item.daysUntil < 0 && !isCalled;
+
+    // Apply header filter toggles
+    if (!showCalledFilter && isCalled) return false;
+    if (!showOverdueFilter && isPastUncalled) return false;
+
     if (!searchFilter.trim()) return true;
     const query = searchFilter.toLowerCase();
+    const noteText = personNotes[item.personId] || "";
     return (
       item.name.toLowerCase().includes(query) ||
       item.formattedDate.toLowerCase().includes(query) ||
-      item.type.toLowerCase().includes(query)
+      item.type.toLowerCase().includes(query) ||
+      noteText.toLowerCase().includes(query)
     );
   });
 
@@ -239,14 +306,6 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
 
   const birthdaysList = filteredItems.filter(i => i.type === "birthday");
   const anniversariesList = filteredItems.filter(i => i.type === "anniversary");
-
-  const totalCalled = items.filter(i => isPcoItemCalled(i, callRecords, timeMarkDate, currentYear)).length;
-
-  const totalOverdueCalls = items.filter(i => {
-    const isPast = i.daysUntil < 0;
-    const isCalled = isPcoItemCalled(i, callRecords, timeMarkDate, currentYear);
-    return isPast && !isCalled;
-  }).length;
 
   const rangeLabels: Record<string, string> = {
     prev_month: "Prev Month",
@@ -271,11 +330,25 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   if (hasOverdueSelected) filterParts.push("+ Overdue Calls");
   activeFilterNote = filterParts.length > 0 ? filterParts.join(" & ") : "All Dates";
 
+  // Calculate actual Date Range being shown
+  const calculateDateRangeString = () => {
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - daysBefore);
+
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + daysAfter);
+
+    const formatOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+    return `${startDate.toLocaleDateString("en-US", formatOpts)} – ${endDate.toLocaleDateString("en-US", formatOpts)}`;
+  };
+  const activeDateRangeDisplay = calculateDateRangeString();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
       {/* Single-Line Widget Control Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.15)', padding: '0.5rem 0.75rem', borderRadius: '12px', border: '1px solid var(--glass-border)', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.15)', padding: '0.5rem 0.75rem', borderRadius: '12px', border: '1px solid var(--glass-border)', gap: '0.4rem', flexWrap: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', flexShrink: 0 }}>
           <Heart size={16} style={{ color: '#ec4899' }} />
           <span>PCO B&A</span>
           {timeMarkDate && (
@@ -300,40 +373,55 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          {/* Overdue Calls Filter Pill */}
-          {totalOverdueCalls > 0 && (
-            <button
-              type="button"
-              onClick={() => toggleRangeOption("show_overdue")}
-              title={selectedRanges.includes("show_overdue") ? "Overdue calls included in view. Click to toggle." : "Click to include overdue uncalled celebrations in list."}
-              style={{
-                padding: '0.25rem 0.55rem',
-                borderRadius: '6px',
-                border: selectedRanges.includes("show_overdue") ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(239, 68, 68, 0.3)',
-                background: selectedRanges.includes("show_overdue") ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.1)',
-                color: '#f87171',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                cursor: 'pointer'
-              }}
-            >
-              <PhoneCall size={12} className={selectedRanges.includes("show_overdue") ? "" : "animate-pulse"} />
-              <span>{totalOverdueCalls} Overdue</span>
-            </button>
-          )}
-
-          {/* Combined / Separate Toggle */}
+        {/* Top-Row Toggle Buttons (Called & Overdue) & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'nowrap' }}>
           <button
             type="button"
-            title={viewMode === "combined" ? "Switch to Separate View" : "Switch to Combined View"}
-            onClick={() => setViewMode(prev => prev === "combined" ? "split" : "combined")}
-            style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.06)', color: 'var(--text)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            onClick={() => setShowCalledFilter(prev => !prev)}
+            title={showCalledFilter ? "Hide Called people" : "Show Called people"}
+            style={{
+              padding: '0.25rem 0.55rem',
+              borderRadius: '6px',
+              border: showCalledFilter ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--glass-border)',
+              background: showCalledFilter ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255,255,255,0.04)',
+              color: showCalledFilter ? '#4ade80' : 'var(--text)',
+              opacity: showCalledFilter ? 1 : 0.5,
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
           >
-            {viewMode === "combined" ? "Combined" : "Separate"}
+            <CheckCircle2 size={12} />
+            <span>Called ({totalCalled})</span>
+          </button>
+
+          {/* Overdue Filter Button */}
+          <button
+            type="button"
+            onClick={() => setShowOverdueFilter(prev => !prev)}
+            title={showOverdueFilter ? "Hide Overdue people" : "Show Overdue people"}
+            style={{
+              padding: '0.25rem 0.55rem',
+              borderRadius: '6px',
+              border: showOverdueFilter ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid var(--glass-border)',
+              background: showOverdueFilter ? 'rgba(239, 68, 68, 0.18)' : 'rgba(255,255,255,0.04)',
+              color: showOverdueFilter ? '#f87171' : 'var(--text)',
+              opacity: showOverdueFilter ? 1 : 0.5,
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+          >
+            <AlertCircle size={12} />
+            <span>Overdue ({totalOverdueCalls})</span>
           </button>
 
           {/* Refresh Button */}
@@ -341,7 +429,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             type="button"
             onClick={loadData}
             title="Refresh Planning Center List"
-            style={{ padding: '0.35rem', borderRadius: '6px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            style={{ padding: '0.35rem', borderRadius: '6px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
@@ -352,7 +440,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               type="button"
               onClick={() => setShowSettingsModal(true)}
               title="Configure Settings & Date Filters"
-              style={{ padding: '0.35rem', borderRadius: '6px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              style={{ padding: '0.35rem', borderRadius: '6px', border: 'none', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
             >
               <Settings size={14} />
             </button>
@@ -360,10 +448,16 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
       </div>
 
-      {/* Applied Filter Note Row */}
-      <div style={{ fontSize: '0.72rem', opacity: 0.7, padding: '0 0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-        <Filter size={11} style={{ opacity: 0.6 }} />
-        <span>Filter applied: <strong>{activeFilterNote || "Default"}</strong></span>
+      {/* Applied Filter Note & Actual Date Range Header */}
+      <div style={{ fontSize: '0.72rem', opacity: 0.75, padding: '0 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Filter size={11} style={{ opacity: 0.6 }} />
+          <span>Filters: <strong>{activeFilterNote || "Default"}</strong></span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary)', fontWeight: 600 }}>
+          <Calendar size={11} />
+          <span>{activeDateRangeDisplay}</span>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -391,7 +485,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
       ) : filteredItems.length === 0 ? (
         <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.5, fontSize: '0.85rem' }}>
-          No upcoming birthdays or anniversaries match your selected date ranges.
+          No upcoming birthdays or anniversaries match your selected filters.
         </div>
       ) : viewMode === "combined" ? (
         /* Combined View List */
@@ -524,7 +618,62 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
       )}
 
-      {/* Profile Correction Modal */}
+      {/* Yellow Personal Note Modal */}
+      {selectedPersonForNote && (
+        <div 
+          className="modal-overlay fade-in" 
+          onDragStart={(e) => e.stopPropagation()}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onDrop={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
+        >
+          <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '480px', borderRadius: '20px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1rem', color: '#fbbf24' }}>
+                <FileText size={18} />
+                <span>Personal Note: {selectedPersonForNote.name}</span>
+              </div>
+              <button onClick={() => setSelectedPersonForNote(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={18} /></button>
+            </div>
+
+            <p style={{ fontSize: '0.8rem', opacity: 0.7, margin: 0 }}>
+              Add a custom note for {selectedPersonForNote.name} (e.g. gift preference, phone notes, or special details). Notes will appear directly on their card.
+            </p>
+
+            <textarea
+              id="person_custom_note"
+              name="person_custom_note"
+              rows={4}
+              placeholder="Enter note here..."
+              value={personNoteText}
+              onChange={(e) => setPersonNoteText(e.target.value)}
+              className="glass"
+              style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', border: '1px solid rgba(245, 158, 11, 0.3)', color: 'var(--text)' }}
+            />
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedPersonForNote(null)}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingPersonNote}
+                onClick={handleSaveNote}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: '#eab308', color: '#000', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Check size={14} />
+                <span>{savingPersonNote ? "Saving..." : "Save Note"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blue Profile Correction Modal */}
       {selectedPersonForCorrection && (
         <div 
           className="modal-overlay fade-in" 
@@ -533,28 +682,28 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
           onDrop={(e) => e.stopPropagation()}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
         >
-          <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '480px', borderRadius: '20px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--glass-border)' }}>
+          <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '480px', borderRadius: '20px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(59, 130, 246, 0.4)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1rem' }}>
-                <Pencil size={16} style={{ color: 'var(--primary)' }} />
-                <span>Correction Note: {selectedPersonForCorrection.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1rem', color: '#60a5fa' }}>
+                <Pencil size={16} />
+                <span>PCO Profile Correction: {selectedPersonForCorrection.name}</span>
               </div>
               <button onClick={() => setSelectedPersonForCorrection(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={18} /></button>
             </div>
 
-            <p style={{ fontSize: '0.8rem', opacity: 0.7, margin: 0 }}>
-              Submit a profile correction note directly to your Planning Center Workflow (e.g. updated phone number, spelling fix, or wrong date).
+            <p style={{ fontSize: '0.8rem', opacity: 0.75, margin: 0 }}>
+              Submit a profile correction note to Planning Center Workflow (Person ID: <code>{selectedPersonForCorrection.personId}</code>).
             </p>
 
             <textarea
               id="pco_correction_note"
               name="pco_correction_note"
               rows={4}
-              placeholder="Enter correction note details..."
+              placeholder="Enter correction details (e.g. updated phone number, spelling fix, wrong date)..."
               value={correctionNote}
               onChange={(e) => setCorrectionNote(e.target.value)}
               className="glass"
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', border: '1px solid var(--glass-border)', color: 'var(--text)' }}
+              style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--text)' }}
             />
 
             {correctionStatus && (
@@ -573,13 +722,12 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               </button>
               <button
                 type="button"
-                disabled={submittingNote || !correctionNote.trim()}
+                disabled={submittingCorrection || !correctionNote.trim()}
                 onClick={handleSubmitCorrection}
-                className="btn btn-primary"
-                style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
               >
                 <Send size={14} />
-                <span>{submittingNote ? "Submitting..." : "Submit to PCO"}</span>
+                <span>{submittingCorrection ? "Submitting..." : "Submit to PCO"}</span>
               </button>
             </div>
           </div>
@@ -664,7 +812,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 <input
                   id="pco_workflow_id"
                   name="pco_workflow_id"
-                  placeholder="e.g. 98765"
+                  placeholder="e.g. 489142"
                   value={workflowId}
                   onChange={(e) => setWorkflowId(e.target.value)}
                   style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
@@ -944,7 +1092,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 </div>
               </div>
 
-              {/* Display Layout */}
+              {/* Display Layout (Moved View Mode toggle here) */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Display Layout</label>
                 <select
@@ -1006,6 +1154,8 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     const monthDisplay = item.monthStr || (item.formattedDate ? item.formattedDate.split("-")[0] : "MMM");
     const dayDisplay = item.dayStr || (item.formattedDate ? item.formattedDate.split("-")[1] : "DD");
 
+    const noteText = personNotes[item.personId] || "";
+
     return (
       <div
         key={item.id}
@@ -1017,7 +1167,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         style={{
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           padding: '0.75rem 0.85rem',
           borderRadius: '14px',
           background: isCalled 
@@ -1037,7 +1187,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
-          {/* Prominent Date Badge (replaces initials icon) */}
+          {/* Date Badge */}
           <div 
             title={`Event date: ${item.formattedDate}`}
             style={{ 
@@ -1063,7 +1213,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               boxSizing: 'border-box'
             }}
           >
-            <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: isPastUncalled ? '#f87171' : pillColor, lineHeight: 1, tracking: '0.05em' }}>
+            <span style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: isPastUncalled ? '#f87171' : pillColor, lineHeight: 1 }}>
               {monthDisplay}
             </span>
             <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1.1, marginTop: '2px' }}>
@@ -1072,10 +1222,43 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
-            {/* Person Name (whole card is clickable to male card link) */}
-            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {/* Person Name & Inline Custom Note */}
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <span>{item.name}</span>
               <ExternalLink size={11} style={{ opacity: 0.4, flexShrink: 0 }} />
+
+              {/* Inline Custom Personal Note */}
+              {noteText && (
+                <div
+                  title={`Personal Note: ${noteText} (Click to edit)`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedPersonForNote(item);
+                    setPersonNoteText(noteText);
+                  }}
+                  style={{
+                    fontSize: '0.68rem',
+                    background: 'rgba(245, 158, 11, 0.18)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    color: '#fbbf24',
+                    borderRadius: '6px',
+                    padding: '0.1rem 0.4rem',
+                    maxWidth: '140px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                    flexShrink: 1
+                  }}
+                >
+                  <FileText size={10} style={{ flexShrink: 0 }} />
+                  <span>{noteText}</span>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -1098,10 +1281,36 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
           style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Correction Note Pencil Button */}
+          {/* Yellow Personal Notes Button */}
           <button
             type="button"
-            title={`Add profile correction note for ${item.name}`}
+            title={noteText ? `Edit personal note for ${item.name}` : `Add personal note for ${item.name}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSelectedPersonForNote(item);
+              setPersonNoteText(noteText);
+            }}
+            style={{
+              padding: '0.4rem',
+              borderRadius: '7px',
+              border: noteText ? '1px solid rgba(245, 158, 11, 0.6)' : '1px solid rgba(245, 158, 11, 0.35)',
+              background: noteText ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.1)',
+              color: '#eab308',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s'
+            }}
+          >
+            <FileText size={13} />
+          </button>
+
+          {/* Blue PCO Profile Correction Pencil Button */}
+          <button
+            type="button"
+            title={`Add PCO profile correction note for ${item.name}`}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -1109,12 +1318,23 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
               setCorrectionNote("");
               setCorrectionStatus(null);
             }}
-            style={{ padding: '0.4rem', borderRadius: '7px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--text)', opacity: 0.75, cursor: 'pointer' }}
+            style={{
+              padding: '0.4rem',
+              borderRadius: '7px',
+              border: '1px solid rgba(59, 130, 246, 0.35)',
+              background: 'rgba(59, 130, 246, 0.12)',
+              color: '#3b82f6',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s'
+            }}
           >
             <Pencil size={13} />
           </button>
 
-          {/* Called Checkbox Button - Highlighted in RED if celebration passed & not called */}
+          {/* Called / Overdue / Call Checkbox Action Button */}
           <button
             type="button"
             title={
@@ -1164,7 +1384,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
             ) : (
               <Square size={13} />
             )}
-            <span>Called</span>
+            <span>{isCalled ? "Called" : isPastUncalled ? "Overdue" : "Call"}</span>
           </button>
         </div>
       </div>

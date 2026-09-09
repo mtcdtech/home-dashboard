@@ -2655,7 +2655,7 @@ export async function submitPcoProfileCorrection(params: {
     return { success: false, error: "PCO Workflow ID for profile corrections is not configured." };
   }
 
-  // Auto-extract Workflow ID and optional Step ID if user pasted full PCO URL
+  // Auto-extract Workflow ID and optional Step ID if user pasted full PCO URL or workflow:step syntax
   let cleanWorkflowId = rawInput;
   let cleanStepId = "";
 
@@ -2678,13 +2678,46 @@ export async function submitPcoProfileCorrection(params: {
     return { success: false, error: "Correction note text cannot be empty." };
   }
 
+  if (!params.personId) {
+    return { success: false, error: "Missing PCO Person ID for card creation." };
+  }
+
   const { getPcoAuthHeader } = await import("@/lib/pco");
   const authHeader = getPcoAuthHeader(appId, appSecret);
 
   try {
-    const primaryUrl = `https://api.planningcenteronline.com/workflows/v2/workflows/${cleanWorkflowId}/cards`;
-    
-    // Valid JSON:API payload according to PCO Workflows API v2 spec (no invalid 'stage' attribute)
+    // If stepId is missing, query PCO API to get steps for this workflow
+    if (!cleanStepId) {
+      const stepsUrl = `https://api.planningcenteronline.com/workflows/v2/workflows/${cleanWorkflowId}/steps`;
+      const stepsResp = await fetch(stepsUrl, {
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!stepsResp.ok) {
+        const errTxt = await stepsResp.text();
+        console.error(`Failed to fetch steps for workflow ${cleanWorkflowId} (HTTP ${stepsResp.status}):`, errTxt);
+        return {
+          success: false,
+          error: `PCO Workflow (${cleanWorkflowId}) not found or unaccessible (HTTP ${stepsResp.status}). Please check Application ID, Secret Key, and Workflow ID.`,
+        };
+      }
+
+      const stepsData = await stepsResp.json();
+      const firstStep = stepsData.data?.[0];
+      if (!firstStep?.id) {
+        return {
+          success: false,
+          error: `PCO Workflow ${cleanWorkflowId} has no configured steps. Please add a step in Planning Center Workflows.`,
+        };
+      }
+      cleanStepId = firstStep.id;
+    }
+
+    const cardUrl = `https://api.planningcenteronline.com/workflows/v2/steps/${cleanStepId}/cards`;
     const cardBody: any = {
       data: {
         type: "Card",
@@ -2702,16 +2735,7 @@ export async function submitPcoProfileCorrection(params: {
       },
     };
 
-    if (cleanStepId) {
-      cardBody.data.relationships.step = {
-        data: {
-          type: "Step",
-          id: String(cleanStepId),
-        },
-      };
-    }
-
-    let resp = await fetch(primaryUrl, {
+    const resp = await fetch(cardUrl, {
       method: "POST",
       headers: {
         Authorization: authHeader,
@@ -2720,28 +2744,6 @@ export async function submitPcoProfileCorrection(params: {
       body: JSON.stringify(cardBody),
       signal: AbortSignal.timeout(8000),
     });
-
-    // Fallback if workflow URL failed and step ID is available
-    if (!resp.ok && cleanStepId) {
-      const stepUrl = `https://api.planningcenteronline.com/workflows/v2/steps/${cleanStepId}/cards`;
-      const stepBody = {
-        data: {
-          type: "Card",
-          attributes: {
-            person_id: String(params.personId),
-          },
-        },
-      };
-      resp = await fetch(stepUrl, {
-        method: "POST",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(stepBody),
-        signal: AbortSignal.timeout(8000),
-      });
-    }
 
     if (!resp.ok) {
       const errText = await resp.text();
@@ -2756,7 +2758,7 @@ export async function submitPcoProfileCorrection(params: {
         success: false,
         error: pcoErrorMsg 
           ? `PCO API Error (${resp.status}): ${pcoErrorMsg}`
-          : `PCO Workflow API returned HTTP ${resp.status}. Please check Application ID, Secret Key, and Workflow ID (${cleanWorkflowId}).`,
+          : `PCO Workflow Card API returned HTTP ${resp.status}. Please check PCO permissions for Person ID (${params.personId}).`,
       };
     }
 
@@ -2769,7 +2771,7 @@ export async function submitPcoProfileCorrection(params: {
         data: {
           type: "CardNote",
           attributes: {
-            note: `[Profile Correction Request from Home Dashboard]:\n${params.note.trim()}`,
+            note: `[Profile Correction Request from Home Dashboard for ${params.personName}]:\n${params.note.trim()}`,
           },
         },
       };
@@ -2795,6 +2797,50 @@ export async function submitPcoProfileCorrection(params: {
     console.error("Failed to submit PCO workflow correction:", err);
     return { success: false, error: err.message || "Failed to submit correction to PCO Workflow" };
   }
+}
+
+export async function savePcoPersonNote(params: {
+  sectionId: string;
+  personId: string;
+  note: string;
+}) {
+  await requireSession();
+
+  const section = await prisma.section.findUnique({ where: { id: params.sectionId } });
+  if (!section) throw new Error("Section not found");
+
+  let rawConfig: any = {};
+  try {
+    rawConfig = typeof section.widgetConfig === "string"
+      ? (JSON.parse(section.widgetConfig || "{}") || {})
+      : (section.widgetConfig && typeof section.widgetConfig === "object" ? section.widgetConfig : {});
+  } catch (e) {
+    rawConfig = {};
+  }
+
+  const personNotes = { ...(rawConfig.personNotes || {}) };
+  const trimmed = (params.note || "").trim();
+
+  if (trimmed) {
+    personNotes[params.personId] = trimmed;
+  } else {
+    delete personNotes[params.personId];
+  }
+
+  const updatedConfig = {
+    ...rawConfig,
+    personNotes,
+  };
+
+  await prisma.section.update({
+    where: { id: params.sectionId },
+    data: {
+      widgetConfig: updatedConfig,
+    },
+  });
+
+  revalidatePath("/");
+  return { success: true, personNotes };
 }
 
 export async function togglePcoCallStatus(params: {

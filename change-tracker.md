@@ -2,6 +2,22 @@
 
 ## Running Change Log
 
+### 2026-09-08 - PCO Birthdays & Anniversaries Module Enhancements (v1.24.0)
+- **Summary**: Implemented key UI, filter, and backend enhancements for the PCO Birthdays & Anniversaries (B&A) module:
+  1. **PCO API 404 Workflow Step Resolution**: Fixed PCO card creation 404 error when targeting workflow ID `489142`. Updated `submitPcoProfileCorrection` in `src/app/admin/actions.ts` to automatically fetch initial step ID via `GET /workflows/v2/workflows/{workflowId}/steps` if missing, creating cards under `/workflows/v2/steps/{stepId}/cards` and attaching notes cleanly.
+  2. **Top-Row Called & Overdue Filter Toggles**: Added single-line compact toggle buttons in `PcoBirthdaysWidget.tsx` header for `Called` and `Overdue` items. Moved "Combined" / "Separate" display mode toggle into the Settings Modal to keep top buttons on a single row without text wrapping.
+  3. **Calculated Active Date Range Header**: Dynamically calculates and displays the exact date window (e.g. `Sep 1, 2026 – Sep 30, 2026`) in the widget header sub-bar.
+  4. **Yellow Personal Notes Modal & Inline Display**: Added yellow Notes button on cards and a dedicated modal for entering custom notes per person (`savePcoPersonNote` server action). Saved notes render inline on the card between name and action buttons.
+  5. **Blue Corrections Button & Action Button Labels**: Styled profile corrections pencil button in blue (`#3b82f6`). Updated call action button labels to **"Call"** (future/uncalled), **"Overdue"** (pulsing red for past uncalled), and **"Called"** (green checkmark).
+- **Files Modified**:
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///src/components/widgets/PcoBirthdaysWidget.tsx) (Called & Overdue header toggles, calculated date range, yellow notes modal, inline notes display, blue corrections button, and renamed Call/Overdue labels)
+  - [src/app/admin/actions.ts](file:///src/app/admin/actions.ts) (auto step resolution for PCO workflow card creation and `savePcoPersonNote` server action)
+  - [package.json](file:///package.json) (bumped version to `1.24.0`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - Executed `npm run build` — compiled production build cleanly with zero errors.
+
 ### 2026-09-07 - PCO Celebrations Viewer Timezone Calculation (v1.23.9)
 - **Problem**: In the celebrations widget (PCO Birthdays & Anniversaries), relative day calculations ("Today!", "Tomorrow", "Yesterday", and `daysUntil`) and month boundary filters evaluated `new Date()` on the Node.js backend server. When the server ran in UTC and the viewer accessed the dashboard from US Central Time (CDT, UTC-5), celebrations for the current calendar day would prematurely shift to "Yesterday" or tomorrow's events would appear as "Today" during the evening hours.
 - **Summary**:
@@ -104,6 +120,24 @@
   - [change-tracker.md](file:///Users/benny2168/Antigravity/home-dashboard/change-tracker.md)
 - **Validation**:
   - `npm run build` compiled 100% cleanly.
+=======
+### 2026-09-08 - PCO Birthdays & Anniversaries Module Enhancements (v1.24.0)
+- **Summary**: Implemented key UI, filter, and backend enhancements for the PCO Birthdays & Anniversaries (B&A) module:
+  1. **PCO API 404 Workflow Step Resolution**: Fixed PCO card creation 404 error when targeting workflow ID `489142`. Updated `submitPcoProfileCorrection` in `src/app/admin/actions.ts` to automatically fetch initial step ID via `GET /workflows/v2/workflows/{workflowId}/steps` if missing, creating cards under `/workflows/v2/steps/{stepId}/cards` and attaching notes cleanly.
+  2. **Top-Row Called & Overdue Filter Toggles**: Added single-line compact toggle buttons in `PcoBirthdaysWidget.tsx` header for `Called` and `Overdue` items. Moved "Combined" / "Separate" display mode toggle into the Settings Modal to keep top buttons on a single row without text wrapping.
+  3. **Calculated Active Date Range Header**: Dynamically calculates and displays the exact date window (e.g. `Sep 1, 2026 – Sep 30, 2026`) in the widget header sub-bar.
+  4. **Yellow Personal Notes Modal & Inline Display**: Added yellow Notes button on cards and a dedicated modal for entering custom notes per person (`savePcoPersonNote` server action). Saved notes render inline on the card between name and action buttons.
+  5. **Blue Corrections Button & Action Button Labels**: Styled profile corrections pencil button in blue (`#3b82f6`). Updated call action button labels to **"Call"** (future/uncalled), **"Overdue"** (pulsing red for past uncalled), and **"Called"** (green checkmark).
+- **Files Modified**:
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///src/components/widgets/PcoBirthdaysWidget.tsx) (Called & Overdue header toggles, calculated date range, yellow notes modal, inline notes display, blue corrections button, and renamed Call/Overdue labels)
+  - [src/app/admin/actions.ts](file:///src/app/admin/actions.ts) (auto step resolution for PCO workflow card creation and `savePcoPersonNote` server action)
+  - [package.json](file:///package.json) (bumped version to `1.24.0`)
+  - [current-state.md](file:///current-state.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - Executed `npm run build` — compiled production build cleanly with zero errors.
+
+>>>>>>> 4aaf170 (v1.24.0 [main] - PCO Birthdays & Anniversaries module enhancements)
 
 ### 2026-09-03 - Production Dependency Alignment & Lightweight Container Optimization (v1.23.3)
 - **Summary**: Resolved package categorization and automated production dependency pruning:
