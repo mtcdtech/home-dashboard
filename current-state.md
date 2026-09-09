@@ -3,10 +3,15 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Current Version**: `v1.24.1` (PCO Widget Icon Import Fix & Dynamic Actions Title)
+- **Current Version**: `v1.25.0` (PCO Step ID, Overdue Ignore Button, Confirmation Modal & Ignored Manager)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **PCO Birthdays & Anniversaries Module Enhancements (v1.25.0)**:
+  - **PCO Step ID & Workflow Parsing**: Added explicit `PCO Step ID` setting (`stepId`) in `PcoBirthdaysWidget.tsx` and URL auto-parsing (extracting both `workflowId` and `stepId` from full PCO workflow links).
+  - **Overdue Ignore Button ("x")**: Rendered an `"x"` ignore button next to overdue action buttons on cards. Clicking opens a custom popup confirmation dialog ("Ignore Celebration") to remove celebrants from active lists & overdue counters without marking them as Called.
+  - **Ignored Celebrations Manager**: Added an Ignored Celebrations section inside the Settings Modal displaying all ignored entries for the current year with 1-click "Un-ignore / Restore".
+  - **Internal Widget Notes & Submitter Attribution in PCO Corrections**: Included internal widget notes (`personNotes`) in PCO profile correction payloads and attributed card notes with logged-in user details (`Submitted by Name (email)`).
 - **PCO Widget Icon Import Fix & Dynamic Actions Title (v1.24.1)**:
   - **CheckCircle2 & Circle Icon Import Fix**: Restored missing `CheckCircle2` and `Circle` imports in `PcoBirthdaysWidget.tsx` from `lucide-react`, fixing the runtime `CheckCircle2 is not defined` widget diagnostic error.
   - **Dynamic GitHub Actions Title**: Updated `run-name` in `.github/workflows/deploy.yml` to `${{ github.event.head_commit.message }}` so workflow run titles dynamically display the exact version string from commit messages (e.g. `v1.24.1 [main] - ...`) instead of sticking to a static string.

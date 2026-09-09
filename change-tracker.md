@@ -2,6 +2,23 @@
 
 ## Running Change Log
 
+### 2026-09-08 - PCO Step ID, Overdue Ignore Button, Confirmation Modal & Ignored Manager (v1.25.0)
+- **Summary**: Implemented PCO Step ID setting, overdue ignore button ("x"), ignore confirmation modal, ignored manager in settings, internal note passing, and submitter attribution:
+  1. **PCO Step ID & URL Auto-Parser**: Added `pco_step_id` input field in settings modal alongside `pco_workflow_id`. Auto-extracts both `workflowId` and `stepId` if a user pastes a full PCO URL (e.g. `https://people.planningcenteronline.com/workflows/489142/steps/1270054/...`).
+  2. **Overdue Ignore Button ("x") & Confirmation Modal**: Rendered an `"x"` (Ignore) button next to overdue call buttons on cards. Clicking opens a custom popup confirmation dialog ("Ignore Celebration") to confirm removing celebrants from active lists and overdue counters without marking them as Called.
+  3. **Server Action `togglePcoIgnoreStatus`**: Created `togglePcoIgnoreStatus` server action in `src/app/admin/actions.ts` to persist ignored celebrants per year in `widgetConfig.ignoreRecords`.
+  4. **Ignored Celebrations Manager**: Added an Ignored Celebrations section inside the Settings Modal displaying all ignored entries for the current year with 1-click "Un-ignore / Restore".
+  5. **Internal Widget Notes & Submitter Attribution**: Attached internal widget notes (`personNotes`) to PCO profile correction payloads and attributed card notes with logged-in user details (`Submitted by Name (email)`).
+- **Files Modified**:
+  - [src/components/widgets/PcoBirthdaysWidget.tsx](file:///src/components/widgets/PcoBirthdaysWidget.tsx) (Step ID setting, URL auto-parser, ignore button, ignore confirmation popup modal, ignore filter logic, ignored manager in settings modal, and internal note passing)
+  - [src/app/admin/actions.ts](file:///src/app/admin/actions.ts) (updated `submitPcoProfileCorrection` with submitter attribution & internal notes, added `togglePcoIgnoreStatus`)
+  - [package.json](file:///package.json) (bumped version to `1.25.0`)
+  - [current-state.md](file:///current-state.md)
+  - [notes-next-session.md](file:///notes-next-session.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled production build with 0 errors.
+
 ### 2026-09-08 - PCO Widget Icon Import Fix & Dynamic Actions Title (v1.24.1)
 - **Summary**: Fixed runtime icon import error and workflow run title setting:
   1. **Icon Import Fix**: Restored missing `CheckCircle2` and `Circle` imports in `src/components/widgets/PcoBirthdaysWidget.tsx` from `lucide-react`, resolving `CheckCircle2 is not defined` runtime component crash.

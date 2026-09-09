@@ -13,6 +13,7 @@ import {
   Settings, 
   Search, 
   X, 
+  XCircle,
   Send, 
   AlertCircle, 
   PhoneCall,
@@ -29,6 +30,7 @@ import {
   fetchPcoBirthdaysAndAnniversaries, 
   submitPcoProfileCorrection, 
   togglePcoCallStatus, 
+  togglePcoIgnoreStatus,
   updateSectionWidgetConfig,
   savePcoPersonNote
 } from "@/app/admin/actions";
@@ -57,6 +59,27 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const [birthdayListIds, setBirthdayListIds] = useState(rawConfig.birthdayListIds || "");
   const [anniversaryListIds, setAnniversaryListIds] = useState(rawConfig.anniversaryListIds || "");
   const [workflowId, setWorkflowId] = useState(rawConfig.workflowId || "");
+  const [stepId, setStepId] = useState(rawConfig.stepId || "");
+
+  // Auto-parse Workflow ID and Step ID if a PCO URL is pasted
+  const handleWorkflowIdChange = (val: string) => {
+    let parsedWf = val;
+    let parsedStep = stepId;
+    if (val.includes("planningcenteronline.com") || val.includes("/")) {
+      const wfMatch = val.match(/workflows\/(\d+)/i);
+      const stepMatch = val.match(/steps\/(\d+)/i);
+      if (wfMatch) parsedWf = wfMatch[1];
+      if (stepMatch) parsedStep = stepMatch[1];
+    } else if (val.includes(":")) {
+      const parts = val.split(":");
+      parsedWf = parts[0].trim();
+      if (parts[1]?.trim()) parsedStep = parts[1].trim();
+    }
+    setWorkflowId(parsedWf);
+    if (parsedStep !== stepId) {
+      setStepId(parsedStep);
+    }
+  };
 
   // Multi-select date range options
   const defaultRanges = Array.isArray(rawConfig.selectedRanges) && rawConfig.selectedRanges.length > 0 
@@ -88,6 +111,13 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
   const [callRecords, setCallRecords] = useState<Record<string, { year: number; checked: boolean }>>(
     rawConfig.callRecords && typeof rawConfig.callRecords === "object" ? rawConfig.callRecords : {}
   );
+
+  // Ignored Celebrations per person (by year)
+  const [ignoreRecords, setIgnoreRecords] = useState<Record<string, { year: number; ignored: boolean; updatedAt?: string; personName?: string; dateStr?: string }>>(
+    rawConfig.ignoreRecords && typeof rawConfig.ignoreRecords === "object" ? rawConfig.ignoreRecords : {}
+  );
+  const [personToIgnore, setPersonToIgnore] = useState<any | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
@@ -177,6 +207,46 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     }
   };
 
+  const handleToggleIgnore = async (personId: string, eventType: "birthday" | "anniversary", currentIgnored: boolean, itemContext?: any) => {
+    const newIgnored = !currentIgnored;
+    const recordKey = `${personId}_${eventType}`;
+    
+    // Optimistic UI update
+    setIgnoreRecords(prev => {
+      const next = { ...prev };
+      if (newIgnored) {
+        next[recordKey] = {
+          year: currentYear,
+          ignored: true,
+          updatedAt: new Date().toISOString(),
+          personName: itemContext?.name,
+          dateStr: itemContext?.formattedDate,
+        };
+      } else {
+        delete next[recordKey];
+      }
+      return next;
+    });
+
+    try {
+      const res = await togglePcoIgnoreStatus({
+        sectionId: section.id,
+        personId,
+        eventType,
+        year: currentYear,
+        ignored: newIgnored,
+      });
+
+      if (res.success && res.ignoreRecords) {
+        setIgnoreRecords(res.ignoreRecords);
+      }
+    } catch (err) {
+      console.error("Failed to toggle ignore status:", err);
+    } finally {
+      setPersonToIgnore(null);
+    }
+  };
+
   const handleSaveConfig = async () => {
     setSavingSettings(true);
     try {
@@ -187,6 +257,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         birthdayListIds,
         anniversaryListIds,
         workflowId,
+        stepId,
         selectedRanges,
         daysBefore,
         daysAfter,
@@ -196,6 +267,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         showOverdueFilter,
         personNotes,
         callRecords,
+        ignoreRecords,
         timeMarkDate,
       };
 
@@ -219,9 +291,11 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         appId,
         appSecret,
         workflowId,
+        stepId,
         personId: selectedPersonForCorrection.personId,
         personName: selectedPersonForCorrection.name,
         note: correctionNote,
+        internalWidgetNote: personNotes[selectedPersonForCorrection.personId] || undefined,
       });
 
       if (res.success) {
@@ -269,19 +343,25 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
     }
   };
 
-  const totalCalled = items.filter(i => {
+  // Exclude ignored items for current year from active display & counters
+  const activeItems = items.filter(i => {
+    const rec = ignoreRecords[`${i.personId}_${i.type}`];
+    return !(rec && rec.year === currentYear && rec.ignored);
+  });
+
+  const totalCalled = activeItems.filter(i => {
     const rec = callRecords[`${i.personId}_${i.type}`];
     return rec && rec.year === currentYear && rec.checked;
   }).length;
 
-  const totalOverdueCalls = items.filter(i => {
+  const totalOverdueCalls = activeItems.filter(i => {
     const isPast = i.daysUntil < 0;
     const isCalled = isPcoItemCalled(i, callRecords, timeMarkDate, currentYear);
     return isPast && !isCalled;
   }).length;
 
-  // Filter items based on search filter AND top header filter toggles (Called & Overdue)
-  const filteredItems = items.filter(item => {
+  // Filter active items based on search filter AND top header filter toggles (Called & Overdue)
+  const filteredItems = activeItems.filter(item => {
     const record = callRecords[`${item.personId}_${item.type}`];
     const isCalled = record && record.year === currentYear && record.checked;
     const isPastUncalled = item.daysUntil < 0 && !isCalled;
@@ -736,6 +816,54 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
         </div>
       )}
 
+      {/* Ignore Confirmation Popup Modal */}
+      {personToIgnore && (
+        <div 
+          className="modal-overlay fade-in" 
+          onDragStart={(e) => e.stopPropagation()}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onDrop={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
+        >
+          <div className="glass modal-content fade-in" style={{ width: '100%', maxWidth: '440px', borderRadius: '20px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1rem', color: '#f87171' }}>
+                <XCircle size={18} />
+                <span>Ignore Celebration</span>
+              </div>
+              <button onClick={() => setPersonToIgnore(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5 }}><X size={18} /></button>
+            </div>
+
+            <div style={{ fontSize: '0.85rem', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                Are you sure you want to ignore the overdue celebration for <strong style={{ color: '#f87171' }}>{personToIgnore.name}</strong>?
+              </p>
+              <p style={{ margin: 0, fontSize: '0.78rem', opacity: 0.7, lineHeight: 1.4 }}>
+                This will remove them from active lists and overdue counters for {currentYear}. They will not be marked as Called. You can un-ignore them at any time in Widget Settings.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setPersonToIgnore(null)}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleIgnore(personToIgnore.personId, personToIgnore.type, false, personToIgnore)}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <XCircle size={14} />
+                <span>Ignore Person</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Settings Modal */}
       {showSettingsModal && (hasEditAccess || isAdmin) && (
         <div 
@@ -808,17 +936,77 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 />
               </div>
 
-              {/* Workflow ID */}
-              <div>
-                <label htmlFor="pco_workflow_id" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Profile Corrections PCO Workflow ID</label>
-                <input
-                  id="pco_workflow_id"
-                  name="pco_workflow_id"
-                  placeholder="e.g. 489142"
-                  value={workflowId}
-                  onChange={(e) => setWorkflowId(e.target.value)}
-                  style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
-                />
+              {/* Workflow & Step Settings */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label htmlFor="pco_workflow_id" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>PCO Workflow ID</label>
+                  <input
+                    id="pco_workflow_id"
+                    name="pco_workflow_id"
+                    placeholder="e.g. 489142 or paste full URL"
+                    value={workflowId}
+                    onChange={(e) => handleWorkflowIdChange(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pco_step_id" style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>PCO Step ID (Optional)</label>
+                  <input
+                    id="pco_step_id"
+                    name="pco_step_id"
+                    placeholder="e.g. 1270054"
+                    value={stepId}
+                    onChange={(e) => setStepId(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(var(--primary-rgb), 0.04)', color: 'var(--text)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <p style={{ fontSize: '0.68rem', opacity: 0.5, margin: '-0.5rem 0 0 0' }}>
+                Tip: Pasting a full PCO Workflow URL into Workflow ID will automatically extract both Workflow and Step IDs.
+              </p>
+
+              {/* Ignored Celebrations Manager */}
+              <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '0.85rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.25)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <XCircle size={14} />
+                    <span>Ignored Celebrations ({Object.keys(ignoreRecords).length})</span>
+                  </label>
+                  <span style={{ fontSize: '0.68rem', opacity: 0.6 }}>
+                    Hidden from list & overdue counters
+                  </span>
+                </div>
+                {Object.keys(ignoreRecords).length === 0 ? (
+                  <div style={{ fontSize: '0.75rem', opacity: 0.5, fontStyle: 'italic' }}>
+                    No ignored celebrations recorded for {currentYear}.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '140px', overflowY: 'auto' }}>
+                    {Object.entries(ignoreRecords).map(([key, rec]) => {
+                      const parts = key.split("_");
+                      const pid = parts[0];
+                      const evType = parts[1] || "celebration";
+                      const matchedItem = items.find(i => i.personId === pid && i.type === evType);
+                      const name = rec.personName || matchedItem?.name || `Person ID: ${pid}`;
+                      return (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ fontWeight: 600 }}>{name}</span>
+                            <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'capitalize' }}>({evType})</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleIgnore(pid, evType as any, true)}
+                            style={{ padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                          >
+                            <RefreshCw size={10} />
+                            <span>Un-ignore</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Layer 1: Calendar Month Window (Multi-Select) */}
@@ -906,7 +1094,9 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                     );
                   })}
                 </div>
-              </div>              {/* Overdue Calls Option */}
+              </div>
+
+              {/* Overdue Calls Option */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', background: 'rgba(239, 68, 68, 0.05)', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <label style={{ fontSize: '0.75rem', opacity: 0.9, fontWeight: 700, color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -1094,7 +1284,7 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
                 </div>
               </div>
 
-              {/* Display Layout (Moved View Mode toggle here) */}
+              {/* Display Layout */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Display Layout</label>
                 <select
@@ -1335,6 +1525,33 @@ export function PcoBirthdaysWidget({ section, showEditControls, hasEditAccess, i
           >
             <Pencil size={13} />
           </button>
+
+          {/* Ignore Overdue Button ("x") */}
+          {isPastUncalled && (
+            <button
+              type="button"
+              title={`Ignore ${item.name}'s overdue celebration (removes from list without marking as called)`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setPersonToIgnore(item);
+              }}
+              style={{
+                padding: '0.4rem',
+                borderRadius: '7px',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#f87171',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s'
+              }}
+            >
+              <XCircle size={13} />
+            </button>
+          )}
 
           {/* Called / Overdue / Call Checkbox Action Button */}
           <button

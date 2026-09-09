@@ -1,7 +1,7 @@
 # Notes for Next Session: Home Dashboard
 
-- **Current Version**: `v1.23.9`
-- **PCO Celebrations Viewer Timezone**: Relative day calculations ("Today!", "Tomorrow", "Yesterday", and `daysUntil`) and multi-layer month window filters now adapt to the viewer's IANA timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`), ensuring midnight rollover matches the viewer's local calendar instead of the backend server's system time.
+- **Current Version**: `v1.25.0`
+- **PCO B&A Module Enhancements**: Added PCO Step ID setting with URL auto-parsing, overdue ignore button ("x") with confirmation popup modal, Ignored Manager in Settings, internal widget note passing, and submitter attribution on card notes.
 
 ## Deploy Contract (canonical, as of 2026-08-11)
 - **Both servers are deployed from `mtcdtech/home-dashboard`.** There is no active abraham fork.
