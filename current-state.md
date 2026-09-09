@@ -3,10 +3,14 @@
 ## Project Architecture & Context
 - **Repository**: [mtcdtech/home-dashboard](https://github.com/mtcdtech/home-dashboard)
 - **Active Branch**: `main`
-- **Current Version**: `v1.25.0` (PCO Step ID, Overdue Ignore Button, Confirmation Modal & Ignored Manager)
+- **Current Version**: `v1.25.1` (Workspace Sync SSRF Local IP Exception & Admin Permission Fix)
 - **Deployment Strategy**: Push to GitHub `main` branch triggers Docker build & Portainer stack redeployment for Church Synology (`home.server.mtcd.org`). Push to `abraham-prod` branch triggers build & Portainer container redeployment for Abraham Mac Mini (`home.abraham16.com`).
 
 ## Status & Operational State
+- **Workspace Sync SSRF Local IP Exception & Admin Permission Fix (v1.25.1)**:
+  - **SSRF Local/Private IP Exception for Sync**: Updated `isSafeUrl()` in `src/lib/ssrf.ts` to allow local IPv4 ranges (`192.168.x.x`, `10.x.x.x`, `172.x.x.x`) and Tailscale ranges (`100.64.0.0/10`) for cross-server workspace sync endpoints (`/api/sync/workspace`). Fixed `"Invalid or unsafe sync URL"` blocks when syncing between self-hosted servers.
+  - **Admin Workspace Sharing Visibility**: Updated workspace filtering in `src/app/admin/sync/page.tsx` so all logged-in Admins (`isAdmin: true`) can view and generate sync URLs for all non-read-only workspaces on the server, eliminating `"No shareable workspaces found"` for non-local admins.
+  - **Sync Path Revalidation & Error Reporting**: Added `revalidatePath("/admin/sync")` to `generateTabSyncToken` and `importWorkspaceFromSyncUrl` in `src/app/admin/actions.ts` for instant UI updates, and enhanced fetch error messaging.
 - **PCO Birthdays & Anniversaries Module Enhancements (v1.25.0)**:
   - **PCO Step ID & Workflow Parsing**: Added explicit `PCO Step ID` setting (`stepId`) in `PcoBirthdaysWidget.tsx` and URL auto-parsing (extracting both `workflowId` and `stepId` from full PCO workflow links).
   - **Overdue Ignore Button ("x")**: Rendered an `"x"` ignore button next to overdue action buttons on cards. Clicking opens a custom popup confirmation dialog ("Ignore Celebration") to remove celebrants from active lists & overdue counters without marking them as Called.

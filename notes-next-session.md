@@ -1,7 +1,7 @@
 # Notes for Next Session: Home Dashboard
 
-- **Current Version**: `v1.25.0`
-- **PCO B&A Module Enhancements**: Added PCO Step ID setting with URL auto-parsing, overdue ignore button ("x") with confirmation popup modal, Ignored Manager in Settings, internal widget note passing, and submitter attribution on card notes.
+- **Current Version**: `v1.25.1`
+- **Workspace Sync SSRF & Admin Permission Fix**: Fixed `/admin/sync` workspace sharing visibility for all logged-in admins and allowed local/private/Tailscale IPs for cross-server workspace sync endpoints.
 
 ## Deploy Contract (canonical, as of 2026-08-11)
 - **Both servers are deployed from `mtcdtech/home-dashboard`.** There is no active abraham fork.

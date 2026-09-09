@@ -1245,12 +1245,13 @@ export async function generateTabSyncToken(tabId: string) {
   await (prisma as any).tab.update({ where: { id: tabId }, data: { syncToken: token } });
   revalidatePath("/");
   revalidatePath("/admin/tabs");
+  revalidatePath("/admin/sync");
   return token;
 }
 
 export async function importWorkspaceFromSyncUrl(syncUrl: string) {
   await requireAdmin();
-  if (!(await isSafeUrl(syncUrl))) {
+  if (!(await isSafeUrl(syncUrl, { allowPrivateIp: true }))) {
     throw new Error("Invalid or unsafe sync URL");
   }
   try {
@@ -1260,10 +1261,15 @@ export async function importWorkspaceFromSyncUrl(syncUrl: string) {
      if (!userId) throw new Error("Unauthorized");
   
      console.log("importWorkspaceFromSyncUrl: Fetching payload...");
-     const resp = await fetch(syncUrl, { cache: 'no-store' });
+     const resp = await fetch(syncUrl, { 
+       cache: 'no-store',
+       headers: { 'User-Agent': 'HomeDashboardWorkspaceSync/1.0' },
+       signal: AbortSignal.timeout(15000)
+     });
      if (!resp.ok) {
-         console.error("importWorkspaceFromSyncUrl: fetch failed with status", resp.status);
-         throw new Error("Failed to fetch sync payload");
+         const errBody = await resp.text().catch(() => "");
+         console.error("importWorkspaceFromSyncUrl: fetch failed with status", resp.status, errBody);
+         throw new Error(`Failed to fetch sync payload (HTTP ${resp.status}): ${errBody.slice(0, 100) || "Server returned error"}`);
      }
      const payload = await resp.json();
      console.log("importWorkspaceFromSyncUrl: Fetched payload successfully");
@@ -1397,6 +1403,8 @@ export async function importWorkspaceFromSyncUrl(syncUrl: string) {
   
      console.log("importWorkspaceFromSyncUrl: Import completed successfully.");
      revalidatePath("/");
+     revalidatePath("/admin/tabs");
+     revalidatePath("/admin/sync");
      return newTab.id;
   } catch (err: any) {
      console.error("importWorkspaceFromSyncUrl CRITICAL ERROR:", err);
@@ -1411,7 +1419,7 @@ export async function refreshSyncedWorkspace(tabId: string) {
     include: { tabSections: true, owners: { select: { id: true } } } 
   });
   if (!tab || !tab.syncSourceUrl || !tab.isReadOnlySync) return;
-  if (!(await isSafeUrl(tab.syncSourceUrl))) {
+  if (!(await isSafeUrl(tab.syncSourceUrl, { allowPrivateIp: true }))) {
     console.warn("refreshSyncedWorkspace: Refusing unsafe syncSourceUrl:", tab.syncSourceUrl);
     return;
   }

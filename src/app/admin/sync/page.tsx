@@ -45,7 +45,7 @@ export default async function SyncPage() {
   const isLocalAdmin = user?.email === 'admin@local' || user?.name === 'Local Admin';
 
   const filteredTabs = allTabs.filter(tab => {
-    if (isLocalAdmin) return true;
+    if (isAdmin || isLocalAdmin) return true;
     if (!tab.isReadOnlySync && tab.isLibraryItem) return true;
     return tab.owners.some((o: any) => o.id === user.id);
   });

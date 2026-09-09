@@ -2,6 +2,22 @@
 
 ## Running Change Log
 
+### 2026-09-08 - Workspace Sync SSRF Local IP Exception & Admin Permission Fix (v1.25.1)
+- **Summary**: Fixed workspace sync functionality on `/admin/sync`:
+  1. **SSRF Local/Private IP Exception for Sync**: Updated `isSafeUrl()` in `src/lib/ssrf.ts` to allow private IPv4 addresses (`10.x.x.x`, `172.16-31.x.x`, `192.168.x.x`) and Tailscale ranges (`100.64.0.0/10`) for cross-server workspace sync endpoints (`/api/sync/workspace`), resolving `"Invalid or unsafe sync URL"` failures when syncing between self-hosted instances.
+  2. **Admin Workspace Sharing Visibility**: Updated workspace filtering in `src/app/admin/sync/page.tsx` so all logged-in Admins (`isAdmin: true`) can view and generate sync URLs for all non-read-only workspaces on the server, eliminating `"No shareable workspaces found"` for non-local admins.
+  3. **Sync Path Revalidation & Error Reporting**: Added `revalidatePath("/admin/sync")` to `generateTabSyncToken` and `importWorkspaceFromSyncUrl` in `src/app/admin/actions.ts` for instant UI updates, and enhanced fetch error messaging.
+- **Files Modified**:
+  - [src/lib/ssrf.ts](file:///src/lib/ssrf.ts) (added `allowPrivateIp` option and auto-allowed `/api/sync/workspace` endpoints in `isSafeUrl`)
+  - [src/app/admin/sync/page.tsx](file:///src/app/admin/sync/page.tsx) (allowed all admins to see non-read-only workspaces in `filteredTabs`)
+  - [src/app/admin/actions.ts](file:///src/app/admin/actions.ts) (passed `allowPrivateIp: true` to `isSafeUrl`, added `revalidatePath("/admin/sync")`, improved error handling)
+  - [package.json](file:///package.json) (bumped version to `1.25.1`)
+  - [current-state.md](file:///current-state.md)
+  - [notes-next-session.md](file:///notes-next-session.md)
+  - [change-tracker.md](file:///change-tracker.md)
+- **Validation**:
+  - `npm run build` compiled production build cleanly with 0 errors.
+
 ### 2026-09-08 - PCO Step ID, Overdue Ignore Button, Confirmation Modal & Ignored Manager (v1.25.0)
 - **Summary**: Implemented PCO Step ID setting, overdue ignore button ("x"), ignore confirmation modal, ignored manager in settings, internal note passing, and submitter attribution:
   1. **PCO Step ID & URL Auto-Parser**: Added `pco_step_id` input field in settings modal alongside `pco_workflow_id`. Auto-extracts both `workflowId` and `stepId` if a user pastes a full PCO URL (e.g. `https://people.planningcenteronline.com/workflows/489142/steps/1270054/...`).

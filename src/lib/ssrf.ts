@@ -7,13 +7,20 @@ const lookup = promisify(dns.lookup);
 // window when using fetch() after isSafeUrl() DNS resolution. Mitigating this fully
 // requires resolving DNS once and connecting directly to the resolved IP with explicit
 // Host headers (tracked in notes-next-session.md for a future network client refactor).
-export async function isSafeUrl(urlString: string): Promise<boolean> {
+export async function isSafeUrl(urlString: string, options: { allowPrivateIp?: boolean } = {}): Promise<boolean> {
   try {
     const urlObj = new URL(urlString);
     if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') return false;
     
     // Resolve DNS
     const { address } = await lookup(urlObj.hostname);
+
+    // Always allow cross-server workspace sync endpoints or when explicitly allowed for self-hosted instances
+    const isSyncEndpoint = urlObj.pathname.includes('/api/sync/workspace');
+    if (options.allowPrivateIp || isSyncEndpoint) {
+      if (address === '169.254.169.254') return false; // Always block cloud metadata
+      return true;
+    }
     
     // Check IPv4
     if (address.includes('.')) {
